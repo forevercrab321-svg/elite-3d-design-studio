@@ -1,0 +1,27 @@
+{
+  "art_direction": "grounded urban suspense",
+  "color_world": "desaturated charcoal with warm practical highlights",
+  "lighting_logic": "motivated practicals with low-key falloff",
+  "lens_language": "35mm and 50mm lenses for subject intimacy",
+  "movement_language": "controlled dolly and restrained handheld micro-jitter",
+  "texture_rules": [
+    "favor believable skin texture",
+    "avoid glossy plastic surfaces unless story-motivated"
+  ],
+  "environment_rules": [
+    "tight apartment spaces feel lived-in",
+    "objects must remain spatially consistent across cuts"
+  ],
+  "wardrobe_rules": [
+    "muted outerwear",
+    "no spontaneous accessory drift"
+  ],
+  "props_rules": [
+    "hero props must remain visible during key actions",
+    "maintain prop ownership continuity"
+  ],
+  "realism_rules": [
+    "photorealistic lighting response",
+    "no surreal distortions unless explicitly requested"
+  ]
+}

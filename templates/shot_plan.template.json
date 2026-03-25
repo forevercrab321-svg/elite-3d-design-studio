@@ -1,0 +1,33 @@
+{
+  "shots": [
+    {
+      "shot_id": "shot_01",
+      "scene_id": "scene_01",
+      "shot_type": "medium shot",
+      "framing": "waist-up, centered with slight lead room",
+      "lens": "50mm",
+      "camera_motion": "slow backward dolly at chest height",
+      "subject_motion": "measured forward walk",
+      "key_action": "Lead advances while gripping key",
+      "start_pose": "Lead still, key low at hip in right hand",
+      "end_pose": "Lead closer to camera, hand rising toward lock",
+      "continuity_locks": [
+        "same face identity",
+        "same charcoal overcoat",
+        "key remains in right hand"
+      ],
+      "must_show": [
+        "silver key",
+        "hallway practical light spill",
+        "focused gaze"
+      ],
+      "must_not_change": [
+        "coat silhouette",
+        "hair length",
+        "hallway layout"
+      ],
+      "duration": 6,
+      "transition_intent": "cut forward into closer lock interaction"
+    }
+  ]
+}

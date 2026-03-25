@@ -1,0 +1,77 @@
+{
+  "project_title": "Identity Lock Test",
+  "idea": "Test a lead character across three close shots with identical face, outfit, and emotional progression.",
+  "genre": "character study",
+  "emotional_tone": "fragile focus",
+  "realism_level": "photorealistic",
+  "target_aspect_ratio": "16:9",
+  "target_duration": 12,
+  "target_platform": "internal QA",
+  "references": [
+    {
+      "id": "face_lock_ref",
+      "type": "image",
+      "role": "character_reference",
+      "description": "High-resolution frontal portrait"
+    },
+    {
+      "id": "wardrobe_lock_ref",
+      "type": "image",
+      "role": "wardrobe_reference",
+      "description": "Lead jacket and shirt reference"
+    }
+  ],
+  "characters": [
+    {
+      "id": "lead",
+      "name": "Jun",
+      "age_range": "early 30s",
+      "gender_presentation": "androgynous",
+      "face_geometry": "soft angular jaw, narrow eyes, high brow line",
+      "hair": "short textured dark hair",
+      "body_type": "average",
+      "wardrobe_anchors": ["olive field jacket", "cream shirt"],
+      "signature_gesture": "brief downward glance before eye contact",
+      "motion_style": "subtle, interior",
+      "emotional_baseline": "composed uncertainty",
+      "forbidden_drift_list": [
+        "do not widen jaw",
+        "do not change hair texture",
+        "do not add accessories"
+      ]
+    }
+  ],
+  "shot_list": [
+    {
+      "scene_id": "scene_01",
+      "shot_id": "shot_01",
+      "shot_type": "close-up",
+      "key_action": "Jun looks down before lifting eyes to camera"
+    },
+    {
+      "scene_id": "scene_01",
+      "shot_id": "shot_02",
+      "shot_type": "close-up",
+      "key_action": "Jun exhales and turns slightly toward window light"
+    },
+    {
+      "scene_id": "scene_01",
+      "shot_id": "shot_03",
+      "shot_type": "close-up",
+      "key_action": "Jun steadies gaze without expression reset"
+    }
+  ],
+  "constraints": {
+    "must_preserve": [
+      "same face identity across all three shots",
+      "same olive jacket and cream shirt",
+      "same soft emotional progression",
+      "same lens family and eye-line logic"
+    ],
+    "qc_focus": [
+      "identity_consistency",
+      "costume_consistency",
+      "emotional_tone_match"
+    ]
+  }
+}

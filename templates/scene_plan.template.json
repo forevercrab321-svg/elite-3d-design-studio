@@ -1,0 +1,21 @@
+{
+  "scenes": [
+    {
+      "scene_id": "scene_01",
+      "purpose": "Establish threat and anticipation",
+      "emotional_beat": "contained dread",
+      "continuity_dependencies": [],
+      "entrance_state": "Lead stands outside apartment door holding key in right hand",
+      "exit_state": "Lead reaches the lock without entering",
+      "environment_state": "Narrow apartment hallway with warm spill from adjacent room",
+      "props_state": {
+        "silver_key": "held in right hand"
+      },
+      "character_state": {
+        "lead": "tense, upright posture, fixed gaze"
+      },
+      "camera_strategy": "medium coverage with gentle backward movement",
+      "audio_strategy": "low room tone, distant traffic, no score swell"
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "project_title": "Hallway Key",
+  "idea": "A tense woman waits in a dim apartment hallway holding a silver key before unlocking a door.",
+  "genre": "suspense",
+  "emotional_tone": "contained dread",
+  "realism_level": "photorealistic",
+  "target_aspect_ratio": "16:9",
+  "target_duration": 6,
+  "target_platform": "streaming",
+  "references": [
+    {
+      "id": "char_ref_1",
+      "type": "image",
+      "role": "character_reference",
+      "description": "Primary still of Mira in charcoal overcoat"
+    }
+  ],
+  "characters": [
+    {
+      "id": "lead",
+      "name": "Mira",
+      "age_range": "late 20s",
+      "gender_presentation": "woman",
+      "face_geometry": "oval face, sharp cheekbones, straight nose",
+      "hair": "blunt black bob",
+      "body_type": "slim",
+      "wardrobe_anchors": ["charcoal overcoat", "black trousers"],
+      "signature_gesture": "tight grip on silver key",
+      "motion_style": "measured and careful",
+      "emotional_baseline": "restrained anxiety"
+    }
+  ],
+  "constraints": {
+    "must_preserve": [
+      "same face identity",
+      "same coat silhouette",
+      "key remains in right hand"
+    ],
+    "must_show": [
+      "silver key",
+      "warm practical spill in hallway"
+    ]
+  }
+}

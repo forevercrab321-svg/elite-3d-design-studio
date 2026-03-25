@@ -1,0 +1,25 @@
+{
+  "provider": "auto",
+  "model": "sora-2-pro",
+  "resolution": "1920x1080",
+  "duration": 6,
+  "fps": 24,
+  "reference_assets": [
+    {
+      "id": "char_ref_1",
+      "type": "image",
+      "role": "character_reference"
+    }
+  ],
+  "character_reference_ids": [
+    "char_ref_1"
+  ],
+  "extension_chain": [],
+  "edit_chain": [],
+  "retry_count": 0,
+  "qc_thresholds": {
+    "identity_consistency": "PASS",
+    "action_completion": "PASS",
+    "camera_adherence": "PASS"
+  }
+}

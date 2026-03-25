@@ -1,0 +1,31 @@
+{
+  "shot_id": "shot_01",
+  "overall": "SOFT_FAIL",
+  "categories": {
+    "identity_consistency": {
+      "status": "PASS",
+      "notes": "Face identity remained stable"
+    },
+    "costume_consistency": {
+      "status": "PASS",
+      "notes": "Wardrobe anchors matched references"
+    },
+    "object_continuity": {
+      "status": "SOFT_FAIL",
+      "notes": "Key visibility drops in final third of clip"
+    },
+    "action_completion": {
+      "status": "PASS",
+      "notes": "Approach beat completed"
+    },
+    "camera_adherence": {
+      "status": "PASS",
+      "notes": "Backward dolly respected shot plan"
+    },
+    "scene_transition_logic": {
+      "status": "PASS",
+      "notes": "Exit state supports next shot"
+    }
+  },
+  "recommended_action": "Targeted edit to restore key salience in final third"
+}
