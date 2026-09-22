@@ -1,0 +1,27 @@
+# Shared numeric source of truth for the modeling team (CLAUDE.md §21).
+# Generators read values from here; do not hard-code them in scripts.
+# Populate per project. Keep units explicit.
+
+project:
+  name: null          # set when the first brief arrives
+  type: null          # architecture | product | site | vehicle | environment | ...
+  units: meters       # meters for architecture / sites; millimeters for products
+  up_axis: Y          # Three.js / glTF convention
+  handedness: right
+
+delivery:
+  targets: []         # e.g. [glb-web, render-stills, fbx]
+  performance:
+    max_triangles: null
+    max_draw_calls: null
+    max_texture_size: 2048
+    compression: [draco, ktx2]
+
+camera: {}            # e.g. { lens: 35, sensor: 36, aspect: 16:9, resolution: [1920,1080], locked: false }
+
+lighting: {}          # e.g. { sun_azimuth_deg: null, sun_elevation_deg: null, hdri: null }
+
+systems: {}           # parameter blocks per procedural system, e.g.
+                      # solar: { tilt: 30, orientation: north, row_spacing: 6.0 }
+                      # road:  { width: 6.5 }
+                      # landscape: { tree_spacing: 8 }
