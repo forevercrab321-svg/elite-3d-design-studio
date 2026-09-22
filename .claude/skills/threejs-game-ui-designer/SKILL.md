@@ -1,6 +1,7 @@
 ---
 name: threejs-game-ui-designer
 description: "Design premium Three.js game UI: HUDs, menus, overlays, pause/win/lose screens, settings, icon controls, touch UI, typography, responsive layout, safe areas, text fit, and UI/world cohesion."
+disable-model-invocation: true
 ---
 
 # Three.js Game UI Designer

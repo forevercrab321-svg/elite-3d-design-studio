@@ -1,6 +1,7 @@
 ---
 name: threejs-gameplay-systems
 description: "Build and iterate playable Three.js game systems: starter scaffold, architecture, design briefs, core loops, level and encounter design, entities, input, camera, collision and physics, scoring, objectives, and game feel. Use for first playable slices, new Vite/TypeScript/Three.js setups, level/arena/track/wave/hole/puzzle design, combat encounters, difficulty tuning, and juice."
+disable-model-invocation: true
 ---
 
 # Three.js Gameplay Systems
