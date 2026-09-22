@@ -17,9 +17,34 @@ delivery:
     max_texture_size: 2048
     compression: [draco, ktx2]
 
-camera: {}            # e.g. { lens: 35, sensor: 36, aspect: 16:9, resolution: [1920,1080], locked: false }
+site:
+  ground_size: 60     # metres; neutral datum plane at y = 0
 
-lighting: {}          # e.g. { sun_azimuth_deg: null, sun_elevation_deg: null, hdri: null }
+references:           # review aids — rendered, never exported
+  scale_figure: true      # 1750 mm human proxy
+  calibration_cube: true  # 1 m cube
+
+render:
+  resolution: [1600, 900]
+  exposure: 1.0
+
+camera:
+  # Named physical cameras. lens/sensor in mm (sensor = horizontal film width).
+  # Set locked: true once the Creative Director approves a view (§14, §19).
+  # Orthographic QA views top / front / right are generated automatically.
+  views:
+    review_persp:
+      position: [7.5, 3.2, 9.0]
+      target: [0.6, 0.9, 0.0]
+      lens: 35
+      sensor: 36
+      locked: false
+
+lighting:
+  sun_azimuth_deg: 225    # clockwise from north (-Z)
+  sun_elevation_deg: 38
+  sun_intensity: 2.6
+  sky_intensity: 0.9
 
 systems: {}           # parameter blocks per procedural system, e.g.
                       # solar: { tilt: 30, orientation: north, row_spacing: 6.0 }
