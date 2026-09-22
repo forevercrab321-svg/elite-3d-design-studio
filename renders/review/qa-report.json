@@ -1,0 +1,28 @@
+{
+  "passed": true,
+  "units": "meters",
+  "stats": {
+    "meshes": 4,
+    "drawCalls": 4,
+    "triangles": 614,
+    "materials": 3,
+    "textures": 0,
+    "maxTextureSize": 0,
+    "contentSize": null
+  },
+  "budgets": {
+    "maxTriangles": null,
+    "maxDrawCalls": null,
+    "maxTextureSize": 2048
+  },
+  "findings": [
+    {
+      "severity": "info",
+      "check": "content",
+      "object": "PROJECT",
+      "detail": "no project geometry yet (only site and references)"
+    }
+  ],
+  "unknownSystems": [],
+  "pageErrors": []
+}
