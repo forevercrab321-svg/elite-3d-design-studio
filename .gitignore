@@ -1,3 +1,28 @@
-__pycache__/
-*.py[cod]
+# OS / editor
 .DS_Store
+Thumbs.db
+
+# Node / web
+node_modules/
+dist/
+test-results/
+playwright-report/
+coverage/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Secrets
+.env
+.env.*
+
+# Skill scratch (job checkpoints, raw evidence)
+artifacts/
+
+# DCC autosaves / backups
+*.blend1
+*.blend2
+*.3dm.rhl
+*.bak
