@@ -14,7 +14,8 @@ The studio turns design intent — references, sketches, images, dimensions, dra
 | [`docs/design-decisions.md`](docs/design-decisions.md) | Design memory: approvals, locked elements, user corrections, pending issues. |
 | [`docs/skill-integration.md`](docs/skill-integration.md) | How the installed skills map onto the studio's agents. |
 | [`docs/project-diagnosis.md`](docs/project-diagnosis.md) | Current repository / pipeline state. |
-| [`.claude/skills/`](.claude/skills) | Installed skills — [`threejs-game-skills`](https://github.com/majidmanzarpour/threejs-game-skills) (MIT). |
+| [`.claude/skills/studio-3d-design/`](.claude/skills/studio-3d-design/SKILL.md) | Studio workflow skill — the entry point for all 3D design work. |
+| [`.claude/skills/`](.claude/skills) | Specialist skills from [`threejs-game-skills`](https://github.com/majidmanzarpour/threejs-game-skills) (MIT). |
 
 ### The team
 
@@ -26,11 +27,28 @@ Design Director · 3D Modeling Director · Architectural/Spatial Specialist · H
 UNDERSTAND → ANALYZE → DESIGN → MODEL → VERIFY → VISUALIZE → OPTIMIZE → DOCUMENT → ITERATE
 ```
 
+## Pipeline
+
+```bash
+npm install
+npm run studio:check     # review renders + geometry QA + GLB export (non-zero exit on failure)
+npm run dev              # interactive viewer → http://127.0.0.1:5190
+```
+
+| Output | Location |
+| --- | --- |
+| Review renders (spec cameras + orthographic top/front/right) | `renders/review/*.png` |
+| Geometry QA report | `renders/review/qa-report.json` |
+| GLB export | `exports/glb/<PROJECT>.glb` |
+
+Every review render includes a 1750 mm human proxy and a 1 m calibration cube for scale. Both are excluded from exports.
+
 ## Repository layout
 
 ```text
 assets/      models/ textures/ environment/     source & generated assets
-src/         geometry/ generators/ materials/ scene/   procedural code
+src/         geometry/ generators/ materials/ scene/   procedural scene code (TypeScript + Three.js)
+tools/       studio.mjs                          headless render / QA / export driver
 exports/     glb/ fbx/ usd/                      delivery files
 renders/     review/ final/                      review captures & final images
 references/                                      user-supplied images, drawings, CAD

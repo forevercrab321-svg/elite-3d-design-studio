@@ -20,6 +20,7 @@ Every modeling decision must be intentional.
 > - `model-spec.yaml` — shared numeric source of truth (§21)
 > - `docs/skill-integration.md` — how the studio uses the installed `threejs-*` skills (§33)
 > - `docs/project-diagnosis.md` — current repository state (§32)
+> - `.claude/skills/studio-3d-design/SKILL.md` — the studio production workflow and commands (`npm run studio:check`)
 
 ---
 
@@ -480,7 +481,7 @@ Then begin production.
 
 ## 33 — SKILL INTEGRATION
 
-The `threejs-game-skills` pack is installed at `.claude/skills/` (see `docs/skill-integration.md` for the agent-to-skill mapping). For this and any future Skill:
+The studio workflow skill `studio-3d-design` is the entry point for all 3D work. The `threejs-game-skills` pack is installed at `.claude/skills/`, with its game-only skills set to manual invocation (see `docs/skill-integration.md` for the agent-to-skill mapping). For these and any future Skill:
 
 1. Read the complete Skill documentation.
 2. Understand every available command and capability.
