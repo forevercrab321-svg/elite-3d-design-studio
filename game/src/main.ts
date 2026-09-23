@@ -12,17 +12,22 @@ import { FIXED_DT, Game } from './game/Game';
  * GROW EVERYTHING — entry point.
  *   ?test=1          no RAF loop; the playtest harness advances time through window.__GROW__
  *   ?seed=N          deterministic layout / effects seed
- *   ?quality=high|medium|low   render tier (default: high on desktop, medium on touch devices)
+ *   ?quality=high|medium|low   render tier (default: high on desktop, medium on touch devices);
+ *                    also #high / #medium / #low where the query string is unavailable (hosted page)
  *   ?tonemap=agx|aces|neutral  tone mapping curve for look development (default agx)
  */
 const params = new URLSearchParams(location.search);
 const testMode = params.has('test');
 const seed = Number(params.get('seed') ?? 1337);
 const touch = matchMedia('(pointer: coarse)').matches;
-const quality = (params.get('quality') as Quality | null) ?? (touch ? 'medium' : 'high');
+const hashQuality = ['high', 'medium', 'low'].includes(location.hash.slice(1)) ? (location.hash.slice(1) as Quality) : null;
+const quality = (params.get('quality') as Quality | null) ?? hashQuality ?? (touch ? 'medium' : 'high');
 
 const renderer = new THREE.WebGLRenderer({ antialias: quality === 'low', preserveDrawingBuffer: testMode, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, touch ? 1.5 : 2));
+// Retina at 2× under an MSAA HalfFloat chain + GTAO + bloom exhausts integrated GPUs (black
+// frames, GPU resets). Cap the render scale; the live loop lowers it further if frames drop.
+const maxPixelRatio = touch ? 1.25 : quality === 'high' ? 1.5 : quality === 'medium' ? 1.25 : 1;
+renderer.setPixelRatio(Math.min(devicePixelRatio, maxPixelRatio));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 const TONEMAPS = { agx: THREE.AgXToneMapping, aces: THREE.ACESFilmicToneMapping, neutral: THREE.NeutralToneMapping } as const;
 renderer.toneMapping = TONEMAPS[(params.get('tonemap') as keyof typeof TONEMAPS) ?? 'agx'] ?? THREE.AgXToneMapping;
@@ -115,6 +120,37 @@ if (!testMode) {
   game.onEvent = (e) => audio.handle(e);
   let last = performance.now();
   let acc = 0;
+  // Adaptive quality: every 2 s under 28 fps drops render scale by 0.25 (down to 1), then GTAO.
+  let perfFrames = 0;
+  let perfTime = 0;
+  let warmup = 3;
+  const adapt = (dt: number) => {
+    if (warmup > 0) {
+      warmup -= dt; // shader compilation hitches at start are not a performance signal
+      return;
+    }
+    perfFrames++;
+    perfTime += dt;
+    if (perfTime < 2) return;
+    const avg = perfFrames / perfTime;
+    perfFrames = 0;
+    perfTime = 0;
+    if (avg >= 28) return;
+    const pr = renderer.getPixelRatio();
+    if (pr > 1.01) {
+      renderer.setPixelRatio(Math.max(1, pr - 0.25));
+      resize();
+    } else pipeline.disableAO();
+  };
+  renderer.domElement.addEventListener('webglcontextlost', (e) => {
+    e.preventDefault(); // allow restoration instead of a permanent black canvas
+    renderer.setAnimationLoop(null);
+    const note = document.createElement('div');
+    note.textContent = 'GRAPHICS DRIVER RESET · RELOADING…';
+    note.style.cssText = 'position:fixed;inset:0;display:grid;place-items:center;background:#16181a;color:#ffb347;font:800 14px system-ui,sans-serif;letter-spacing:.2em;z-index:20';
+    document.body.appendChild(note);
+    setTimeout(() => location.reload(), 1500);
+  });
   renderer.setAnimationLoop((now) => {
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
@@ -125,6 +161,7 @@ if (!testMode) {
     }
     audio.update(Math.min(1, Math.abs(game.player.speed) / game.topSpeed()), game.player.diameter, game.player.tier);
     renderFrame();
+    adapt(dt);
     fpsFrames++;
     fpsTime += dt;
     if (fpsTime >= 1) {

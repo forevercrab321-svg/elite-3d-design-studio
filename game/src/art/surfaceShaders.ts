@@ -111,6 +111,9 @@ export function interiorMapping(material: THREE.MeshPhysicalMaterial, room: Room
       NOISE +
       `
       vec3 interior(vec3 p, vec3 n, vec3 c) {
+        // Only vertical glass has a room behind it; the thin pane's top/bottom faces would make
+        // cross(up, n) zero, and normalize(0) is NaN — which bloom smears into black screens.
+        if (abs(n.y) > 0.5) return vec3(0.0);
         vec3 t = normalize(cross(vec3(0.0, 1.0, 0.0), n));
         vec3 v = normalize(p - cameraPosition);
         vec3 rel = p - c;
@@ -177,7 +180,7 @@ export function interiorMapping(material: THREE.MeshPhysicalMaterial, room: Room
         '#include <emissivemap_fragment>',
         `#include <emissivemap_fragment>
         {
-          vec3 n = normalize(vWNormal);
+          vec3 n = vWNormal / max(length(vWNormal), 1e-5);
           vec3 v = normalize(cameraPosition - vWPos);
           float fres = pow(1.0 - clamp(dot(v, n), 0.0, 1.0), 4.0);
           totalEmissiveRadiance += interior(vWPos, n, vRoomCenter) * (1.0 - fres) * 0.85;
