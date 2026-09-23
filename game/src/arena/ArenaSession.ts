@@ -76,7 +76,7 @@ export class ArenaSession {
   constructor(
     readonly net: Net,
     private readonly hooks: SessionHooks,
-    private readonly nickname: string,
+    private nickname: string,
   ) {
     this.match = { ep: 0, ph: 'lobby', host: '', city: this.city, seed: 1, bots: true, roster: [], t: 0 };
     this.publishLobbyPresence();
@@ -122,6 +122,15 @@ export class ArenaSession {
   }
 
   // ── Lobby actions ─────────────────────────────────────────────────────────
+  setNickname(n: string): void {
+    this.nickname = n.trim().slice(0, 16) || this.nickname;
+    this.publishLobbyPresence();
+  }
+
+  get name(): string {
+    return this.nickname;
+  }
+
   setVehicle(v: VehicleLook): void {
     this.vehicle = v;
     this.publishLobbyPresence();

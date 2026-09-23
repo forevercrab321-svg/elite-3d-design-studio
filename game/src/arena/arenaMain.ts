@@ -6,6 +6,9 @@ import { RenderPipeline } from '../art/postfx';
 import { installRenderGuards, type AppContext } from '../app';
 import { FIXED_DT } from '../game/Game';
 import { LocalNet, RoomNet, SoloNet, type Net } from '../net/Net';
+import { SupabaseNet } from '../net/SupabaseNet';
+import { backendConfigured, supabase } from '../backend/supabase';
+import { startTelemetry, track } from '../backend/telemetry';
 import { CITIES, cityById } from '../world/cities';
 import type { CityDef } from '../world/city';
 import { ArenaBot } from './ArenaBot';
@@ -21,12 +24,26 @@ import { award } from './progress';
  */
 export async function runArena(ctx: AppContext): Promise<void> {
   const { renderer, lib, input, quality, testMode, params } = ctx;
-  const nickname = params.get('name') ?? `Player ${Math.floor(Math.random() * 900 + 100)}`;
+  const nickname = params.get('name') ?? savedName() ?? `玩家${Math.floor(Math.random() * 900 + 100)}`;
+  const platform = params.get('platform') ?? 'web';
   let net: Net | null = null;
-  if (params.get('net') === 'local') net = new LocalNet(params.get('room') ?? 'dev', nickname);
-  else if (params.get('net') !== 'solo') net = await RoomNet.connect();
-  const modeLabel = !net ? '单人' : net.kind === 'room' ? '在线房间' : net.kind === 'local' ? '本地多开' : '单人';
+  const want = params.get('net');
+  if (want === 'local') net = new LocalNet(params.get('room') ?? 'dev', nickname);
+  else if (want !== 'solo') {
+    // claude.ai artifact → its room; stand-alone build with a backend → a public room code.
+    if (want !== 'online') net = await RoomNet.connect();
+    if (!net && backendConfigured()) {
+      const code = (params.get('room') ?? newRoomCode()).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) || newRoomCode();
+      const url = new URL(location.href);
+      url.searchParams.set('room', code);
+      history.replaceState(null, '', url);
+      net = await SupabaseNet.connect(code, nickname);
+    }
+  }
+  const modeLabel = !net ? '单人' : net.kind === 'room' || net.kind === 'online' ? '在线房间' : net.kind === 'local' ? '本地多开' : '单人';
   net ??= new SoloNet(nickname);
+  if (!testMode) void startTelemetry(nickname, platform);
+  track('lobby_view', { mode: net.kind });
 
   let game: ArenaGame | null = null;
   let preview: ArenaGame | null = null;
@@ -67,6 +84,7 @@ export async function runArena(ctx: AppContext): Promise<void> {
         game = g;
         g.onEvent = (e) => audio?.handle(e);
         audio?.setTheme(city.id);
+        track('match_start', { city: city.id, humans: state.roster.filter((r) => r.kind === 'player').length, bots: state.roster.filter((r) => r.kind === 'bot').length, player: localId !== null });
         envFor(g.scene, city);
         usePipeline(g);
         ui.resetRound();
@@ -89,7 +107,11 @@ export async function runArena(ctx: AppContext): Promise<void> {
     nickname,
   );
   const ui = new ArenaUi(session, modeLabel);
-  ui.onEmote = (id) => game?.emote(id);
+  ui.onShare = () => track('share_click', { room: true });
+  ui.onEmote = (id) => {
+    game?.emote(id);
+    track('emote', { id });
+  };
   addEventListener('keydown', (e) => {
     if (!game || e.repeat) return;
     const m = /^Digit([1-6])$/.exec(e.code);
@@ -131,6 +153,9 @@ export async function runArena(ctx: AppContext): Promise<void> {
         const me = standings.find((s) => s.id === session.selfId());
         const earned = me && !testMode ? award(me.rank, me.kills, game.city.level) : { coins: 0, unlocked: null };
         ui.showResults(standings, session.selfId(), earned);
+        const mine = standings.find((x) => x.id === session.selfId());
+        track('match_end', { city: game.city.id, rank: mine?.rank ?? null, mass: mine ? Math.round(mine.mass) : null, kills: mine?.kills ?? null, deaths: mine?.deaths ?? null, seconds: Math.round(game.matchTime), landmark: game.climaxLeft() === 0 });
+        if (session.isHost()) void submitMatch(session, game, standings);
       }
     } else if (preview) {
       // Lobby flyover around the city centre.
@@ -243,4 +268,32 @@ export async function runArena(ctx: AppContext): Promise<void> {
       standings: session.match.standings ?? null,
     };
   }
+}
+
+function newRoomCode(): string {
+  const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let c = '';
+  for (let i = 0; i < 5; i++) c += abc[Math.floor(Math.random() * abc.length)];
+  return c;
+}
+
+function savedName(): string | null {
+  try {
+    return localStorage.getItem('grow-arena-name');
+  } catch {
+    return null;
+  }
+}
+
+/** Host → server: record the finished match (results and coins are written server-side). */
+async function submitMatch(session: ArenaSession, game: ArenaGame, standings: import('./ArenaGame').Standing[]): Promise<void> {
+  const sb = supabase();
+  if (!sb || session.net.kind !== 'online') return;
+  const uidOf = new Map(session.net.peers().map((p) => [p.id, p.by]));
+  const rows = standings.map((st) => {
+    const r = session.match.roster.find((x) => x.id === st.id);
+    return { slot: r?.slot ?? 0, playerId: r?.kind === 'player' ? (uidOf.get(st.id) ?? null) : null, vehicle: r?.vehicle ?? 'collector', rank: st.rank, mass: st.mass, kills: st.kills, deaths: st.deaths, objects: st.objects, leftEarly: !!game.byId.get(st.id)?.left };
+  });
+  const reason = game.climaxLeft() === 0 ? 'landmark' : game.matchTime >= 299 ? 'time' : 'last_standing';
+  await sb.functions.invoke('submit-match', { body: { room: (session.net as SupabaseNet).room, city: game.city.id, durationS: game.matchTime, endReason: reason, build: import.meta.env.VITE_BUILD_ID ?? 'dev', rows } }).catch(() => undefined);
 }

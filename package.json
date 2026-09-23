@@ -18,6 +18,7 @@
     "inspect:game": "node tools/inspect-game.mjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.117.1",
     "three": "^0.184.0",
     "yaml": "^2.8.0"
   },

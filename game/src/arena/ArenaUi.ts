@@ -60,6 +60,9 @@ const CSS = `
 #arena .btn.primary { background: #ffb347; color: #16181a; }
 #arena .btn:disabled { opacity: .4; cursor: default; }
 #arena label.tog { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; pointer-events: auto; }
+#arena .nick { display: flex; gap: 8px; align-items: center; font-size: 12px; font-weight: 700; margin-bottom: 10px; }
+#arena .nick input { flex: 1; min-width: 0; font: inherit; font-size: 14px; padding: 7px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,.15); background: rgba(0,0,0,.3); color: inherit; }
+#arena .invite .btn { margin-top: 8px; }
 #arena .invite { font-size: 12px; line-height: 1.6; opacity: .8; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.08); }
 #arena .coins { color: #ffd35a; font-weight: 800; }
 #arena .timer { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); text-align: center; text-shadow: 0 2px 8px rgba(0,0,0,.5); }
@@ -129,6 +132,7 @@ export class ArenaUi {
   private mapAt = 0;
   onStory: (() => void) | null = null;
   onEmote: ((id: number) => void) | null = null;
+  onShare: (() => void) | null = null;
 
   constructor(
     private readonly session: ArenaSession,
@@ -166,8 +170,8 @@ export class ArenaUi {
       </div>
       <div class="cols">
         <div class="col"><div class="h">关卡 LEVELS${host ? '' : ' · 由房主选择'}</div><div class="cities"></div></div>
-        <div class="col"><div class="h">玩家 PLAYERS</div><div class="slots"></div>
-          <div class="invite">${s.net.kind === 'room' ? '邀请好友：点页面右上角的 <b>Share</b>，给好友「可互动」或更高权限，再把链接发给他们。好友用自己的 Claude 账号登录打开即可加入。' : s.net.kind === 'local' ? '本地多开测试：同一浏览器再开一个标签页即可加入。' : '单人模式：AI 对手补满 4 个位置。发布到 claude.ai 后可与好友在线对战。'}</div></div>
+        <div class="col"><div class="h">玩家 PLAYERS</div>${s.net.kind === 'room' ? '' : '<label class="nick">昵称 <input maxlength="16" aria-label="昵称 nickname"></label>'}<div class="slots"></div>
+          <div class="invite">${s.net.kind === 'online' ? `房间号 <b class="code"></b> · 把链接发给好友就能一起玩（最多 4 人）<br><button class="btn" data-a="copy">复制邀请链接 COPY LINK</button>` : s.net.kind === 'room' ? '邀请好友：点页面右上角的 <b>Share</b>，给好友「可互动」或更高权限，再把链接发给他们。好友用自己的 Claude 账号登录打开即可加入。' : s.net.kind === 'local' ? '本地多开测试：同一浏览器再开一个标签页即可加入。' : '单人模式：AI 对手补满 4 个位置。发布到 claude.ai 后可与好友在线对战。'}</div></div>
         <div class="col"><div class="h">选择车辆 VEHICLE</div><div class="vehs"></div></div>
       </div>
       <div class="foot">
@@ -230,6 +234,21 @@ export class ArenaUi {
       };
       vehs.appendChild(b);
     }
+    const code = this.lobby.querySelector('.invite .code');
+    if (code) code.textContent = new URL(location.href).searchParams.get('room') ?? '';
+    const nick = this.lobby.querySelector('.nick input') as HTMLInputElement | null;
+    if (nick) {
+      nick.value = s.name;
+      nick.onchange = () => {
+        s.setNickname(nick.value);
+        try {
+          localStorage.setItem('grow-arena-name', s.name);
+        } catch {
+          /* private mode */
+        }
+        this.renderLobby();
+      };
+    }
     this.lobby.querySelectorAll('[data-a]').forEach((el) => {
       (el as HTMLButtonElement).onclick = () => {
         const a = (el as HTMLElement).dataset.a;
@@ -237,6 +256,11 @@ export class ArenaUi {
         else if (a === 'ready') s.setReady(!s.ready);
         else if (a === 'start') s.start();
         else if (a === 'story') this.onStory?.();
+        else if (a === 'copy') {
+          void navigator.clipboard?.writeText(location.href).then(() => ((el as HTMLElement).textContent = '已复制 ✓ COPIED'));
+          this.onShare?.();
+          return;
+        }
         this.renderLobby();
       };
     });

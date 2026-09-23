@@ -26,7 +26,7 @@ export interface NetMessage {
 }
 
 export interface Net {
-  readonly kind: 'room' | 'local' | 'solo';
+  readonly kind: 'room' | 'local' | 'solo' | 'online';
   /** My peer id once known (null until the transport answers). */
   selfId(): string | null;
   peers(): readonly NetPeer[];

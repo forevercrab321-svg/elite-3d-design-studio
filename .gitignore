@@ -26,3 +26,4 @@ artifacts/
 *.blend2
 *.3dm.rhl
 *.bak
+!.env.example
