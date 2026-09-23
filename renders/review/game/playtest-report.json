@@ -1,6 +1,6 @@
 {
   "seed": 1337,
-  "date": "2026-09-23T00:46:45.287Z",
+  "date": "2026-09-23T04:30:07.954Z",
   "bot": {
     "seconds": 90,
     "final": {
@@ -28,7 +28,7 @@
         "1": 0.8000000000000008,
         "2": 9.450000000000049,
         "3": 18.600000000000225,
-        "4": 29.816666666666254
+        "4": 29.79999999999959
       },
       "objectsCollected": 245,
       "bumps": 4,
@@ -194,12 +194,12 @@
       "firstCollection": 0.6833333333333338,
       "firstGrowth": 7.799999999999978,
       "mediumObjects": 18.200000000000248,
-      "clearlyLargerObject": 29.816666666666254
+      "clearlyLargerObject": 29.79999999999959
     }
   },
   "smoke": {
-    "moved": 2.1987410927916358,
-    "collectedDuringSmoke": 4,
+    "moved": 6.152267367898915,
+    "collectedDuringSmoke": 11,
     "afterRestart": {
       "mass": 5,
       "x": 0,
@@ -207,11 +207,37 @@
       "resets": 1
     },
     "perf": {
-      "fps": 10.910082734794086,
-      "drawCalls": 58,
-      "triangles": 28148,
-      "geometries": 78,
-      "textures": 3,
+      "fps": 11.612154054577191,
+      "drawCalls": 136,
+      "calls": 136,
+      "triangles": 324970,
+      "geometries": 92,
+      "textures": 41,
+      "programs": 33,
+      "instancedMeshes": 54,
+      "sceneMeshes": 89,
+      "playerMeshes": 14,
+      "shadowCasters": 47,
+      "postPasses": 0,
+      "quality": "low",
+      "dpr": 1,
+      "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+    },
+    "perfHigh": {
+      "fps": 0,
+      "drawCalls": 286,
+      "calls": 286,
+      "triangles": 636526,
+      "geometries": 101,
+      "textures": 60,
+      "programs": 49,
+      "instancedMeshes": 54,
+      "sceneMeshes": 96,
+      "playerMeshes": 22,
+      "shadowCasters": 55,
+      "postPasses": 2,
+      "quality": "high",
+      "dpr": 1,
       "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
     },
     "softwareRendered": true
@@ -250,7 +276,7 @@
     {
       "name": "collect a clearly larger object (class 4)",
       "pass": true,
-      "detail": "at 29.816666666666254 s"
+      "detail": "at 29.79999999999959 s"
     },
     {
       "name": "pacing firstCollection {\"max\":2.9}",
@@ -270,7 +296,7 @@
     {
       "name": "pacing clearlyLargerObject {\"max\":44.1}",
       "pass": true,
-      "detail": "29.816666666666254 s"
+      "detail": "29.79999999999959 s"
     },
     {
       "name": "stuck events ≤ 3",
@@ -280,7 +306,7 @@
     {
       "name": "keyboard W moves the player",
       "pass": true,
-      "detail": "2.20 m in 2.1 s (game frames 40)"
+      "detail": "6.15 m over 98 game frames"
     },
     {
       "name": "R restarts the run",
@@ -288,9 +314,14 @@
       "detail": "{\"mass\":5,\"x\":0,\"z\":32,\"resets\":1}"
     },
     {
-      "name": "draw calls ≤ 80",
+      "name": "draw calls ≤ 300 (high tier, desktop budget)",
       "pass": true,
-      "detail": "58 calls, 28148 tris"
+      "detail": "286 calls"
+    },
+    {
+      "name": "triangles ≤ 750k (high tier, desktop budget)",
+      "pass": true,
+      "detail": "636526 tris"
     },
     {
       "name": "no page or console errors",

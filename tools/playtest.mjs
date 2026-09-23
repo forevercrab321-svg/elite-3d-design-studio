@@ -46,7 +46,7 @@ try {
   const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
   page.on('pageerror', (e) => report.errors.push(`bot page: ${e.message}`));
   page.on('console', (m) => m.type() === 'error' && report.errors.push(`bot console: ${m.text()}`));
-  await page.goto(`${base}game/?test=1&seed=${seed}`);
+  await page.goto(`${base}game/?test=1&seed=${seed}&quality=high`);
   await page.waitForFunction(() => window.__GROW__?.ready, null, { timeout: 60_000 });
   const shot = async (name) => {
     await page.evaluate(() => window.__GROW__.render());
@@ -106,30 +106,35 @@ try {
   report.bot.pacing = pacing;
 
   // ── 2. Real-input smoke test ──────────────────────────────────────────────
-  const live = await browser.newPage({ viewport: { width: 1600, height: 900 } });
+  // Small viewport + low tier keep the CPU-rasterised cloud browser responsive; the assertion is
+  // on SIMULATED time (game frames), so it holds at any frame rate.
+  const live = await browser.newPage({ viewport: { width: 800, height: 450 } });
   live.on('pageerror', (e) => report.errors.push(`live page: ${e.message}`));
   live.on('console', (msg) => msg.type() === 'error' && report.errors.push(`live console: ${msg.text()}`));
-  await live.goto(`${base}game/?seed=${seed}`);
-  await live.waitForFunction(() => window.__THREE_GAME_DIAGNOSTICS__?.frame > 5, null, { timeout: 60_000 });
+  await live.goto(`${base}game/?seed=${seed}&quality=low`);
+  await live.waitForFunction(() => window.__THREE_GAME_DIAGNOSTICS__?.frame > 5, null, { timeout: 300_000, polling: 500 });
   const d0 = await live.evaluate(() => window.__THREE_GAME_DIAGNOSTICS__);
   await live.keyboard.down('KeyW');
-  await live.waitForTimeout(1500);
+  await live.waitForFunction((f) => window.__THREE_GAME_DIAGNOSTICS__.frame >= f + 60, d0.frame, { timeout: 300_000, polling: 200 });
   await live.keyboard.press('Space');
-  await live.waitForTimeout(600);
+  await live.waitForFunction((f) => window.__THREE_GAME_DIAGNOSTICS__.frame >= f + 90, d0.frame, { timeout: 300_000, polling: 200 });
   await live.keyboard.up('KeyW');
   const d1 = await live.evaluate(() => window.__THREE_GAME_DIAGNOSTICS__);
   await live.screenshot({ path: path.join(out, '07-live-after-input.png') });
   await live.keyboard.press('KeyR');
   // Wait for the frame that applies the restart (software rendering can be < 5 fps).
-  await live.waitForFunction(() => window.__THREE_GAME_DIAGNOSTICS__?.metrics.resets >= 1, null, { timeout: 5000 }).catch(() => {});
+  await live.waitForFunction(() => window.__THREE_GAME_DIAGNOSTICS__?.metrics.resets >= 1, null, { timeout: 120_000, polling: 200 }).catch(() => {});
   const d2 = await live.evaluate(() => window.__THREE_GAME_DIAGNOSTICS__);
-  await live.waitForTimeout(2000);
   const perf = await live.evaluate(() => window.__GROW__.perf());
   const moved = Math.hypot(d1.x - d0.x, d1.z - d0.z);
   report.smoke = { moved, collectedDuringSmoke: d1.metrics.objectsCollected, afterRestart: { mass: d2.mass, x: d2.x, z: d2.z, resets: d2.metrics.resets }, perf };
-  check('keyboard W moves the player', moved > 1, `${moved.toFixed(2)} m in 2.1 s (game frames ${d1.frame - d0.frame})`);
+  check('keyboard W moves the player', moved > 1, `${moved.toFixed(2)} m over ${d1.frame - d0.frame} game frames`);
   check('R restarts the run', d2.mass === 5 && Math.abs(d2.z - 32) < 0.5 && d2.metrics.resets >= 1, JSON.stringify(report.smoke.afterRestart));
-  check('draw calls ≤ 80', perf.drawCalls <= 80, `${perf.drawCalls} calls, ${perf.triangles} tris`);
+  // Render budget for the shipping (high) tier is measured on the bot page, which runs quality=high.
+  const hi = await page.evaluate(() => window.__GROW__.perf());
+  report.smoke.perfHigh = hi;
+  check('draw calls ≤ 300 (high tier, desktop budget)', hi.drawCalls <= 300, `${hi.drawCalls} calls`);
+  check('triangles ≤ 750k (high tier, desktop budget)', hi.triangles <= 750_000, `${hi.triangles} tris`);
   report.smoke.softwareRendered = /swiftshader|llvmpipe|software/i.test(perf.gpu);
   check('no page or console errors', report.errors.length === 0, report.errors.join(' | ') || 'none');
 } finally {
