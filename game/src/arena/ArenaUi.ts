@@ -14,6 +14,7 @@ import { progress } from './progress';
 const CSS = `
 #arena { position: fixed; inset: 0; pointer-events: none; font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif; color: #f2efe8; -webkit-font-smoothing: antialiased; z-index: 5; }
 #arena .hex { font-variant-numeric: tabular-nums; }
+#arena [hidden] { display: none !important; }
 #arena button { font: inherit; cursor: pointer; pointer-events: auto; }
 #arena button:focus-visible { outline: 2px solid #ffb347; outline-offset: 2px; }
 #arena .lobby { position: absolute; inset: 0; display: grid; grid-template-rows: auto 1fr auto; gap: 16px; padding: 22px max(16px, 3vw); pointer-events: auto;

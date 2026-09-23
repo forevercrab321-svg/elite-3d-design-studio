@@ -548,7 +548,6 @@ export class ArenaGame {
       this.effects.addTrauma(big ? feelConfig.largePickupTrauma * Math.min(1, size / a.diameter) : feelConfig.pickupTrauma);
       this.onEvent?.({ kind: 'absorb', cls: o.def.objectClass, mass: gain, size, destruction: o.def.destructionType });
       if (o.def.bonus) this.onFeed?.(`Golden crate +${Math.round(gain).toLocaleString('en-US')} kg`, 'bonus');
-      if (a.combo >= 3 && a.combo % 3 === 0) this.onFeed?.(`Combo ×${mult.toFixed(1)}`, 'bonus');
       if (climaxLeft === 0) this.hud.showBanner(`${this.city.climaxName.toUpperCase()} DESTROYED`, `LANDMARK BONUS +${Math.round(A.landmarkBonus * 100)}%`, 3);
     }
   }

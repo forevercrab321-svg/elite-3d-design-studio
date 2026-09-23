@@ -11,9 +11,9 @@ import { CURB_HEIGHT, GROUND, STATIC_BLOCKS, WORLD_BOUNDS, type StaticBlock } fr
  * material into a handful of meshes (one draw call per material), with metre-scale
  * box-projected UVs and baked ground AO on walls.
  */
-type ArchKey = keyof MaterialLibrary['arch'];
+export type ArchKey = keyof MaterialLibrary['arch'];
 
-class Batch {
+export class Batch {
   private readonly lists = new Map<ArchKey, THREE.BufferGeometry[]>();
   private readonly m = new THREE.Matrix4();
   private readonly q = new THREE.Quaternion();
@@ -94,7 +94,7 @@ const box = (w: number, h: number, d: number) => new THREE.BoxGeometry(w, h, d);
 const cyl = (r: number, h: number, seg = 12) => new THREE.CylinderGeometry(r, r, h, seg);
 
 /** A building face that the player can see, in world space. */
-interface Face {
+export interface Face {
   block: StaticBlock;
   cx: number; // face centre at ground
   cz: number;
@@ -102,6 +102,8 @@ interface Face {
   len: number;
   ground: 'shop' | 'service' | 'plain';
   seed: number;
+  /** Background facade: glass, sill and lintel only (no frames, mullions, reveals, AC units). */
+  lite?: boolean;
 }
 
 const WALL: Record<StaticBlock['material'], ArchKey> = { brick: 'brick', darkBrick: 'darkBrick', plaster: 'plaster', concrete: 'concrete', steel: 'steelDark' };
@@ -176,7 +178,7 @@ export function buildCity(lib: MaterialLibrary): CityBuild {
 }
 
 // ── Facade authoring ─────────────────────────────────────────────────────────
-function facade(batch: Batch, f: Face): void {
+export function facade(batch: Batch, f: Face): void {
   const rand = createSeededRandom(f.seed * 7919);
   const b = f.block;
   const wall = WALL[b.material];
@@ -207,6 +209,11 @@ function facade(batch: Batch, f: Face): void {
       const h = 1.7;
       const cy = y + h / 2;
       put('windowGlass', box(w - 0.08, h - 0.08, 0.02), u, cy, 0.01); // interior + lit rooms come from the glass shader
+      if (f.lite) {
+        put(trim, box(w + 0.34, 0.07, 0.2), u, cy - h / 2 - 0.035, 0.1);
+        put(trim, box(w + 0.34, 0.2, 0.12), u, cy + h / 2 + 0.1, 0.06);
+        continue;
+      }
       put('windowFrame', box(w, 0.05, 0.05), u, cy + h / 2 - 0.025, 0.03);
       put('windowFrame', box(w, 0.05, 0.05), u, cy - h / 2 + 0.025, 0.03);
       put('windowFrame', box(0.05, h, 0.05), u - w / 2 + 0.025, cy, 0.03);

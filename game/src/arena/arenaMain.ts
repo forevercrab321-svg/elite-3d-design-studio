@@ -181,6 +181,8 @@ export async function runArena(ctx: AppContext): Promise<void> {
     ready: true,
     session,
     game: () => game,
+    preview: () => preview,
+    stats: () => ({ calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, objects: (game ?? preview)?.world.objects.length ?? 0 }),
     step: (seconds: number) => {
       for (let i = 0; i < Math.round(seconds / FIXED_DT); i++) tick(FIXED_DT);
       return summary();

@@ -21,7 +21,7 @@ await mkdir(out, { recursive: true });
 
 const server = await createServer({ root, logLevel: 'error', server: { host: '127.0.0.1', port: 5198, strictPort: false } });
 await server.listen();
-const url = `${server.resolvedUrls.local[0]}game/?test=1&seed=1337&quality=${quality}`;
+const url = `${server.resolvedUrls.local[0]}game/?mode=story&test=1&seed=1337&quality=${quality}`;
 const executablePath = existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined;
 const browser = await chromium.launch({ executablePath, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 let report;

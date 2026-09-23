@@ -3,6 +3,7 @@ import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { ObjectType, Shape } from '../config/objects';
 import { Builder, box, cyl, lathe, poly, profile, rbox, strut, v3, wheel, type PropParts } from './propKit';
 import { HEAVY_BUILDERS } from './heavyProps';
+import { CITY_BUILDERS } from './cityProps';
 import { createSeededRandom } from '../core/rng';
 
 export type { PropParts } from './propKit';
@@ -17,6 +18,20 @@ export type { PropParts } from './propKit';
  */
 // ── Vehicles ─────────────────────────────────────────────────────────────────
 function car(type: ObjectType): PropParts {
+  return carBuilder(type).build();
+}
+
+/** Taxi: the compact car body plus a lit roof sign and a checker band (colour comes from the type). */
+function taxi(type: ObjectType): PropParts {
+  const b = carBuilder(type);
+  const [W] = type.size;
+  b.add('darkTrim', rbox(0.72, 0.08, 0.34, 0.03), 0, 1.45, 0.45); // roof-sign base
+  b.add('screen', rbox(0.62, 0.2, 0.26, 0.05), 0, 1.58, 0.45); // lit sign box
+  for (const s of [-1, 1]) for (let i = 0; i < 12; i++) b.add('darkTrim', box(0.01, 0.05, 0.1), s * (W / 2 + 0.006), 0.74 + (i % 2) * 0.05, -1.1 + i * 0.2); // checker band
+  return b.build();
+}
+
+function carBuilder(type: ObjectType): Builder {
   const [W, , L] = type.size; // 1.75 × 1.45 × 3.9
   const b = new Builder();
   const hl = L / 2;
@@ -99,7 +114,7 @@ function car(type: ObjectType): PropParts {
   b.add('reflective', box(0.52, 0.12, 0.01), 0, 0.52, hl + 0.1); // plate
   b.add('reflective', box(0.52, 0.12, 0.01), 0, 0.4, -hl - 0.1);
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) wheel(b, wr, 0.21, sx * (W / 2 - 0.13), wr, sz * axle, sx, 5);
-  return b.build();
+  return b;
 }
 
 function truck(type: ObjectType): PropParts {
@@ -374,6 +389,8 @@ function scrap(type: ObjectType, seed: number): PropParts {
 type PropFactory = (t: ObjectType, seed: number) => PropParts;
 const BUILDERS: Record<Shape, PropFactory> = {
   ...HEAVY_BUILDERS,
+  ...CITY_BUILDERS,
+  taxi,
   scrap,
   box: (t) => (t.size[0] < 0.25 ? brick(t) : cardboardBox(t)),
   cylinder: (t) => (t.size[0] < 0.1 ? can(t) : trashCan(t)),

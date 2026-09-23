@@ -50,7 +50,7 @@ try {
   const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
   page.on('pageerror', (e) => report.errors.push(`bot page: ${e.message}`));
   page.on('console', (m) => m.type() === 'error' && report.errors.push(`bot console: ${m.text()}`));
-  await page.goto(`${base}game/?test=1&seed=${seed}&quality=high`);
+  await page.goto(`${base}game/?mode=story&test=1&seed=${seed}&quality=high`);
   await page.waitForFunction(() => window.__GROW__?.ready, null, { timeout: 60_000 });
   const shot = async (name) => {
     await page.evaluate(() => window.__GROW__.render());
@@ -125,7 +125,7 @@ try {
   const live = await browser.newPage({ viewport: { width: 800, height: 450 } });
   live.on('pageerror', (e) => report.errors.push(`live page: ${e.message}`));
   live.on('console', (msg) => msg.type() === 'error' && report.errors.push(`live console: ${msg.text()}`));
-  await live.goto(`${base}game/?seed=${seed}&quality=low`);
+  await live.goto(`${base}game/?mode=story&seed=${seed}&quality=low`);
   await live.waitForFunction(() => window.__THREE_GAME_DIAGNOSTICS__?.frame > 5, null, { timeout: 300_000, polling: 500 });
   const d0 = await live.evaluate(() => window.__THREE_GAME_DIAGNOSTICS__);
   await live.keyboard.down('KeyW');

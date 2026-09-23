@@ -81,6 +81,8 @@ export class World {
   readonly staticColliders: Obb[] = [];
   /** Building masses the camera must not pass through (invisible proxies). */
   readonly occluders: THREE.Object3D[];
+  /** Camera occluder proxies for standing structures (removed when they are pulled or fall). */
+  private readonly structureProxies = new Map<WorldObject, THREE.Mesh>();
   /** Trees, weeds and decals (static, animated by wind). */
   readonly dressing: Dressing;
   objects: WorldObject[] = [];
@@ -124,15 +126,21 @@ export class World {
       rb.mesh.dispose();
     }
     this.roleBatches.clear();
+    for (const m of this.structureProxies.values()) this.dropProxy(m);
+    this.structureProxies.clear();
     this.objects = [];
     const rand = createSeededRandom(seed);
 
     const pending: { typeId: ObjectTypeId; x: number; z: number; yaw: number; y?: number; tag?: string; supports?: string[] }[] = [];
     const occupied: { x: number; z: number; r: number }[] = [];
+    const blockers: Obb[] = [];
     for (const p of this.city.placements) {
       pending.push({ typeId: p.type, x: p.x, z: p.z, yaw: p.yaw ?? 0, y: p.y, tag: p.tag, supports: p.supports });
       // Hand placements may overlap on purpose (stacks, the warehouse kit); scatter still avoids their footprints.
       occupied.push({ x: p.x, z: p.z, r: Math.min(footprintRadius(OBJECT_TYPES[p.type]), 4) });
+      // Structures block scatter across their whole footprint (no loose debris sealed inside a building).
+      const def = OBJECT_TYPES[p.type];
+      if (def.objectClass >= 7 && (p.y ?? 0) < 0.5) blockers.push({ cx: p.x, cz: p.z, hx: def.size[0] / 2 + 0.3, hz: def.size[2] / 2 + 0.3, yaw: p.yaw ?? 0 });
     }
     for (const c of [...this.city.clusters, ...extraClusters]) {
       const def = OBJECT_TYPES[c.type];
@@ -143,7 +151,7 @@ export class World {
         const dist = Math.sqrt(rand()) * c.radius;
         const x = c.x + Math.cos(a) * dist;
         const z = c.z + Math.sin(a) * dist;
-        if (!this.isFree(x, z, r, occupied)) continue;
+        if (!this.isFree(x, z, r, occupied) || blockers.some((b) => circleVsObb(x, z, r, b, this.contact))) continue;
         pending.push({ typeId: c.type, x, z, yaw: rand() * Math.PI * 2 });
         occupied.push({ x, z, r });
         placed++;
@@ -193,6 +201,14 @@ export class World {
       };
       obj.radius = obbRadius(obj.obb);
       this.objects.push(obj);
+      if (def.objectClass >= 7 && def.size[1] > 4 && baseY < 0.5) {
+        const proxy = new THREE.Mesh(new THREE.BoxGeometry(def.size[0], def.size[1], def.size[2]));
+        proxy.position.set(p.x, baseY + def.size[1] / 2, p.z);
+        proxy.rotation.y = p.yaw;
+        proxy.updateMatrixWorld();
+        this.occluders.push(proxy);
+        this.structureProxies.set(obj, proxy);
+      }
       if (p.tag) byTag.set(p.tag, obj);
     }
     pending.forEach((p, i) => {
@@ -219,16 +235,32 @@ export class World {
    * (roof bay) fails as soon as either end loses its support; a stacked object (container)
    * only falls once everything under it is gone.
    */
-  releaseDependents(removed: WorldObject): WorldObject[] {
+  releaseDependents(removed: WorldObject, from: WorldObject = removed): WorldObject[] {
     const released: WorldObject[] = [];
+    const gone = (s: WorldObject) => s.state === 'absorbed' || s.falling;
     for (const o of this.objects) {
       if (o.state !== 'idle' || o.falling || !o.supports.includes(removed)) continue;
       const spans = o.def.destructionType === 'collapse';
-      if (spans || o.supports.every((s) => s.state === 'absorbed')) {
+      if (spans || o.supports.every(gone)) {
         o.falling = true;
         o.vy = 0;
         o.baseY = this.city.groundHeight(o.x, o.z);
+        // Tall stacks topple away from the support that failed: the higher the part, the
+        // further it lands (capped so the pieces stay in the plaza around the structure).
+        const dx = from.x - o.x;
+        const dz = from.z - o.z;
+        const len = Math.hypot(dx, dz);
+        const drop = o.y - this.city.groundHeight(o.x, o.z);
+        if (o.def.topple && drop > 3) {
+          const reach = Math.min(drop * 0.45, 22);
+          const t = Math.sqrt((2 * drop) / 9.8);
+          const [nx, nz] = len > 0.5 ? [dx / len, dz / len] : [Math.cos(o.id * 2.4), Math.sin(o.id * 2.4)];
+          o.vx = (nx * reach) / t;
+          o.vz = (nz * reach) / t;
+        }
         released.push(o);
+        // Whatever this part held up goes with it (cascading collapse).
+        released.push(...this.releaseDependents(o, from));
       }
     }
     return released;
@@ -241,10 +273,19 @@ export class World {
       if (!o.falling || o.state !== 'idle') continue;
       o.vy -= 9.8 * dt;
       o.y += o.vy * dt;
+      if (o.vx || o.vz) {
+        const b = this.city.bounds;
+        o.x = THREE.MathUtils.clamp(o.x + o.vx * dt, b.minX + o.radius, b.maxX - o.radius);
+        o.z = THREE.MathUtils.clamp(o.z + o.vz * dt, b.minZ + o.radius, b.maxZ - o.radius);
+        o.baseY = this.city.groundHeight(o.x, o.z);
+      }
       o.tilt += dt * 0.35 * (o.id % 2 ? 1 : -1); // slump as it drops
       if (o.y <= o.baseY) {
         o.y = o.baseY;
         o.falling = false;
+        o.vx = o.vz = 0;
+        o.obb.cx = o.x;
+        o.obb.cz = o.z;
         o.anchored = false;
         o.tilt = THREE.MathUtils.clamp(o.tilt, -0.12, 0.12);
         o.squash = Math.max(o.squash, 0.25); // crumpled by the impact
@@ -333,6 +374,13 @@ export class World {
     for (const o of this.objects) {
       if (!o.dirty) continue;
       o.dirty = false;
+      if (o.state !== 'idle' || o.falling) {
+        const proxy = this.structureProxies.get(o);
+        if (proxy) {
+          this.dropProxy(proxy);
+          this.structureProxies.delete(o);
+        }
+      }
       const s = o.state === 'absorbed' ? 0 : o.scale;
       this.quat.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, o.yaw);
       if (o.tilt) this.quat.multiply(this.tiltQ.setFromAxisAngle(this.xAxis, o.tilt));
@@ -382,6 +430,12 @@ export class World {
     let n = 0;
     for (const rb of this.roleBatches.values()) n += 2 + (rb.tinted ? 1 : 0);
     return n;
+  }
+
+  private dropProxy(m: THREE.Mesh): void {
+    const i = this.occluders.indexOf(m);
+    if (i >= 0) this.occluders.splice(i, 1);
+    m.geometry.dispose();
   }
 
   /** Resolve a circle against static architecture; returns the corrected position. */

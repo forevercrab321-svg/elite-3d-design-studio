@@ -46,7 +46,7 @@ try {
   const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
-  await page.goto(`${server.resolvedUrls.local[0]}game/?test=1&seed=1337&quality=${quality}`);
+  await page.goto(`${server.resolvedUrls.local[0]}game/?mode=story&test=1&seed=1337&quality=${quality}`);
   await page.waitForFunction(() => window.__GROW__?.ready, null, { timeout: 120_000 });
   const stats = {};
   for (const [name, pos, target, fov, setup] of SHOTS) {

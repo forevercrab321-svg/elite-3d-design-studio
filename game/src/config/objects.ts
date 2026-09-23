@@ -43,7 +43,30 @@ export type Shape =
   | 'whRoof'
   | 'whRoofEnd'
   | 'whSign'
-  | 'goldCrate';
+  | 'goldCrate'
+  | 'taxi'
+  | 'bus'
+  | 'kiosk'
+  | 'foodCart'
+  | 'bench'
+  | 'bShikumen'
+  | 'bShMid'
+  | 'bBrownstone'
+  | 'bNyLoft'
+  | 'bHaussmann'
+  | 'bParisCafe'
+  | 'pearlLeg'
+  | 'pearlSphere'
+  | 'pearlShaft'
+  | 'pearlTop'
+  | 'esbPodium'
+  | 'esbShaft'
+  | 'esbCrown'
+  | 'eiffelLeg'
+  | 'eiffelDeck'
+  | 'eiffelMid'
+  | 'eiffelUpper'
+  | 'eiffelTop';
 
 export type DestructionType = 'collect' | 'crush' | 'push' | 'break' | 'rip' | 'collapse';
 
@@ -60,6 +83,8 @@ export interface ObjectType {
   requiredPower?: number;
   /** Part of the climax structure: absorbing every such object wins the run. */
   climax?: boolean;
+  /** Tall landmark part: when its support fails it topples sideways as it falls. */
+  topple?: boolean;
   /** Arena bonus pickup: worth a share of the collector's current mass (see arenaConfig). */
   bonus?: boolean;
 }
@@ -112,6 +137,40 @@ export const OBJECT_TYPES = {
   WH_ROOF_END: { climax: true, requiredPower: 9.6, label: 'Warehouse roof', objectClass: 7, size: [12, 4.6, 31.2], shape: 'whRoofEnd', colors: [0xb4bcc2], rewardMass: 6500, destructionType: 'collapse' },
   WH_ROOF: { climax: true, requiredPower: 9.6, label: 'Warehouse roof', objectClass: 7, size: [12, 4.6, 31.2], shape: 'whRoof', colors: [0xb4bcc2], rewardMass: 6000, destructionType: 'collapse' },
   WH_SIGN: { climax: true, label: 'Warehouse sign', objectClass: 6, size: [18, 2.4, 0.5], shape: 'whSign', colors: [0xe9e4d8], rewardMass: 900, destructionType: 'rip' },
+  // ── World cities (arena levels) ─────────────────────────────────────────────
+  // Street identity: taxis, buses, scooters, kiosks, food carts, benches.
+  TAXI_NY: { label: 'Yellow cab', objectClass: 5, size: [1.85, 1.5, 4.6], shape: 'taxi', colors: [0xf2b705, 0xeeb00c], rewardMass: 420, destructionType: 'crush' },
+  TAXI_SH: { label: 'Shanghai taxi', objectClass: 5, size: [1.8, 1.5, 4.6], shape: 'taxi', colors: [0x3aa6b9, 0x49a36b, 0xd9c34a], rewardMass: 420, destructionType: 'crush' },
+  TAXI_PA: { label: 'Paris taxi', objectClass: 5, size: [1.8, 1.5, 4.5], shape: 'taxi', colors: [0x1d1f22, 0xe3e1da, 0x3a3f45], rewardMass: 420, destructionType: 'crush' },
+  BUS_SH: { label: 'City bus', objectClass: 6, size: [2.55, 3.1, 12], shape: 'bus', colors: [0x2f7fbf, 0xd9412b, 0xe8e4da], rewardMass: 1600, destructionType: 'break' },
+  BUS_NY: { label: 'MTA bus', objectClass: 6, size: [2.6, 3.2, 12.2], shape: 'bus', colors: [0xe8e6e0, 0x2a5caa], rewardMass: 1600, destructionType: 'break' },
+  BUS_PA: { label: 'Paris bus', objectClass: 6, size: [2.55, 3.1, 12], shape: 'bus', colors: [0x4f8a5b, 0xe8e4da], rewardMass: 1600, destructionType: 'break' },
+  SCOOTER: { label: 'Scooter', objectClass: 4, size: [0.7, 1.1, 1.8], shape: 'motorcycle', colors: [0xd9d4c7, 0x3f6fa8, 0x9b2a24, 0x2b8a6e], rewardMass: 60, destructionType: 'crush' },
+  KIOSK: { label: 'Newsstand', objectClass: 5, size: [2.4, 3.2, 2.0], shape: 'kiosk', colors: [0x2f4f3a, 0x35553f], rewardMass: 350, destructionType: 'crush' },
+  FOOD_CART: { label: 'Hot-dog cart', objectClass: 4, size: [1.9, 2.4, 0.9], shape: 'foodCart', colors: [0x2f5f9f, 0xc23b2a], rewardMass: 90, destructionType: 'crush' },
+  BENCH: { label: 'Bench', objectClass: 3, size: [1.8, 0.85, 0.62], shape: 'bench', colors: [0x5a4a3a], rewardMass: 14, destructionType: 'collect' },
+  // Destructible buildings: houses need a 6.5 m machine, blocks 9.5 m.
+  B_SHIKUMEN: { requiredPower: 6.5, label: 'Shikumen house', objectClass: 7, size: [12, 9.6, 9], shape: 'bShikumen', colors: [0xb3ada3, 0xa8a196, 0xa56a55], rewardMass: 4500, destructionType: 'collapse' },
+  B_SH_MID: { label: 'Shanghai block', objectClass: 8, requiredPower: 9.5, size: [16, 21.4, 14], shape: 'bShMid', colors: [0xe8e2d6, 0xd8d0c0, 0xc9d3d6], rewardMass: 22000, destructionType: 'collapse' },
+  B_BROWNSTONE: { requiredPower: 6.5, label: 'Brownstone', objectClass: 7, size: [7, 14.4, 13], shape: 'bBrownstone', colors: [0x7a4a36, 0x6e4436, 0x8a5a44], rewardMass: 5200, destructionType: 'collapse' },
+  B_NY_LOFT: { label: 'Loft building', objectClass: 8, requiredPower: 9.5, size: [18, 29.3, 16], shape: 'bNyLoft', colors: [0x9b5a41, 0x8a4f3a, 0xa8765c], rewardMass: 30000, destructionType: 'collapse' },
+  B_HAUSSMANN: { label: 'Haussmann block', objectClass: 8, requiredPower: 9.5, size: [18, 24, 13], shape: 'bHaussmann', colors: [0xdcd0b6, 0xe2d7bf, 0xd4c7aa], rewardMass: 26000, destructionType: 'collapse' },
+  B_PARIS_CAFE: { requiredPower: 6.5, label: 'Café house', objectClass: 7, size: [10, 13.5, 10], shape: 'bParisCafe', colors: [0xdcd0b6, 0xe6dcc6, 0xd0c2a4], rewardMass: 4800, destructionType: 'collapse' },
+  // Landmarks at 1:5 gameplay scale. Bases need a 10.5 m machine; what they hold up falls.
+  PEARL_LEG: { climax: true, requiredPower: 10.5, label: 'Pearl Tower column', objectClass: 8, size: [3.4, 24, 3.4], shape: 'pearlLeg', colors: [0xd9d5cc], rewardMass: 18000, destructionType: 'rip' },
+  PEARL_SPHERE_LOW: { climax: true, topple: true, requiredPower: 10.5, label: 'Pearl Tower sphere', objectClass: 8, size: [10, 10, 10], shape: 'pearlSphere', colors: [0xc2386a], rewardMass: 30000, destructionType: 'collapse' },
+  PEARL_SHAFT: { climax: true, topple: true, requiredPower: 9.5, label: 'Pearl Tower shaft', objectClass: 8, size: [5.5, 26, 5.5], shape: 'pearlShaft', colors: [0xc2386a], rewardMass: 20000, destructionType: 'collapse' },
+  PEARL_SPHERE_UP: { climax: true, topple: true, requiredPower: 10, label: 'Pearl Tower sphere', objectClass: 8, size: [8, 8, 8], shape: 'pearlSphere', colors: [0xc2386a], rewardMass: 24000, destructionType: 'collapse' },
+  PEARL_TOP: { climax: true, topple: true, requiredPower: 8, label: 'Pearl Tower spire', objectClass: 7, size: [4.6, 36, 4.6], shape: 'pearlTop', colors: [0xc2386a], rewardMass: 9000, destructionType: 'collapse' },
+  ESB_PODIUM: { climax: true, requiredPower: 10.5, label: 'Empire State base', objectClass: 8, size: [13, 13.1, 22], shape: 'esbPodium', colors: [0xcfc6b2], rewardMass: 26000, destructionType: 'rip' },
+  ESB_SHAFT_LOW: { climax: true, topple: true, requiredPower: 10, label: 'Empire State tower', objectClass: 8, size: [16, 30, 14], shape: 'esbShaft', colors: [0xcfc6b2], rewardMass: 36000, destructionType: 'collapse' },
+  ESB_SHAFT_HIGH: { climax: true, topple: true, requiredPower: 9.5, label: 'Empire State tower', objectClass: 8, size: [12, 22, 10], shape: 'esbShaft', colors: [0xcfc6b2], rewardMass: 26000, destructionType: 'collapse' },
+  ESB_CROWN: { climax: true, topple: true, requiredPower: 8, label: 'Empire State crown', objectClass: 7, size: [9, 32, 8], shape: 'esbCrown', colors: [0xcfc6b2], rewardMass: 12000, destructionType: 'collapse' },
+  EIFFEL_LEG: { climax: true, requiredPower: 10.5, label: 'Eiffel Tower leg', objectClass: 8, size: [4.2, 12, 4.2], shape: 'eiffelLeg', colors: [0x6f5a44], rewardMass: 16000, destructionType: 'rip' },
+  EIFFEL_DECK: { climax: true, topple: true, requiredPower: 10, label: 'Eiffel first floor', objectClass: 8, size: [15, 2.2, 15], shape: 'eiffelDeck', colors: [0x6f5a44], rewardMass: 26000, destructionType: 'collapse' },
+  EIFFEL_MID: { climax: true, topple: true, requiredPower: 9.5, label: 'Eiffel second stage', objectClass: 8, size: [12, 12, 12], shape: 'eiffelMid', colors: [0x6f5a44], rewardMass: 22000, destructionType: 'collapse' },
+  EIFFEL_UPPER: { climax: true, topple: true, requiredPower: 8.5, label: 'Eiffel upper tower', objectClass: 8, size: [7.2, 30, 7.2], shape: 'eiffelUpper', colors: [0x6f5a44], rewardMass: 16000, destructionType: 'collapse' },
+  EIFFEL_TOP: { climax: true, topple: true, requiredPower: 7, label: 'Eiffel summit', objectClass: 7, size: [3.2, 12, 3.2], shape: 'eiffelTop', colors: [0x6f5a44], rewardMass: 6000, destructionType: 'collapse' },
 } satisfies Record<string, ObjectType>;
 
 export type ObjectTypeId = keyof typeof OBJECT_TYPES;
