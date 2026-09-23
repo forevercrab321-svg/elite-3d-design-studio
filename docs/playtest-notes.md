@@ -126,3 +126,28 @@ Defects found in review shots and fixed:
 - Ground and roof textures showed obvious 2–3 m stain and tar repeats.
 - The old warehouse barrel roof was a lopsided shell, because the cylinder arc started at the wrong angle.
 - At its first integration the new content cost 600 calls and 1.41M triangles. The performance work is in `technical-architecture.md`.
+
+## 2026-09-23 — Online arena + world cities
+
+Method: `?mode=arena&net=solo&test=1` with `__ARENA__.autopilot` (local machine driven by the AI brain) against 3 AI rivals, 320 s max; 2-tab `?net=local` sync test; story `npm run playtest` regression.
+
+| City | End | Time | Champion mass | Notes |
+| --- | --- | --- | --- | --- |
+| Shanghai | landmark destroyed | 217 s | 950 t | 2nd place 72 t: late snowball of the leader |
+| New York | landmark destroyed | 274 s | 747 t | Two machines contested the lead to the end |
+| Paris | landmark destroyed | 268 s | 611 t | Before the rebalance nobody reached the landmark (max 54 t) |
+
+Fixes from these runs:
+- AI chased tiny prey forever → prey must be ≥4% of own mass, and it gives up after 6 s.
+- AI crossed the map for golden crates → targets scored by squared distance.
+- Rivals spawned in zones without small objects → starter scrap ring at every spawn.
+- Map ran dry at half-time → host refills absorbed class ≤5 props after 30 s + 6 s per class, away from machines.
+- Paris stalled at class 6 → houses 6.5 m, blocks 9.5 m, landmark bases 10.5 m; more class-5/6 traffic.
+- Lobby overlay stayed visible in the match (`display:grid` beat `[hidden]`) → fixed.
+- Camera entered destructible buildings → standing structures are camera occluders now.
+
+Network (2 tabs, LocalNet): both tabs agree on every grant (168/168 … 441/441), and positions agree within ~2–5 m while moving. When the host closes, the other tab becomes host within ~3 s, and the AI keeps moving under the new host. A player who leaves is marked out of the round.
+
+Story regression: `npm run playtest` 24/24 PASS (tools now open `?mode=story`).
+
+Budgets (high tier, in match): Shanghai 1.09 M tris at spawn / 1.43 M at a large size; New York 1.35 / 1.68 M; Paris 0.93 / 1.26 M; draw calls 182–319. The large-size view slightly exceeds the 1.5 M target in New York. Parked cabs (7.5 k tris each) are the main cost, and LOD covers distance.

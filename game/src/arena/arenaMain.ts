@@ -7,6 +7,7 @@ import { FIXED_DT } from '../game/Game';
 import { LocalNet, RoomNet, SoloNet, type Net } from '../net/Net';
 import { CITIES, cityById } from '../world/cities';
 import type { CityDef } from '../world/city';
+import { ArenaBot } from './ArenaBot';
 import { ArenaGame } from './ArenaGame';
 import { ArenaSession, type MatchState } from './ArenaSession';
 import { ArenaUi } from './ArenaUi';
@@ -196,7 +197,7 @@ export async function runArena(ctx: AppContext): Promise<void> {
   };
   let autopilot = false;
   // Autopilot: the local machine uses the AI rival's brain through the same intents path.
-  const botBrain = new (await import('./ArenaBot')).ArenaBot(1234);
+  const botBrain = new ArenaBot(1234);
   const readInput = input.read.bind(input);
   input.read = () => {
     const g = game;

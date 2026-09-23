@@ -1,6 +1,6 @@
 {
   "seed": 1337,
-  "date": "2026-09-23T16:07:20.821Z",
+  "date": "2026-09-23T18:15:57.505Z",
   "bot": {
     "seconds": 202.5,
     "final": {
@@ -400,8 +400,8 @@
     }
   },
   "smoke": {
-    "moved": 6.205410628900292,
-    "collectedDuringSmoke": 11,
+    "moved": 6.683326892587985,
+    "collectedDuringSmoke": 12,
     "afterRestart": {
       "mass": 5,
       "x": 0,
@@ -409,15 +409,16 @@
       "resets": 1
     },
     "perf": {
-      "fps": 10.000000000000002,
+      "fps": 10.820381664371373,
       "drawCalls": 114,
       "calls": 114,
-      "triangles": 427442,
+      "triangles": 383051,
       "geometries": 75,
       "textures": 125,
       "programs": 40,
       "instancedMeshes": 33,
       "visibleInstances": 419,
+      "batchDataTextures": 84,
       "sceneMeshes": 71,
       "playerMeshes": 14,
       "shadowCasters": 44,
@@ -428,14 +429,15 @@
     },
     "perfHigh": {
       "fps": 0,
-      "drawCalls": 203,
-      "calls": 203,
-      "triangles": 303814,
+      "drawCalls": 204,
+      "calls": 204,
+      "triangles": 303815,
       "geometries": 109,
       "textures": 144,
-      "programs": 58,
+      "programs": 59,
       "instancedMeshes": 33,
       "visibleInstances": 21,
+      "batchDataTextures": 84,
       "sceneMeshes": 105,
       "playerMeshes": 45,
       "shadowCasters": 75,
@@ -446,14 +448,15 @@
     },
     "perfSpawn": {
       "fps": 0,
-      "drawCalls": 187,
-      "calls": 187,
-      "triangles": 591400,
+      "drawCalls": 188,
+      "calls": 188,
+      "triangles": 543493,
       "geometries": 76,
       "textures": 144,
-      "programs": 58,
+      "programs": 59,
       "instancedMeshes": 33,
       "visibleInstances": 419,
+      "batchDataTextures": 84,
       "sceneMeshes": 75,
       "playerMeshes": 14,
       "shadowCasters": 44,
@@ -553,7 +556,7 @@
     {
       "name": "keyboard W moves the player",
       "pass": true,
-      "detail": "6.21 m over 102 game frames"
+      "detail": "6.68 m over 110 game frames"
     },
     {
       "name": "R restarts the run",
@@ -563,22 +566,22 @@
     {
       "name": "draw calls ≤ 300 (high tier, spawn)",
       "pass": true,
-      "detail": "187 calls"
+      "detail": "188 calls"
     },
     {
       "name": "triangles ≤ 750k (high tier, spawn)",
       "pass": true,
-      "detail": "591400 tris"
+      "detail": "543493 tris"
     },
     {
       "name": "draw calls ≤ 300 (high tier, end of run)",
       "pass": true,
-      "detail": "203 calls"
+      "detail": "204 calls"
     },
     {
       "name": "triangles ≤ 750k (high tier, end of run)",
       "pass": true,
-      "detail": "303814 tris"
+      "detail": "303815 tris"
     },
     {
       "name": "no page or console errors",

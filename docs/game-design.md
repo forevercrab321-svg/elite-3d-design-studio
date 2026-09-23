@@ -67,3 +67,14 @@ The layout data lives in `game/src/world/scrapCity.ts`. −Z points downtown. Pl
 | Tier transformations 1 → 4 | DONE | Tier 2 hopper/scoop, tier 3 arms/cage, tier 4 track pods, crusher jaws, cyclone, stacks; `13-tier4-machine.png` |
 | Sound (§45) | DONE (procedural) | WebAudio synth: size-scaled SFX, motor drone, tier-layered music (`audio/AudioEngine.ts`); not verified by ear in the cloud session |
 | "Wait, I got bigger" / "I ate the car" for a new player | NEEDS REVIEW | Needs a human playtest (the bot runs ~1.7× human speed, an assumption) |
+
+## Arena mode — online, up to 4 players (2026-09-23)
+
+The Creative Director extended the brief: an online competitive mode on world-city maps (overrides §53, see design-decisions).
+
+- **Join:** open the published artifact, pick a vehicle, *加入*; friends open the shared link while signed in (given *can interact*). The host (first player) picks the city and starts; empty slots fill with AI rivals.
+- **Goal:** grow bigger than everyone. Bigger machines (≥1.25× diameter) eat smaller ones. Three lives; losing the last one = 出局 (out, then spectate).
+- **Round end:** 5-minute timer, last machine standing, or the city landmark torn down. Champion = largest surviving machine.
+- **Rewards:** combos, golden crates, first blood, landmark finisher bonus, coins, next-city unlock. **Penalties:** crash stun and mass loss, death costs a life and 55% of mass.
+- **Levels:** 1 Shanghai: shikumen lanes, Shanghai taxis and scooters, Oriental Pearl Tower. 2 New York: brownstones, lofts with water towers, yellow cabs, hot-dog carts, Empire State Building. 3 Paris: Haussmann blocks with zinc mansards, cafés, kiosks, Eiffel Tower. Bonus: Scrap City.
+- **Map plan (all cities):** 192 m district; 20 m boulevards cross at a 30 m landmark plaza, 14 m streets form the outer grid. Spawns sit at the four boulevard ends facing the landmark. Starter scrap rings every spawn; houses need a 6.5 m machine, blocks 9.5 m, landmark bases 10.5 m; upper landmark parts fall and topple when a base goes.

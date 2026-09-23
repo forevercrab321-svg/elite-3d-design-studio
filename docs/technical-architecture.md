@@ -30,6 +30,13 @@ game/
     art/                      textures.ts (procedural PBR kit), materials.ts (roles), uv.ts, environment.ts (sky + env map), postfx.ts (render tiers)
     world/props.ts            production prop models by material role
     world/architecture.ts     static city: facades, ground, furniture, crane, skyline
+    main.ts / app.ts / story.ts  shared setup; mode select (arena default, ?mode=story or #story)
+    arena/                    ArenaGame (multi-actor sim), ArenaSession (lobby, host authority, sync),
+                              ArenaBot (AI rival), ArenaUi (Chinese-first lobby/HUD/results), progress (coins, unlocks)
+    net/Net.ts                transports: RoomNet (claude.ai room + user), LocalNet (BroadcastChannel), SoloNet
+    config/arena.ts, vehicles.ts  round rules, rewards/penalties, vehicle stats
+    world/city.ts, cities/    CityDef + parametric city kit; shanghai.ts, newyork.ts, paris.ts, scrap.ts
+    world/cityProps.ts        city props, destructible building styles, landmark kits
 tools/playtest.mjs            headless bot run + real keyboard smoke test + screenshots
 tools/art-review.mjs          fixed-camera art review shots → renders/review/game/art/
 tools/inspect-game.mjs        threejs-qa-release canvas inspector (pixel metrics + render budget) on the game
@@ -108,3 +115,11 @@ Realism-pass trims to stay inside the budget: bicycle wheels (fewer torus segmen
 - Mobile tier: triangles 319k vs 300k and image textures 54 vs 40. Next steps are a coarser LOD at medium quality and 256² textures on touch devices.
 - Code-splitting the shared three.js chunk (562 kB, 142 kB gzipped).
 - Distance-based physics states (§39).
+
+## Online arena (multiplayer)
+
+- **Transport.** `RoomNet` wraps the artifact `room` capability: *presence* carries each player's machine state (`WireState`, 12 numbers, ~30 Hz, coalesced) and the host's AI rivals; *events* carry `match` (phase/roster/seed beacon, host only), `claim`/`grant` (object ownership), `eat`/`eaten` (player kills) and refills (`grant.r`). All five topics are declared `interact` so shared players can send them. Every payload is validated as untrusted input.
+- **Authority.** Host = lowest peer id among joined players (in a match: roster players still present). Migration needs no negotiation; AI ownership moves with it. Grants are first-come with a 5% size slack for lag; eats are checked for size, distance and a respawn cooldown.
+- **Client prediction.** Each client simulates its own machine and pulls objects optimistically; an object is absorbed only once the host grants it to that machine (re-claimed after 1.5 s if the grant is lost). Remote machines are extrapolated 150 ms and eased.
+- **Determinism.** The city layout, object ids and AI names derive from the match seed, so every client builds the same world.
+- **Tests.** `?net=local&room=X` runs the same code over BroadcastChannel between tabs; `?net=solo` plays against AI. Test hooks: `window.__ARENA__` (`session`, `game()`, `step(s)`, `autopilot(on)`, `summary()`, `stats()`).
