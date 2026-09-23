@@ -11,7 +11,9 @@
     "render:review": "node tools/studio.mjs render",
     "qa:geometry": "node tools/studio.mjs qa",
     "export:glb": "node tools/studio.mjs export",
-    "studio:check": "node tools/studio.mjs all"
+    "studio:check": "node tools/studio.mjs all",
+    "game": "vite --host 127.0.0.1 --port 5190 --open /game/",
+    "playtest": "node tools/playtest.mjs"
   },
   "dependencies": {
     "three": "^0.184.0",
