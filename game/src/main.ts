@@ -6,6 +6,7 @@ import { buildTextureKit } from './art/textures';
 import { Input } from './core/Input';
 import { runStory } from './story';
 import { runArena } from './arena/arenaMain';
+import { installLandscapeMode } from './ui/orientation';
 
 /**
  * GROW EVERYTHING — entry point.
@@ -48,5 +49,6 @@ const hdri = await loadHdriEnvironment(renderer, `${import.meta.env.BASE_URL}hdr
 });
 const ctx = { renderer, lib, input, quality, testMode, seed, params, hdri };
 const mode = params.get('mode') ?? (location.hash === '#story' ? 'story' : testMode ? 'story' : 'arena');
+installLandscapeMode();
 if (mode === 'story') runStory(ctx);
 else await runArena(ctx);

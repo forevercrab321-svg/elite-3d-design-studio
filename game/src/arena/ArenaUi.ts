@@ -93,7 +93,6 @@ const CSS = `
 #arena .tag.me { background: none; border: 0 !important; }
 #arena .emotes { position: absolute; left: 50%; bottom: 74px; transform: translateX(-50%); display: flex; gap: 6px; pointer-events: auto; }
 #arena .emotes button { border: 0; border-radius: 10px; background: rgba(16,18,20,.55); font-size: 20px; width: 40px; height: 40px; }
-@media (pointer: coarse) { #arena .emotes { left: auto; right: 118px; transform: none; bottom: calc(26px + env(safe-area-inset-bottom)); flex-direction: column; } #arena .emotes button { width: 48px; height: 48px; font-size: 24px; } }
 #arena .res .awards { margin-top: 12px; display: grid; gap: 4px; font-size: 13px; text-align: center; }
 #arena .res .awards b { color: #ffb347; }
 #arena .tag { position: absolute; transform: translate(-50%, -100%); font-size: 11px; font-weight: 800; letter-spacing: .06em; padding: 2px 7px; border-radius: 6px; background: rgba(16,18,20,.55); white-space: nowrap; }
@@ -109,15 +108,29 @@ const CSS = `
 #arena .res .earn { text-align: center; margin-top: 14px; font-size: 13px; }
 #arena .res .actions { justify-content: center; margin-top: 16px; }
 body:has(#arena .lobby:not([hidden])) .ge-dash, body:has(#arena .res:not([hidden])) .ge-dash { display: none; }
-@media (pointer: coarse), (max-width: 700px) {
-  #arena .timer { top: auto; bottom: calc(14px + env(safe-area-inset-bottom)); } #arena .timer b { font-size: 22px; } #arena .timer span { font-size: 9px; letter-spacing: .12em; }
-  #arena .board { top: calc(8px + env(safe-area-inset-top)); right: 8px; width: 140px; padding: 6px 8px; } #arena .row { font-size: 11px; gap: 5px; padding: 2px 0; grid-template-columns: 10px 8px 1fr auto; } #arena .row .lv2 { display: none; }
-  #arena .map { width: 104px; height: 104px; top: calc(128px + env(safe-area-inset-top)); right: 8px; bottom: auto; }
-  #arena .feed { top: calc(152px + env(safe-area-inset-top)); left: 8px; right: auto; width: 190px; align-items: flex-start; } #arena .feed div { font-size: 10px; }
-  #arena .combo { left: 8px; bottom: auto; top: calc(124px + env(safe-area-inset-top)); font-size: 15px; }
-  #arena .center b { font-size: 64px; }
+/* Phones play in landscape: HUD hugs the corners, thumbs own the bottom corners. */
+@media (pointer: coarse), (max-height: 520px) {
+  #arena .timer { top: calc(4px + env(safe-area-inset-top)); bottom: auto; } #arena .timer b { font-size: 20px; } #arena .timer span { font-size: 9px; letter-spacing: .12em; }
+  #arena .board { top: calc(6px + env(safe-area-inset-top)); right: calc(8px + env(safe-area-inset-right)); width: 150px; padding: 5px 8px; } #arena .row { font-size: 10.5px; gap: 5px; padding: 1px 0; grid-template-columns: 10px 8px 1fr auto; } #arena .row .lv2 { display: none; }
+  #arena .map { width: 96px; height: 96px; top: calc(98px + env(safe-area-inset-top)); right: calc(8px + env(safe-area-inset-right)); bottom: auto; left: auto; }
+  #arena .feed { top: calc(92px + env(safe-area-inset-top)); left: calc(8px + env(safe-area-inset-left)); right: auto; width: 230px; align-items: flex-start; } #arena .feed div { font-size: 10px; padding: 3px 8px; }
+  #arena .combo { left: calc(168px + env(safe-area-inset-left)); bottom: auto; top: calc(8px + env(safe-area-inset-top)); font-size: 14px; }
+  #arena .center b { font-size: 56px; } #arena .center span { font-size: 12px; }
+  #arena .emotes { left: 50%; right: auto; transform: translateX(-50%); bottom: calc(8px + env(safe-area-inset-bottom)); flex-direction: row; } #arena .emotes button { width: 42px; height: 42px; font-size: 22px; }
+  #arena .tag { font-size: 10px; }
+  #arena .res .card { padding: 14px 18px; max-height: 92vh; overflow-y: auto; } #arena .res h2 { font-size: 22px; } #arena .res table { margin-top: 8px; font-size: 11px; } #arena .res td, #arena .res th { padding: 4px 6px; }
 }
 @media (max-width: 860px) { #arena .lobby { display: block; overflow-y: auto; } #arena .lobby > * { margin-bottom: 14px; } #arena .col { overflow: visible; } #arena .cols { grid-template-columns: 1fr; } }
+@media (pointer: coarse) and (orientation: landscape), (max-height: 520px) and (min-width: 600px) {
+  #arena .lobby { display: block; overflow-y: auto; padding: calc(8px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) 12px calc(12px + env(safe-area-inset-left)); }
+  #arena .lobby > * { margin-bottom: 10px; }
+  #arena .title { font-size: 22px; } #arena .brand { font-size: 10px; } #arena .title small { font-size: 9px; }
+  #arena .cols { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  #arena .col { padding: 10px; overflow: visible; } #arena .h { margin-bottom: 6px; }
+  #arena .city, #arena .veh { padding: 7px 9px; margin-bottom: 6px; } #arena .slot { padding: 7px 9px; margin-bottom: 6px; min-height: 0; }
+  #arena .veh .bars { display: none; } #arena .rules { font-size: 10.5px; }
+  #arena .btn { padding: 10px 14px; }
+}
 `;
 
 const STAT = (v: number, lo: number, hi: number) => Math.round(Math.max(0.08, Math.min(1, (v - lo) / (hi - lo))) * 100);

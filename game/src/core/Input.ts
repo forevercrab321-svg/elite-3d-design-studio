@@ -92,7 +92,7 @@ export class Input {
     const css = document.createElement('style');
     css.textContent = `.ge-stick{position:fixed;width:112px;height:112px;margin:-56px 0 0 -56px;border-radius:50%;border:2px solid rgba(255,255,255,.35);background:rgba(16,18,20,.25);pointer-events:none;opacity:0;transition:opacity .15s;z-index:20}
 .ge-knob{position:absolute;left:50%;top:50%;width:48px;height:48px;margin:-24px 0 0 -24px;border-radius:50%;background:rgba(255,179,71,.85)}
-.ge-dash{position:fixed;right:22px;bottom:calc(22px + env(safe-area-inset-bottom));width:84px;height:84px;border-radius:50%;border:0;background:rgba(255,179,71,.9);color:#16181a;font:900 14px system-ui,sans-serif;letter-spacing:.1em;z-index:20;touch-action:none}
+.ge-dash{position:fixed;right:calc(22px + env(safe-area-inset-right));bottom:calc(20px + env(safe-area-inset-bottom));width:84px;height:84px;border-radius:50%;border:0;background:rgba(255,179,71,.9);color:#16181a;font:900 14px system-ui,sans-serif;letter-spacing:.1em;z-index:20;touch-action:none}
 @media (pointer:fine){.ge-dash{display:none}}`;
     document.head.appendChild(css);
     this.stickEl = document.createElement('div');

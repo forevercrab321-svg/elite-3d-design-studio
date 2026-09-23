@@ -49,7 +49,14 @@ const CSS = `
 @media (max-width: 640px) { #hud .panel, #hud .obj { left: 12px; width: 210px; min-width: 0; } #hud .banner .big { font-size: 24px; } }
 @media (pointer: coarse), (max-width: 700px) {
   #hud .legend { display: none; }
-  #hud .panel { left: 8px; right: auto; bottom: auto; top: calc(8px + env(safe-area-inset-top)); width: 150px; padding: 7px 10px 6px; }
+  #hud .panel { left: calc(8px + env(safe-area-inset-left)); right: auto; bottom: auto; top: calc(6px + env(safe-area-inset-top)); width: 150px; padding: 6px 10px 5px; }
+  #hud .banner { top: 22%; }
+}
+@media (pointer: coarse) and (orientation: landscape), (max-height: 520px) {
+  #hud .panel .label, #hud .panel .next { display: none; }
+  #hud .panel { width: 140px; padding: 5px 9px 4px; }
+  #hud .mass { font-size: 19px; }
+  #hud .bar { margin: 4px 0 1px; height: 5px; }
   #hud .mass { font-size: 22px; }
   #hud .next, #hud .label { font-size: 9px; }
   #hud .bar { margin: 6px 0 5px; height: 6px; }
