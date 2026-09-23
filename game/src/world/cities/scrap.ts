@@ -15,6 +15,7 @@ export const SCRAP_CITY: CityDef = {
   name: 'Scrap City',
   nameZh: '废料城',
   tagline: 'The alley where it all starts',
+  taglineZh: '一切从这条小巷开始',
   level: 0,
   palette: GOLDEN_HOUR,
   bounds: WORLD_BOUNDS,

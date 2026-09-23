@@ -35,6 +35,7 @@ export const NEW_YORK = makeCity({
   name: 'New York',
   nameZh: '纽约',
   tagline: 'Brownstones, cabs and the Empire State',
+  taglineZh: '褐石公寓、黄色出租车和帝国大厦',
   level: 2,
   palette: NY_MORNING,
   seed: 2112,

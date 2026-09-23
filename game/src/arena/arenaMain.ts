@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { L } from '../i18n';
 import { AudioEngine } from '../audio/AudioEngine';
 import { arenaConfig as A } from '../config/arena';
 import { bakeSkyEnvironment } from '../art/environment';
@@ -24,7 +25,7 @@ import { award } from './progress';
  */
 export async function runArena(ctx: AppContext): Promise<void> {
   const { renderer, lib, input, quality, testMode, params } = ctx;
-  const nickname = params.get('name') ?? savedName() ?? `玩家${Math.floor(Math.random() * 900 + 100)}`;
+  const nickname = params.get('name') ?? savedName() ?? `${L('玩家', 'Player')}${Math.floor(Math.random() * 900 + 100)}`;
   const platform = params.get('platform') ?? 'web';
   let net: Net | null = null;
   const want = params.get('net');
@@ -40,7 +41,7 @@ export async function runArena(ctx: AppContext): Promise<void> {
       net = await SupabaseNet.connect(code, nickname);
     }
   }
-  const modeLabel = !net ? '单人' : net.kind === 'room' || net.kind === 'online' ? '在线房间' : net.kind === 'local' ? '本地多开' : '单人';
+  const modeLabel = !net ? L('单人', 'Solo') : net.kind === 'room' || net.kind === 'online' ? L('在线房间', 'Online room') : net.kind === 'local' ? L('本地多开', 'Local tabs') : L('单人', 'Solo');
   net ??= new SoloNet(nickname);
   if (!testMode) void startTelemetry(nickname, platform);
   track('lobby_view', { mode: net.kind });

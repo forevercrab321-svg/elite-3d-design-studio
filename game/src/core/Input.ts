@@ -1,3 +1,4 @@
+import { L } from '../i18n';
 /**
  * Keyboard + mouse + touch → intents (design §05). On touch screens the left half is a
  * floating joystick (drag from where the thumb lands), the right half turns the camera, and
@@ -104,7 +105,7 @@ export class Input {
     const dash = document.createElement('button');
     dash.className = 'ge-dash';
     dash.type = 'button';
-    dash.textContent = '冲刺';
+    dash.textContent = L('冲刺', 'DASH');
     dash.setAttribute('aria-label', 'Dash');
     dash.addEventListener('pointerdown', (e) => {
       e.preventDefault();

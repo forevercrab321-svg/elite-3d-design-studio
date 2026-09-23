@@ -31,6 +31,7 @@ export interface CityStyle {
   name: string;
   nameZh: string;
   tagline: string;
+  taglineZh?: string;
   level: number;
   palette: Palette;
   seed: number;
@@ -387,6 +388,7 @@ export function makeCity(style: CityStyle): CityDef {
     name: style.name,
     nameZh: style.nameZh,
     tagline: style.tagline,
+    taglineZh: style.taglineZh,
     level: style.level,
     palette: style.palette,
     bounds: { minX: -HALF, maxX: HALF, minZ: -HALF, maxZ: HALF },

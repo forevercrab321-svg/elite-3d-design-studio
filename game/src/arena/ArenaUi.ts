@@ -4,6 +4,7 @@ import { SLOT_COLORS, VEHICLES, VEHICLE_ORDER, type VehicleLook } from '../confi
 import { CITIES } from '../world/cities';
 import type { ArenaGame, Standing } from './ArenaGame';
 import { awards } from './comedy';
+import { L } from '../i18n';
 import type { ArenaSession } from './ArenaSession';
 import { progress } from './progress';
 
@@ -176,23 +177,35 @@ export class ArenaUi {
     const specs = s.spectators().length;
     const prog = progress();
     const online = this.modeLabel;
+    const peersN = s.net.peers().length;
+    const invite =
+      s.net.kind === 'online'
+        ? `${L('房间号', 'Room')} <b class="code"></b> · ${L('把链接发给好友就能一起玩（最多 4 人）', 'Send the link to friends to play together (up to 4)')}<br><button class="btn" data-a="copy">${L('复制邀请链接', 'Copy invite link')}</button>`
+        : s.net.kind === 'room'
+          ? L('邀请好友：点页面右上角的 <b>Share</b>，给好友「可互动」或更高权限，再把链接发给他们。好友用自己的 Claude 账号登录打开即可加入。', 'Invite friends: click <b>Share</b> (top right), give them “can interact”, and send them the link. They join with their own Claude account.')
+          : s.net.kind === 'local'
+            ? L('本地多开测试：同一浏览器再开一个标签页即可加入。', 'Local test: open another tab in this browser to join.')
+            : L('单人模式：AI 对手补满 4 个位置。', 'Solo: AI rivals fill the empty slots.');
     this.lobby.innerHTML = `
       <div class="top">
-        <div><div class="brand">GROW EVERYTHING</div><div class="title">竞技场<small>ARENA · 最多 4 人</small></div></div>
-        <div class="actions"><span class="chip">${online} · <b>${s.net.peers().length}</b> 人在线${specs ? ` · ${specs} 人观战` : ''}</span><span class="chip coins">◎ ${prog.coins}</span><button class="btn" data-a="story">剧情模式 STORY</button></div>
+        <div><div class="brand">GROW EVERYTHING</div><div class="title">${L('竞技场', 'Arena')}<small>${L('最多 4 人 · 吞下整座城市', 'Up to 4 players · eat the city')}</small></div></div>
+        <div class="actions"><span class="chip">${online} · <b>${peersN}</b> ${L('人在线', 'online')}${specs ? ` · ${specs} ${L('人观战', 'watching')}` : ''}</span><span class="chip coins">◎ ${prog.coins}</span><button class="btn" data-a="shop">🛒 ${L('商店', 'Shop')}</button><button class="btn" data-a="settings" aria-label="${L('设置', 'Settings')}">⚙</button><button class="btn" data-a="story">${L('剧情模式', 'Story')}</button></div>
       </div>
       <div class="cols">
-        <div class="col"><div class="h">关卡 LEVELS${host ? '' : ' · 由房主选择'}</div><div class="cities"></div></div>
-        <div class="col"><div class="h">玩家 PLAYERS</div>${s.net.kind === 'room' ? '' : '<label class="nick">昵称 <input maxlength="16" aria-label="昵称 nickname"></label>'}<div class="slots"></div>
-          <div class="invite">${s.net.kind === 'online' ? `房间号 <b class="code"></b> · 把链接发给好友就能一起玩（最多 4 人）<br><button class="btn" data-a="copy">复制邀请链接 COPY LINK</button>` : s.net.kind === 'room' ? '邀请好友：点页面右上角的 <b>Share</b>，给好友「可互动」或更高权限，再把链接发给他们。好友用自己的 Claude 账号登录打开即可加入。' : s.net.kind === 'local' ? '本地多开测试：同一浏览器再开一个标签页即可加入。' : '单人模式：AI 对手补满 4 个位置。发布到 claude.ai 后可与好友在线对战。'}</div></div>
-        <div class="col"><div class="h">选择车辆 VEHICLE</div><div class="vehs"></div></div>
+        <div class="col"><div class="h">${L('关卡', 'Levels')}${host ? '' : L(' · 由房主选择', ' · host picks')}</div><div class="cities"></div></div>
+        <div class="col"><div class="h">${L('玩家', 'Players')}</div>${s.net.kind === 'room' ? '' : `<label class="nick">${L('昵称', 'Name')} <input maxlength="16" aria-label="${L('昵称', 'Name')}"></label>`}<div class="slots"></div>
+          <div class="invite">${invite}</div></div>
+        <div class="col"><div class="h">${L('选择车辆', 'Vehicle')}</div><div class="vehs"></div></div>
       </div>
       <div class="foot">
-        <div class="rules">规则：比对手大 25% 就能把它整个吞掉（得到它 60% 的质量）。每人 3 条命，被吞后留 45% 质量重生。${A.roundSeconds / 60} 分钟结束，或只剩一人，或地标被拆完。金色箱子、连击、第一滴血、吞掉第一名（悬赏）、拆掉地标最后一块都有奖励；落后的人吃东西有追赶加成；道具箱：⚡加速、🧲强磁、🛡护盾（不会被吃）；冲刺撞上吃不动的东西会被眩晕并掉质量。</div>
+        <div class="rules">${L(
+          `规则：比对手大 25% 就能把它整个吞掉（得到它 60% 的质量）。每人 3 条命，被吞后留 45% 质量重生。${A.roundSeconds / 60} 分钟结束，或只剩一人，或地标被拆完。金色箱子、连击、第一滴血、吞掉第一名（悬赏）、拆掉地标最后一块都有奖励；落后的人吃东西有追赶加成；道具箱：⚡加速、🧲强磁、🛡护盾（不会被吃）；冲刺撞上吃不动的东西会被眩晕并掉质量。`,
+          `Rules: be 25% bigger than a rival to swallow it whole (you get 60% of its mass). 3 lives each; when eaten you respawn with 45% of your mass. The round ends after ${A.roundSeconds / 60} minutes, when one machine is left, or when the landmark is torn down. Golden crates, combos, first blood, the leader's bounty and the last landmark piece all pay extra; machines behind the leader get a catch-up bonus. Power-ups: ⚡ speed, 🧲 magnet, 🛡 shield (can't be eaten). Dashing into something you can't eat stuns you and costs mass.`,
+        )}</div>
         <div class="actions">
-          <button class="btn" data-a="join">${me ? '离开 · 观战' : '加入比赛'}</button>
-          ${me && !host ? `<button class="btn" data-a="ready">${s.ready ? '取消准备' : '准备 READY'}</button>` : ''}
-          ${host ? `<label class="tog"><input type="checkbox" id="arena-bots" ${s.bots ? 'checked' : ''}> AI 对手补位</label><button class="btn primary" data-a="start" ${s.canStart() ? '' : 'disabled'}>开始比赛 START</button>` : `<span class="chip">等待房主开始</span>`}
+          <button class="btn" data-a="join">${me ? L('离开 · 观战', 'Leave · spectate') : L('加入比赛', 'Join')}</button>
+          ${me && !host ? `<button class="btn" data-a="ready">${s.ready ? L('取消准备', 'Not ready') : L('准备', 'Ready')}</button>` : ''}
+          ${host ? `<label class="tog"><input type="checkbox" id="arena-bots" ${s.bots ? 'checked' : ''}> ${L('AI 对手补位', 'Fill with AI')}</label><button class="btn primary" data-a="start" ${s.canStart() ? '' : 'disabled'}>${L('开始比赛', 'Start')}</button>` : `<span class="chip">${L('等待房主开始', 'Waiting for the host')}</span>`}
         </div>
       </div>`;
     // Cities.
@@ -203,9 +216,9 @@ export class ArenaUi {
       b.className = 'city';
       b.setAttribute('aria-pressed', String(s.city === c.id));
       b.disabled = !host || locked;
-      b.innerHTML = `<div class="lv">${c.level || '★'}<small>${c.level ? 'LEVEL' : 'BONUS'}</small></div><div><div class="nm"></div><div class="tg"></div></div>`;
-      (b.querySelector('.nm') as HTMLElement).innerHTML = `${c.nameZh}<span>${c.name.toUpperCase()}</span>${locked ? ' 🔒' : ''}`;
-      (b.querySelector('.tg') as HTMLElement).textContent = locked ? `赢下第 ${c.level - 1} 关解锁` : c.tagline;
+      b.innerHTML = `<div class="lv">${c.level || '★'}<small>${c.level ? L('关', 'LEVEL') : L('加分', 'BONUS')}</small></div><div><div class="nm"></div><div class="tg"></div></div>`;
+      (b.querySelector('.nm') as HTMLElement).innerHTML = `${L(c.nameZh, c.name)}<span>${L(c.name.toUpperCase(), '')}</span>${locked ? ' 🔒' : ''}`;
+      (b.querySelector('.tg') as HTMLElement).textContent = locked ? L(`赢下第 ${c.level - 1} 关解锁`, `Win level ${c.level - 1} to unlock`) : L(c.taglineZh ?? c.tagline, c.tagline);
       b.onclick = () => {
         s.setCity(c.id);
         this.renderLobby();
@@ -222,12 +235,12 @@ export class ArenaUi {
       const n = d.querySelector('.n') as HTMLElement;
       if (p) {
         n.textContent = p.name;
-        if (p.isMe) n.insertAdjacentHTML('beforeend', '<em>你</em>');
-        (d.querySelector('.v') as HTMLElement).textContent = `${VEHICLES[p.vehicle].nameZh} · ${VEHICLES[p.vehicle].name}${p.guest ? ' · 访客' : ''}`;
-        (d.querySelector('.st') as HTMLElement).textContent = p.id === s.hostId() ? '房主' : p.ready ? '已准备' : '未准备';
+        if (p.isMe) n.insertAdjacentHTML('beforeend', `<em>${L('你', 'you')}</em>`);
+        (d.querySelector('.v') as HTMLElement).textContent = `${L(VEHICLES[p.vehicle].nameZh, VEHICLES[p.vehicle].name)}${p.guest ? L(' · 访客', ' · guest') : ''}`;
+        (d.querySelector('.st') as HTMLElement).textContent = p.id === s.hostId() ? L('房主', 'Host') : p.ready ? L('已准备', 'Ready') : L('未准备', 'Not ready');
       } else {
-        n.textContent = s.bots ? 'AI 对手' : '等待玩家…';
-        (d.querySelector('.v') as HTMLElement).textContent = s.bots ? '开局时自动补位' : '空位';
+        n.textContent = s.bots ? L('AI 对手', 'AI rival') : L('等待玩家…', 'Waiting for a player…');
+        (d.querySelector('.v') as HTMLElement).textContent = s.bots ? L('开局时自动补位', 'Joins when the round starts') : L('空位', 'Open slot');
       }
       slots.appendChild(d);
     }
@@ -238,9 +251,9 @@ export class ArenaUi {
       const b = document.createElement('button');
       b.className = 'veh';
       b.setAttribute('aria-pressed', String(s.vehicle === id));
-      b.innerHTML = `<div class="nm"><i style="background:#${v.shell.toString(16).padStart(6, '0')}"></i>${v.nameZh} <span style="opacity:.6;font-size:11px">${v.name}</span></div><div class="bl"></div>
-        <div class="bars"><span>速度</span><b><i style="width:${STAT(v.speed, 0.7, 1.3)}%"></i></b><span>加速</span><b><i style="width:${STAT(v.accel, 0.6, 1.4)}%"></i></b><span>吸取</span><b><i style="width:${STAT(v.reach, 0.6, 1.7)}%"></i></b><span>吞噬</span><b><i style="width:${STAT(2 - v.eatRatio, 0.85, 1.12)}%"></i></b></div>`;
-      (b.querySelector('.bl') as HTMLElement).textContent = v.blurb;
+      b.innerHTML = `<div class="nm"><i style="background:#${v.shell.toString(16).padStart(6, '0')}"></i>${L(v.nameZh, v.name)} <span style="opacity:.6;font-size:11px">${L(v.name, '')}</span></div><div class="bl"></div>
+        <div class="bars"><span>${L('速度', 'Speed')}</span><b><i style="width:${STAT(v.speed, 0.7, 1.3)}%"></i></b><span>${L('加速', 'Accel')}</span><b><i style="width:${STAT(v.accel, 0.6, 1.4)}%"></i></b><span>${L('吸取', 'Reach')}</span><b><i style="width:${STAT(v.reach, 0.6, 1.7)}%"></i></b><span>${L('吞噬', 'Bite')}</span><b><i style="width:${STAT(2 - v.eatRatio, 0.85, 1.12)}%"></i></b></div>`;
+      (b.querySelector('.bl') as HTMLElement).textContent = L(v.blurbZh, v.blurb);
       b.onclick = () => {
         s.setVehicle(id as VehicleLook);
         this.renderLobby();
@@ -270,7 +283,7 @@ export class ArenaUi {
         else if (a === 'start') s.start();
         else if (a === 'story') this.onStory?.();
         else if (a === 'copy') {
-          void navigator.clipboard?.writeText(location.href).then(() => ((el as HTMLElement).textContent = '已复制 ✓ COPIED'));
+          void navigator.clipboard?.writeText(location.href).then(() => ((el as HTMLElement).textContent = L('已复制 ✓', 'Copied ✓')));
           this.onShare?.();
           return;
         }
@@ -290,14 +303,14 @@ export class ArenaUi {
     if (s.match.ph === 'lobby') return;
     if (!this.overlay.dataset.built) {
       this.overlay.dataset.built = '1';
-      this.overlay.innerHTML = `<div class="timer"><b class="hex">5:00</b><span></span></div><div class="board"></div><div class="feed"></div><div class="center"></div><div class="combo"></div><div class="tags"></div><canvas class="map" width="368" height="368" aria-label="小地图 minimap"></canvas><div class="emotes" aria-label="表情 emotes"><button data-e="1" title="1">😂</button><button data-e="3" title="3">👋</button><button data-e="4" title="4">🐷</button><button data-e="6" title="H">📯</button></div>`;
+      this.overlay.innerHTML = `<div class="timer"><b class="hex">5:00</b><span></span></div><div class="board"></div><div class="feed"></div><div class="center"></div><div class="combo"></div><div class="tags"></div><canvas class="map" width="368" height="368" aria-label="minimap"></canvas><div class="emotes" aria-label="emotes"><button data-e="1" title="1">😂</button><button data-e="3" title="3">👋</button><button data-e="4" title="4">🐷</button><button data-e="6" title="H">📯</button></div>`;
       this.overlay.querySelectorAll<HTMLButtonElement>('.emotes button').forEach((b) => (b.onclick = () => this.onEmote?.(Number(b.dataset.e))));
       g.onFeed = (text, tone) => this.feed(text, tone);
     }
     const left = Math.max(0, A.roundSeconds - g.matchTime);
     (this.overlay.querySelector('.timer b') as HTMLElement).textContent = `${Math.floor(left / 60)}:${Math.floor(left % 60).toString().padStart(2, '0')}`;
     const climax = g.world.objects.filter((o) => o.def.climax).length;
-    (this.overlay.querySelector('.timer span') as HTMLElement).textContent = `${g.city.nameZh} · ${g.city.climaxNameZh} ${climax - g.climaxLeft()}/${climax}`;
+    (this.overlay.querySelector('.timer span') as HTMLElement).textContent = `${L(g.city.nameZh, g.city.name)} · ${L(g.city.climaxNameZh, g.city.climaxName.replace(/^the /, ''))} ${climax - g.climaxLeft()}/${climax}`;
     // Scoreboard.
     const board = this.overlay.querySelector('.board') as HTMLElement;
     const rows = [...g.actors].sort((a, b) => (a.eliminated !== b.eliminated ? (a.eliminated ? 1 : -1) : b.mass - a.mass));
@@ -306,7 +319,7 @@ export class ArenaUi {
       const r = document.createElement('div');
       r.className = `row${a === g.local ? ' me' : ''}${a.eliminated ? ' out' : ''}`;
       r.innerHTML = `<span class="rk">${i + 1}</span><i style="background:#${SLOT_COLORS[a.slot % 4].toString(16).padStart(6, '0')}"></i><span class="nm"></span><span class="ms hex"></span><span class="lv2"></span>`;
-      (r.querySelector('.nm') as HTMLElement).textContent = (i === 0 && !a.eliminated ? '👑 ' : '') + a.name + (a === g.local ? '（你）' : '');
+      (r.querySelector('.nm') as HTMLElement).textContent = (i === 0 && !a.eliminated ? '👑 ' : '') + a.name + (a === g.local ? L('（你）', ' (you)') : '');
       (r.querySelector('.ms') as HTMLElement).textContent = massText(a.mass);
       (r.querySelector('.lv2') as HTMLElement).textContent = `${'♥'.repeat(a.lives)}${'♡'.repeat(Math.max(0, A.lives - a.lives))} · 吞 ${a.kills} · ${a.vehicle.nameZh}${a.eliminated ? ' · 出局' : !a.alive ? ' · 重生中' : ''}`;
       board.appendChild(r);
@@ -314,20 +327,20 @@ export class ArenaUi {
     // Centre message.
     const center = this.overlay.querySelector('.center') as HTMLElement;
     const me = g.local;
-    if (g.phase === 'countdown') center.innerHTML = `<b>${Math.max(1, Math.ceil(g.countdown))}</b><span>准备 · GET READY</span>`;
-    else if (g.phase === 'playing' && g.matchTime < 1.2) center.innerHTML = `<b>GO</b><span>开吃！</span>`;
-    else if (me && me.eliminated) center.innerHTML = `<span>已出局 · 观战中（点击切换视角）</span>`;
-    else if (me && !me.alive) center.innerHTML = `<b>${Math.max(0, me.respawnAt - g.matchTime).toFixed(1)}</b><span>重生中 · RESPAWNING</span>`;
-    else if (!me) center.innerHTML = `<span>观战中 · 下一局可加入</span>`;
+    if (g.phase === 'countdown') center.innerHTML = `<b>${Math.max(1, Math.ceil(g.countdown))}</b><span>${L('准备', 'GET READY')}</span>`;
+    else if (g.phase === 'playing' && g.matchTime < 1.2) center.innerHTML = `<b>GO</b><span>${L('开吃！', 'EAT!')}</span>`;
+    else if (me && me.eliminated) center.innerHTML = `<span>${L('已出局 · 观战中（点击切换视角）', 'Eliminated · spectating (tap to switch)')}</span>`;
+    else if (me && !me.alive) center.innerHTML = `<b>${Math.max(0, me.respawnAt - g.matchTime).toFixed(1)}</b><span>${L('重生中', 'RESPAWNING')}</span>`;
+    else if (!me) center.innerHTML = `<span>${L('观战中 · 下一局可加入', 'Spectating · join next round')}</span>`;
     else center.textContent = '';
     const combo = this.overlay.querySelector('.combo') as HTMLElement;
     const cu = me && me.alive ? g.catchUp(me) : 1;
     const parts: string[] = [];
-    if (me && me.combo >= 2 && g.time <= me.comboUntil) parts.push(`连击 ×${Math.min(A.comboMax, 1 + A.comboStep * (me.combo - 1)).toFixed(1)}`);
-    if (cu > 1.05) parts.push(`<small>追赶加成 +${Math.round((cu - 1) * 100)}%</small>`);
+    if (me && me.combo >= 2 && g.time <= me.comboUntil) parts.push(`${L('连击', 'Combo')} ×${Math.min(A.comboMax, 1 + A.comboStep * (me.combo - 1)).toFixed(1)}`);
+    if (cu > 1.05) parts.push(`<small>${L('追赶加成', 'Catch-up')} +${Math.round((cu - 1) * 100)}%</small>`);
     if (me && me.alive) {
       const t = g.matchTime;
-      for (const [until, label] of [[me.speedUntil, '⚡ 加速'], [me.magnetUntil, '🧲 强磁'], [me.shieldUntil, '🛡 护盾']] as const) if (t < until) parts.push(`<small class="pw">${label} ${Math.ceil(until - t)}s</small>`);
+      for (const [until, label] of [[me.speedUntil, L('⚡ 加速', '⚡ Speed')], [me.magnetUntil, L('🧲 强磁', '🧲 Magnet')], [me.shieldUntil, L('🛡 护盾', '🛡 Shield')]] as const) if (t < until) parts.push(`<small class="pw">${label} ${Math.ceil(until - t)}s</small>`);
     }
     combo.innerHTML = parts.join('<br>');
     this.renderTags(g);
@@ -473,15 +486,15 @@ export class ArenaUi {
   showResults(standings: Standing[], localId: string | null, earned: { coins: number; unlocked: string | null }): void {
     const champ = standings[0];
     this.results.hidden = false;
-    this.results.innerHTML = `<div class="card"><h2>👑 冠军 CHAMPION</h2><div class="who"></div>
-      <table><thead><tr><th>#</th><th>玩家</th><th>质量</th><th>吞噬</th><th>被吞</th><th>物件</th></tr></thead><tbody></tbody></table>
-      <div class="awards"></div><div class="earn"></div><div class="actions">${this.session.isHost() ? '<button class="btn primary" data-a="again">再来一局 REMATCH</button><button class="btn" data-a="lobby">返回大厅</button>' : '<span class="chip">等待房主：再来一局或返回大厅…</span>'}</div></div>`;
+    this.results.innerHTML = `<div class="card"><h2>👑 ${L('冠军', 'Champion')}</h2><div class="who"></div>
+      <table><thead><tr><th>#</th><th>${L('玩家', 'Player')}</th><th>${L('质量', 'Mass')}</th><th>${L('吞噬', 'Eats')}</th><th>${L('被吞', 'Eaten')}</th><th>${L('物件', 'Items')}</th></tr></thead><tbody></tbody></table>
+      <div class="awards"></div><div class="earn"></div><div class="actions">${this.session.isHost() ? `<button class="btn primary" data-a="again">${L('再来一局', 'Rematch')}</button><button class="btn" data-a="lobby">${L('返回大厅', 'Lobby')}</button>` : `<span class="chip">${L('等待房主：再来一局或返回大厅…', 'Waiting for the host…')}</span>`}</div></div>`;
     (this.results.querySelector('.who') as HTMLElement).textContent = champ ? `${champ.name} · ${massText(champ.mass)}` : '';
     const tb = this.results.querySelector('tbody') as HTMLElement;
     for (const s of standings) {
       const tr = document.createElement('tr');
       if (s.id === localId) tr.className = 'me';
-      for (const v of [String(s.rank), s.name + (s.alive ? '' : ' · 出局'), massText(s.mass), String(s.kills), String(s.deaths), String(s.objects)]) {
+      for (const v of [String(s.rank), s.name + (s.alive ? '' : L(' · 出局', ' · out')), massText(s.mass), String(s.kills), String(s.deaths), String(s.objects)]) {
         const td = document.createElement('td');
         td.textContent = v;
         tr.appendChild(td);
@@ -494,7 +507,7 @@ export class ArenaUi {
       d.append(Object.assign(document.createElement('b'), { textContent: x.name }), ` · ${x.title}`);
       aw.appendChild(d);
     }
-    (this.results.querySelector('.earn') as HTMLElement).innerHTML = localId && standings.some((s) => s.id === localId) ? `获得 <span class="coins">◎ ${earned.coins}</span> 金币${earned.unlocked ? ` · 解锁新关卡：<b>${earned.unlocked}</b>` : ''}` : '观战中';
+    (this.results.querySelector('.earn') as HTMLElement).innerHTML = localId && standings.some((s) => s.id === localId) ? `${L('获得', 'Earned')} <span class="coins">◎ ${earned.coins}</span> ${L('金币', 'coins')}${earned.unlocked ? ` · ${L('解锁新关卡', 'New level unlocked')}: <b>${earned.unlocked}</b>` : ''}` : L('观战中', 'Spectating');
     const b = this.results.querySelector('[data-a="lobby"]') as HTMLButtonElement | null;
     if (b) b.onclick = () => this.session.toLobby();
     const again = this.results.querySelector('[data-a="again"]') as HTMLButtonElement | null;

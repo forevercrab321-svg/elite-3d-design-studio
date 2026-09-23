@@ -33,6 +33,7 @@ export interface CityDef {
   nameZh: string;
   /** One line under the name on the level card. */
   tagline: string;
+  taglineZh?: string;
   /** Campaign order (1 = first level). Scrap City is the story mode (0). */
   level: number;
   palette: Palette;

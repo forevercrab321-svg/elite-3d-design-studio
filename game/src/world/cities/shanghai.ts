@@ -42,6 +42,7 @@ export const SHANGHAI = makeCity({
   name: 'Shanghai',
   nameZh: '上海',
   tagline: 'Shikumen lanes around the Pearl',
+  taglineZh: '石库门弄堂环绕东方明珠',
   level: 1,
   palette: SHANGHAI_HAZE,
   seed: 1021,

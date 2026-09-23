@@ -6,6 +6,8 @@
  * Inside an iframe (the claude.ai artifact) fullscreen may be refused: everything degrades to
  * the rotate card, never to an error.
  */
+import { L } from '../i18n';
+
 export function installLandscapeMode(): void {
   const coarse = matchMedia('(pointer: coarse)').matches;
   if (!coarse) return;
@@ -26,8 +28,8 @@ export function installLandscapeMode(): void {
   const card = document.createElement('button');
   card.type = 'button';
   card.className = 'ge-rotate';
-  card.setAttribute('aria-label', '请横屏游玩 Rotate to landscape');
-  card.innerHTML = '<div class="phone"></div><div>请把手机横过来玩<br>ROTATE TO LANDSCAPE</div><small>点一下进入全屏横屏（支持的手机会自动锁定方向）</small>';
+  card.setAttribute('aria-label', L('请横屏游玩', 'Rotate to landscape'));
+  card.innerHTML = `<div class="phone"></div><div>${L('请把手机横过来玩', 'ROTATE TO LANDSCAPE')}</div><small>${L('点一下进入全屏横屏（支持的手机会自动锁定方向）', 'Tap for fullscreen landscape (locks automatically where supported)')}</small>`;
   card.addEventListener('click', () => void goLandscape());
   document.body.appendChild(card);
 
@@ -35,8 +37,8 @@ export function installLandscapeMode(): void {
   full.type = 'button';
   full.className = 'ge-full';
   full.textContent = '⛶';
-  full.title = '全屏 Fullscreen';
-  full.setAttribute('aria-label', '全屏 Fullscreen');
+  full.title = L('全屏', 'Fullscreen');
+  full.setAttribute('aria-label', full.title);
   full.addEventListener('click', () => void goLandscape());
   document.body.appendChild(full);
   if (!document.fullscreenEnabled) full.hidden = true;

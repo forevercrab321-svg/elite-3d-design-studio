@@ -39,6 +39,7 @@ export const PARIS = makeCity({
   name: 'Paris',
   nameZh: '巴黎',
   tagline: 'Haussmann boulevards under the Eiffel Tower',
+  taglineZh: '埃菲尔铁塔下的奥斯曼大道',
   level: 3,
   palette: PARIS_SUNSET,
   seed: 3141,

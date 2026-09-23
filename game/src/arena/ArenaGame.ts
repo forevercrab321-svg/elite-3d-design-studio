@@ -11,6 +11,7 @@ import { CameraRig } from '../systems/CameraRig';
 import { Effects } from '../systems/Effects';
 import { classForPower, diameterForMass, progressToNextClass, tierForClass } from '../systems/growth';
 import { Hud } from '../ui/Hud';
+import { L } from '../i18n';
 import type { MaterialLibrary } from '../art/materials';
 import { LAYER_NO_AO, skipAO } from '../art/layers';
 import { createSkyDome } from '../art/environment';
@@ -119,7 +120,7 @@ export type WireState = [x: number, z: number, heading: number, diameter: number
 
 const PULL_HOLD_RECLAIM = 1.5;
 
-/** Size class names for the Chinese-first arena HUD. */
+/** Size class names for the arena HUD (Chinese; English uses SIZE_CLASSES labels). */
 const CLASS_ZH = ['碎屑', '罐子和砖块', '纸箱和垃圾袋', '垃圾桶和街道设施', '大垃圾箱和机器', '汽车', '卡车和集装箱', '房屋', '楼房', '大型建筑', '城市街区'];
 
 /** Starter scrap around each spawn: [type, radius m, count]. */
@@ -459,9 +460,9 @@ export class ArenaGame {
         this.effects.sparks(a.x, a.diameter * 0.5, a.z, 14, 3 + a.diameter);
         if (a.kind === 'local') {
           this.effects.addTrauma(0.35);
-          this.hud.toast(`撞车眩晕 CRASH · −${Math.round(lost).toLocaleString('en-US')} KG`);
+          this.hud.toast(`${L('撞车眩晕', 'CRASH')} · −${Math.round(lost).toLocaleString('en-US')} KG`);
           this.onEvent?.({ kind: 'bump', size: a.diameter });
-          this.onFeed?.('冲刺撞上吃不动的东西：眩晕并掉质量', 'bad');
+          this.onFeed?.(L('冲刺撞上吃不动的东西：眩晕并掉质量', 'Dashed into something too big: stunned, mass lost'), 'bad');
         }
       } else if (a.speed > this.topSpeed(a) * 0.45) a.speed *= 0.4;
     }
@@ -513,7 +514,7 @@ export class ArenaGame {
     if (o.state === 'idle') this.startPull(o, a);
     else if (o.owner !== actorId) {
       o.owner = actorId; // stolen: the host gave it to someone else
-      if (this.local && this.local.id !== actorId && this.byId.get(o.owner)?.kind !== 'local') this.onFeed?.(`${a.name} 抢先吸走了`, 'info');
+      if (this.local && this.local.id !== actorId && this.byId.get(o.owner)?.kind !== 'local') this.onFeed?.(L(`${a.name} 抢先吸走了`, `${a.name} grabbed it first`), 'info');
     }
   }
 
@@ -586,9 +587,9 @@ export class ArenaGame {
     for (const r of fell) this.effects.dust(r.x, r.z, Math.max(...r.def.size) * 0.4, 6);
     if (o.def.climax) {
       // Everyone hears the landmark going down.
-      if (fell.some((r) => r.def.climax)) this.onFeed?.(`${a.name} 撬倒了${this.city.climaxNameZh}的支柱 · 塔身正在倒塌！`, 'kill');
+      if (fell.some((r) => r.def.climax)) this.onFeed?.(L(`${a.name} 撬倒了${this.city.climaxNameZh}的支柱 · 塔身正在倒塌！`, `${a.name} knocked out ${this.city.climaxName}'s supports · it's coming down!`), 'kill');
       const left = this.climaxLeft();
-      if (left === 0) this.onFeed?.(`${a.name} 拆掉了${this.city.climaxNameZh}的最后一块！`, 'bonus');
+      if (left === 0) this.onFeed?.(L(`${a.name} 拆掉了${this.city.climaxNameZh}的最后一块！`, `${a.name} ate the last piece of ${this.city.climaxName}!`), 'bonus');
       if (fell.length) {
         this.effects.addTrauma(0.6);
         this.onEvent?.({ kind: 'landmark' });
@@ -603,14 +604,14 @@ export class ArenaGame {
     const mult = Math.min(A.comboMax, 1 + A.comboStep * (a.combo - 1));
     if (o.def.power) {
       const t = this.matchTime;
-      const [label, secs] = o.def.power === 'speed' ? ['⚡ 加速', A.speedSeconds] : o.def.power === 'magnet' ? ['🧲 强磁', A.magnetSeconds] : ['🛡 护盾', A.shieldSeconds];
+      const [label, secs] = o.def.power === 'speed' ? [L('⚡ 加速', '⚡ Speed'), A.speedSeconds] : o.def.power === 'magnet' ? [L('🧲 强磁', '🧲 Magnet'), A.magnetSeconds] : [L('🛡 护盾', '🛡 Shield'), A.shieldSeconds];
       if (o.def.power === 'speed') a.speedUntil = t + secs;
       else if (o.def.power === 'magnet') a.magnetUntil = t + secs;
       else a.shieldUntil = t + secs;
       if (a.kind === 'local') {
-        this.hud.toast(`${label} ${secs} 秒`);
+        this.hud.toast(`${label} ${secs}${L(' 秒', 's')}`);
         this.onEvent?.({ kind: 'unlock', cls: 1 });
-        this.onFeed?.(`获得道具：${label}`, 'bonus');
+        this.onFeed?.(`${L('获得道具：', 'Power-up: ')}${label}`, 'bonus');
       }
     }
     let gain = o.def.bonus ? Math.max(o.def.rewardMass, a.mass * A.goldCrateShare) : o.def.rewardMass;
@@ -625,8 +626,8 @@ export class ArenaGame {
       this.hud.punch(gain);
       this.effects.addTrauma(big ? feelConfig.largePickupTrauma * Math.min(1, size / a.diameter) : feelConfig.pickupTrauma);
       this.onEvent?.({ kind: 'absorb', cls: o.def.objectClass, mass: gain, size, destruction: o.def.destructionType });
-      if (o.def.bonus) this.onFeed?.(`金色箱子 +${Math.round(gain).toLocaleString('en-US')} kg`, 'bonus');
-      if (climaxLeft === 0) this.hud.showBanner(`拆除${this.city.climaxNameZh}！`, `地标奖励 LANDMARK BONUS +${Math.round(A.landmarkBonus * 100)}%`, 3);
+      if (o.def.bonus) this.onFeed?.(`${L('金色箱子', 'Golden crate')} +${Math.round(gain).toLocaleString('en-US')} kg`, 'bonus');
+      if (climaxLeft === 0) this.hud.showBanner(L(`拆除${this.city.climaxNameZh}！`, `${this.city.climaxName.replace(/^the /, '').toUpperCase()} DOWN!`), `${L('地标奖励', 'LANDMARK BONUS')} +${Math.round(A.landmarkBonus * 100)}%`, 3);
     }
   }
 
@@ -744,8 +745,8 @@ export class ArenaGame {
             this.onEvent?.({ kind: 'boing' });
             this.effects.addTrauma(0.15);
           }
-          this.sayFor(a, '嘣!', 0.6);
-          this.sayFor(b, '嘣!', 0.6);
+          this.sayFor(a, L('嘣!', 'BOING!'), 0.6);
+          this.sayFor(b, L('嘣!', 'BOING!'), 0.6);
         }
       }
     }
@@ -802,7 +803,7 @@ export class ArenaGame {
     if (!this.firstBloodDone) this.firstBloodDone = true;
     // Comedy: the victim pops like a balloon, the winner burps.
     this.effects.burst(v.x, v.diameter * 0.6, v.z, new THREE.Color().setHSL(Math.random(), 0.9, 0.6), 30, Math.max(0.05, v.diameter * 0.1), 4 + v.diameter * 3);
-    this.sayFor(a, '嗝~ 😋', 1.8);
+    this.sayFor(a, L('嗝~ 😋', 'BURP~ 😋'), 1.8);
     a.jolt = 1;
     if (a.kind === 'bot' && a.owned) {
       a.emote = 1;
@@ -817,14 +818,14 @@ export class ArenaGame {
     const you = this.local;
     if (you && v === you) {
       this.effects.addTrauma(0.7);
-      this.hud.showBanner(v.lives <= 0 ? '出局 ELIMINATED' : '你被吞掉了', v.lives <= 0 ? `被 ${a.name} 吞掉 · 观战中` : `被 ${a.name} 吞掉 · 还剩 ${v.lives} 条命`, 2.6);
+      this.hud.showBanner(v.lives <= 0 ? L('出局', 'ELIMINATED') : L('你被吞掉了', 'YOU GOT EATEN'), v.lives <= 0 ? L(`被 ${a.name} 吞掉 · 观战中`, `Eaten by ${a.name} · spectating`) : L(`被 ${a.name} 吞掉 · 还剩 ${v.lives} 条命`, `Eaten by ${a.name} · ${v.lives} ${v.lives === 1 ? 'life' : 'lives'} left`), 2.6);
       this.onEvent?.({ kind: 'eaten' });
     } else if (you && a === you) {
       this.effects.addTrauma(0.5);
-      this.hud.showBanner(`吞掉 ${v.name}！`, `+${Math.round(e.gain).toLocaleString('en-US')} KG${e.first ? ' · 第一滴血 FIRST BLOOD' : ''}`, 2.2);
+      this.hud.showBanner(L(`吞掉 ${v.name}！`, `ATE ${v.name}!`), `+${Math.round(e.gain).toLocaleString('en-US')} KG${e.first ? L(' · 第一滴血', ' · FIRST BLOOD') : ''}`, 2.2);
       this.onEvent?.({ kind: 'win' });
     }
-    this.onFeed?.(`${killQuip(this.city.id, a.name, v.name, Math.random())}${e.first ? ' · 第一滴血' : ''}${v.lives <= 0 ? ' · 出局' : ''}`, 'kill');
+    this.onFeed?.(`${killQuip(this.city.id, a.name, v.name, Math.random())}${e.first ? L(' · 第一滴血', ' · first blood') : ''}${v.lives <= 0 ? L(' · 出局', ' · eliminated') : ''}`, 'kill');
   }
 
   private respawn(a: Actor): void {
@@ -842,7 +843,7 @@ export class ArenaGame {
     a.shieldUntil = a.speedUntil = a.magnetUntil = 0;
     if (a.kind === 'local') {
       this.rig.snap(a.x, a.z, a.heading, a.diameter);
-      this.hud.toast('重生 · 3 秒无敌 INVULNERABLE');
+      this.hud.toast(L('重生 · 3 秒无敌', 'RESPAWN · 3 s INVULNERABLE'));
     }
   }
 
@@ -854,11 +855,11 @@ export class ArenaGame {
     if (a.kind === 'local' && cls > a.cls) {
       const tier = tierForClass(cls);
       if (tier > a.tier) {
-        this.hud.showBanner(`进化到 ${tier} 阶 TIER ${tier}`, `现在能吃：${CLASS_ZH[cls]} · ${SIZE_CLASSES[cls].label.toUpperCase()}`, 2.4);
+        this.hud.showBanner(L(`进化到 ${tier} 阶`, `TIER ${tier}`), L(`现在能吃：${CLASS_ZH[cls]}`, `NOW EATING: ${SIZE_CLASSES[cls].label.toUpperCase()}`), 2.4);
         this.onEvent?.({ kind: 'tier', tier });
         this.effects.pulse(a.x, a.z, a.targetDiameter * 4, 1);
       } else {
-        this.hud.showBanner(`解锁：${CLASS_ZH[cls]}`, `${SIZE_CLASSES[cls].label.toUpperCase()} · SIZE CLASS ${cls}`, 1.6);
+        this.hud.showBanner(L(`解锁：${CLASS_ZH[cls]}`, `UNLOCKED: ${SIZE_CLASSES[cls].label.toUpperCase()}`), `SIZE CLASS ${cls}`, 1.6);
         this.onEvent?.({ kind: 'unlock', cls });
       }
     }
@@ -923,7 +924,7 @@ export class ArenaGame {
       a.eliminatedAt = this.matchTime;
     }
     a.lives = 0;
-    this.onFeed?.(`${a.name} 离开了比赛`, 'info');
+    this.onFeed?.(L(`${a.name} 离开了比赛`, `${a.name} left the match`), 'info');
   }
 
   private followNetwork(a: Actor, dt: number): void {

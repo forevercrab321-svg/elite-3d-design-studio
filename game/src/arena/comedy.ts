@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { lang } from '../i18n';
 
 /**
  * Comedy kit for the arena: googly eyes on every machine, city-flavoured kill quips,
@@ -10,7 +11,7 @@ import * as THREE from 'three';
 export const EMOTES = ['', '😂', '🤡', '👋', '🐷', '😱', '📯'] as const;
 export const HORN = 6;
 
-const QUIPS: Record<string, string[]> = {
+const QUIPS_ZH: Record<string, string[]> = {
   shanghai: ['{a} 把 {v} 当小笼包，一口闷了 🥟', '{a} 请 {v} 吃了一顿本帮菜——{v} 就是那道菜', '{v} 在外滩被 {a} 打包带走了 🥡', '{a}：「{v}，侬好伐？」然后吃了 🍜', '{v} 化成了 {a} 的生煎包馅 🥟'],
   newyork: ['{a} 把 {v} 夹进热狗吃了 🌭', '{v} 被 {a} 当成了纽约披萨，还是整张的 🍕', '{a}：「Forget about it!」——{v} 没了', '{v} 打了个黄色出租车……直接开进了 {a} 嘴里 🚕', '{a} 把 {v} 当贝果，就着咖啡吃了 🥯'],
   paris: ['{a} 配着马卡龙把 {v} 当下午茶了 ☕', '{v} 被 {a} 蘸着奶酪火锅吃了 🧀', '{a}：「Bon appétit!」{v}：「Mon dieu!」', '{v} 变成了 {a} 的可颂 🥐', '{a} 优雅地吞掉了 {v}，还擦了擦嘴 🍷'],
@@ -18,8 +19,17 @@ const QUIPS: Record<string, string[]> = {
   common: ['{v} 被 {a} 一口吞掉，连渣都不剩', '{a} 打了个饱嗝——里面有 {v}', '{v} 太小了，{a} 都没嚼', '{a} 表示 {v} 味道一般，但分量可以'],
 };
 
+const QUIPS_EN: Record<string, string[]> = {
+  shanghai: ['{a} ate {v} like a soup dumpling, in one bite 🥟', '{a} treated {v} to a Shanghai dinner — {v} was the dinner', '{v} got taken away on the Bund by {a} 🥡', '{a}: "Nong hao, {v}!" *gulp* 🍜', '{v} became the filling of {a}\'s pan-fried bun 🥟'],
+  newyork: ['{a} put {v} in a hot dog 🌭', '{a} folded {v} like a New York slice 🍕', '{a}: "Forget about it!" — {v} is gone', '{v} hailed a yellow cab… straight into {a}\'s mouth 🚕', '{a} had {v} with a bagel and a coffee 🥯'],
+  paris: ['{a} had {v} for afternoon tea with macarons ☕', '{a} dipped {v} in fondue 🧀', '{a}: "Bon appétit!" {v}: "Mon dieu!"', '{v} is now {a}\'s croissant 🥐', '{a} swallowed {v} elegantly and dabbed its mouth 🍷'],
+  scrap: ['{a} recycled {v} into soda cans 🥫', '{a} flattened {v} into a scrap pancake', '{a}: "Please sort your recycling, {v}" ♻️'],
+  common: ['{a} ate {v}. Nothing left, not even crumbs', '{a} burped — {v} is in there somewhere', '{v} was so small {a} didn\'t even chew', '{a} rates {v}: bland, but good portions'],
+};
+
 export function killQuip(city: string, attacker: string, victim: string, roll: number): string {
-  const pool = [...(QUIPS[city] ?? []), ...QUIPS.common];
+  const Q = lang === 'zh' ? QUIPS_ZH : QUIPS_EN;
+  const pool = [...(Q[city] ?? []), ...Q.common];
   const line = pool[Math.floor(roll * pool.length) % pool.length];
   return line.replaceAll('{a}', attacker).replaceAll('{v}', victim);
 }
@@ -39,13 +49,13 @@ export function awards(rows: AwardInput[]): { name: string; title: string }[] {
   const out: { name: string; title: string }[] = [];
   const top = (key: 'objects' | 'kills' | 'deaths') => [...rows].sort((a, b) => b[key] - a[key])[0];
   const glutton = top('objects');
-  if (glutton && glutton.objects > 0) out.push({ name: glutton.name, title: `🍔 大胃王（吃了 ${glutton.objects} 样东西）` });
+  if (glutton && glutton.objects > 0) out.push({ name: glutton.name, title: lang === 'zh' ? `🍔 大胃王（吃了 ${glutton.objects} 样东西）` : `🍔 Bottomless Pit (${glutton.objects} things eaten)` });
   const hunter = top('kills');
-  if (hunter && hunter.kills > 0) out.push({ name: hunter.name, title: `🦈 城市猎手（吞了 ${hunter.kills} 个对手）` });
+  if (hunter && hunter.kills > 0) out.push({ name: hunter.name, title: lang === 'zh' ? `🦈 城市猎手（吞了 ${hunter.kills} 个对手）` : `🦈 City Shark (${hunter.kills} rivals eaten)` });
   const food = top('deaths');
-  if (food && food.deaths > 0) out.push({ name: food.name, title: `🥡 送外卖的（被吃了 ${food.deaths} 次）` });
+  if (food && food.deaths > 0) out.push({ name: food.name, title: lang === 'zh' ? `🥡 送外卖的（被吃了 ${food.deaths} 次）` : `🥡 Takeaway Delivery (eaten ${food.deaths}×)` });
   const chill = [...rows].filter((r) => r.rank > 1).sort((a, b) => a.mass - b.mass)[0];
-  if (chill && rows.length > 2) out.push({ name: chill.name, title: '🐢 佛系玩家（重在参与）' });
+  if (chill && rows.length > 2) out.push({ name: chill.name, title: lang === 'zh' ? '🐢 佛系玩家（重在参与）' : '🐢 Zen Mode (it\'s the taking part that counts)' });
   return out;
 }
 
