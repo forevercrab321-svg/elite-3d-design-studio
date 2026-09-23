@@ -9,7 +9,9 @@ import { CameraRig } from '../systems/CameraRig';
 import { Effects } from '../systems/Effects';
 import { classForPower, diameterForMass, massForDiameter, progressToNextClass, tierForClass } from '../systems/growth';
 import { Hud } from '../ui/Hud';
-import { SPAWN } from '../world/scrapCity';
+import { SPAWN, groundHeight } from '../world/scrapCity';
+import type { MaterialLibrary } from '../art/materials';
+import { FOG_COLOR, SUN_DIRECTION, createSkyDome } from '../art/environment';
 import { World, type WorldObject } from '../world/World';
 
 export const FIXED_DT = 1 / 60;
@@ -46,12 +48,12 @@ export interface PlayerState {
 export class Game {
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.PerspectiveCamera(56, 16 / 9, 0.03, 600);
-  readonly world = new World();
-  readonly model = new PlayerModel();
+  readonly world: World;
+  readonly model: PlayerModel;
   readonly rig: CameraRig;
   readonly hud = new Hud();
   effects: Effects;
-  readonly sun = new THREE.DirectionalLight(0xffd9ad, 2.9);
+  readonly sun = new THREE.DirectionalLight(0xffe2bf, 3.1);
   player!: PlayerState;
   metrics!: Metrics;
   time = 0;
@@ -63,21 +65,24 @@ export class Game {
   private beaconTarget: WorldObject | null = null;
   private shadowExtent = 0;
 
-  constructor(private readonly input: Input, seed: number) {
+  constructor(private readonly input: Input, seed: number, lib: MaterialLibrary) {
     this.seed = seed;
-    this.scene.background = new THREE.Color(0xcdd3d6);
-    this.scene.fog = new THREE.Fog(0xcdd3d6, 70, 230);
-    this.scene.add(this.world.root, this.model.root);
+    this.world = new World(lib);
+    this.model = new PlayerModel(lib);
+    this.scene.fog = new THREE.Fog(FOG_COLOR, 90, 420);
+    this.scene.add(createSkyDome(), this.world.root, this.model.root);
 
-    const sky = new THREE.HemisphereLight(0xe3e9ef, 0x7a6f60, 1.9);
+    // The sky-baked environment map carries most ambient light; the hemisphere adds bounce.
+    const sky = new THREE.HemisphereLight(0xcfdcec, 0x6e6254, 0.55);
     sky.name = 'LIGHT_Sky';
     this.scene.add(sky);
     // Late afternoon: low warm sun from the south-west, long readable shadows (design §28).
     this.sun.name = 'LIGHT_Sun';
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(2048, 2048);
-    this.sun.shadow.bias = -0.0003;
-    this.sun.shadow.normalBias = 0.03;
+    this.sun.shadow.bias = -0.00025;
+    this.sun.shadow.normalBias = 0.025;
+    this.sun.shadow.radius = 3;
     this.scene.add(this.sun, this.sun.target);
 
     this.effects = new Effects(createSeededRandom(seed ^ 0x9e37));
@@ -121,7 +126,7 @@ export class Game {
     this.world.applyEligibility(d);
     this.model.setTier(1, false);
     this.rig.pitch = 1;
-    this.model.update(0, d, 0, this.player.heading, this.player.x, this.player.z, 0);
+    this.model.update(1, d, 0, this.player.heading, this.player.x, this.player.z, 0, groundHeight(this.player.x, this.player.z));
     this.rig.snap(this.player.x, this.player.z, this.player.heading, d);
     this.hud.setHint(0);
     this.beaconTarget = this.pickBeaconTarget();
@@ -145,7 +150,7 @@ export class Game {
     const p = this.player;
     p.diameter += (p.targetDiameter - p.diameter) * (1 - Math.exp(-growthConfig.visualGrowthRate * dt));
     const top = this.topSpeed();
-    this.model.update(dt, p.diameter, p.speed, p.heading, p.x, p.z, p.turnVelocity * Math.min(1, p.speed / top));
+    this.model.update(dt, p.diameter, p.speed, p.heading, p.x, p.z, p.turnVelocity * Math.min(1, p.speed / top), groundHeight(p.x, p.z));
     this.effects.update(dt);
     this.rig.update(dt, p.x, p.z, p.heading, Math.abs(p.speed) / top, p.diameter);
     this.effects.applyShake(this.camera, this.rig.distance);
@@ -297,6 +302,7 @@ export class Game {
       this.effects.pulse(p.x, p.z, p.diameter * 2.5);
     }
     this.hud.punch(o.def.rewardMass);
+    this.model.pulseIntake(big ? 4 : 1.2);
     this.grow(o.def.rewardMass);
   }
 
@@ -337,14 +343,14 @@ export class Game {
     const p = this.player;
     const extent = 10 + p.diameter * 9;
     this.sun.target.position.set(p.x, 0, p.z);
-    this.sun.position.set(p.x - 34, 42, p.z + 40);
+    this.sun.position.set(p.x + SUN_DIRECTION.x * 70, SUN_DIRECTION.y * 70, p.z + SUN_DIRECTION.z * 70);
     if (Math.abs(extent - this.shadowExtent) > this.shadowExtent * 0.05) {
       this.shadowExtent = extent;
       const cam = this.sun.shadow.camera;
       cam.left = cam.bottom = -extent;
       cam.right = cam.top = extent;
       cam.near = 1;
-      cam.far = 140;
+      cam.far = 180;
       cam.updateProjectionMatrix();
     }
   }

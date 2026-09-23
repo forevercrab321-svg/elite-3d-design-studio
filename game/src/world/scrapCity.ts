@@ -15,6 +15,16 @@ import type { ObjectTypeId } from '../config/objects';
 export const WORLD_BOUNDS = { minX: -44, maxX: 44, minZ: -100, maxZ: 36 } as const;
 export const SPAWN = { x: 0, z: 32, heading: 0 } as const;
 
+/** Sidewalks are raised above the road (visual only; gameplay collision stays 2D). */
+export const CURB_HEIGHT = 0.12;
+
+/** Visual ground height at a point: props and the player sit on the kerb-raised sidewalks. */
+export function groundHeight(x: number, z: number): number {
+  if (Math.abs(x) > 45) return 0;
+  if ((z <= 0 && z >= -2.5) || (z <= -9.5 && z >= -12)) return CURB_HEIGHT;
+  return 0;
+}
+
 export type Surface = 'asphalt' | 'sidewalk' | 'alley' | 'lot' | 'dirt';
 
 /** Flat ground patches, drawn in order (later on top). */

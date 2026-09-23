@@ -13,15 +13,19 @@
     "export:glb": "node tools/studio.mjs export",
     "studio:check": "node tools/studio.mjs all",
     "game": "vite --host 127.0.0.1 --port 5190 --open /game/",
-    "playtest": "node tools/playtest.mjs"
+    "playtest": "node tools/playtest.mjs",
+    "art:review": "node tools/art-review.mjs",
+    "inspect:game": "node tools/inspect-game.mjs"
   },
   "dependencies": {
     "three": "^0.184.0",
     "yaml": "^2.8.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.1",
     "@types/three": "^0.184.1",
     "playwright": "1.56.1",
+    "pngjs": "^7.0.0",
     "typescript": "^6.0.3",
     "vite": "^8.0.13"
   }

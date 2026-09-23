@@ -51,9 +51,9 @@ export const OBJECT_TYPES = {
   BICYCLE: { label: 'Bicycle', objectClass: 3, size: [0.55, 1.05, 1.75], shape: 'bike', colors: [0x2f5d8a, 0x8a2f2f, 0x3d3d3d], rewardMass: 21, destructionType: 'collect' },
   DUMPSTER: { label: 'Dumpster', objectClass: 4, size: [1.9, 1.3, 1.1], shape: 'dumpster', colors: [0x2f5a3d, 0x3a4c6b], rewardMass: 140, destructionType: 'crush' },
   VENDING_MACHINE: { label: 'Vending machine', objectClass: 4, size: [0.9, 1.85, 0.8], shape: 'vending', colors: [0xa33a35, 0x2f5f8f], rewardMass: 110, destructionType: 'crush' },
-  CAR_COMPACT: { label: 'Compact car', objectClass: 5, size: [1.75, 1.45, 3.9], shape: 'car', colors: [0x7d8b93, 0x8c2f2a, 0x2f4f6f, 0xd8d6cf, 0x3a3d40], rewardMass: 520, destructionType: 'crush' },
+  CAR_COMPACT: { label: 'Compact car', objectClass: 5, size: [1.75, 1.45, 3.9], shape: 'car', colors: [0x8a969e, 0x9b2a24, 0x284d78, 0xe3e1da, 0x4a4f54, 0x3f5b45], rewardMass: 520, destructionType: 'crush' },
   DELIVERY_TRUCK: { label: 'Delivery truck', objectClass: 6, size: [2.3, 3.2, 7.2], shape: 'truck', colors: [0xe4e1d8, 0x5d6a4a], rewardMass: 1800, destructionType: 'break' },
-  WAREHOUSE: { label: 'Warehouse', objectClass: 8, size: [48, 16, 30], shape: 'warehouse', colors: [0x8f9296], rewardMass: 40000, destructionType: 'collapse' },
+  WAREHOUSE: { label: 'Warehouse', objectClass: 8, size: [48, 16, 30], shape: 'warehouse', colors: [0xb4bcc2], rewardMass: 40000, destructionType: 'collapse' },
 } satisfies Record<string, ObjectType>;
 
 export type ObjectTypeId = keyof typeof OBJECT_TYPES;
