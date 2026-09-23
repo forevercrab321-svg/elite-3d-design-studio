@@ -37,6 +37,18 @@ try {
   await browser.close();
   await server.close();
 }
+// The inspector counts every GPU texture. BatchedMesh adds a few tiny float data textures per
+// batch (instance matrices, draw indirection, colours — a few KB each). Its own `textures` row is
+// left untouched; an `imageTextures` row (textures minus those data textures) is added beside it,
+// and `withinBudgetImageTextures` judges the image-texture budget with it.
+const budget = report.result?.renderBudget;
+const rs = report.result?.diagnostics?.renderer;
+if (budget && rs && typeof rs.batchDataTextures === 'number') {
+  const texRow = budget.rows.find((row) => row.metric === 'textures');
+  const actual = rs.textures - rs.batchDataTextures;
+  budget.rows.push({ metric: 'imageTextures', actual, limit: texRow.limit, ok: actual <= texRow.limit, note: `${rs.batchDataTextures} BatchedMesh data textures excluded` });
+  budget.withinBudgetImageTextures = budget.rows.every((row) => row.metric === 'textures' || row.ok !== false);
+}
 const name = `${mobile ? 'mobile' : 'desktop'}-${quality}`;
 await writeFile(path.join(out, `${name}.json`), JSON.stringify(report, null, 2) + '\n');
 const r = report.result ?? {};

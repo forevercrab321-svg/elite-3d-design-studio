@@ -16,7 +16,8 @@ const only = arg('--only', null)?.split(',');
 const out = path.join(root, 'renders/review/game/art');
 await mkdir(out, { recursive: true });
 
-// [name, camera position, look target, fov]. Gameplay camera shots use the live rig instead.
+// [name, camera position, look target, fov, setup]. Gameplay camera shots use the live rig instead.
+// A setup (evaluated in the page before the shot) mutates the run, so those shots come last.
 const SHOTS = [
   ['01-spawn-gameplay', null],
   ['02-alley-wide', [2.4, 4.2, 33], [-0.8, 2.2, 8], 55],
@@ -28,6 +29,12 @@ const SHOTS = [
   ['07-cafe-street', [14, 2.2, -5.8], [8, 0.8, -1.2], 50],
   ['08-warehouse-promise', [0, 3.5, -34], [0, 8, -82], 55],
   ['09-overview', [34, 42, 36], [-2, 0, -18], 50],
+  ['10-construction-site', [-37, 6.5, -14], [-60, 1, -42], 55],
+  ['11-industrial-yard', [40, 8, -13], [60, 1.5, -42], 55],
+  ['12-warehouse-front', [-6, 2.4, -47], [2, 7.5, -72], 58],
+  ['13-tier4-machine', [-1, 4.5, -57], [-14, 3.2, -50], 42, 'G.reset(1337); G.grant(66000); G.teleport(-14, -50, Math.PI * 0.8); G.step(2.5);'],
+  ['14-climax-teardown', null, null, null, 'G.reset(1337); G.grant(70000); G.teleport(4, -50, 0); G.runBot(9);'],
+  ['15-end-card', null, null, null, 'G.runBot(90); G.stopBot(); G.step(2.2);'],
 ];
 
 const server = await createServer({ root, logLevel: 'error', server: { host: '127.0.0.1', port: 5196, strictPort: false } });
@@ -42,8 +49,9 @@ try {
   await page.goto(`${server.resolvedUrls.local[0]}game/?test=1&seed=1337&quality=${quality}`);
   await page.waitForFunction(() => window.__GROW__?.ready, null, { timeout: 120_000 });
   const stats = {};
-  for (const [name, pos, target, fov] of SHOTS) {
+  for (const [name, pos, target, fov, setup] of SHOTS) {
     if (only && !only.includes(name)) continue;
+    if (setup) await page.evaluate((code) => new Function('G', code)(window.__GROW__), setup);
     if (pos) await page.evaluate(([p, t, f]) => window.__GROW__.camera(...p, ...t, f), [pos, target, fov]);
     const t0 = Date.now();
     stats[name] = await page.evaluate(() => window.__GROW__.perf());

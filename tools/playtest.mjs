@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 // GROW EVERYTHING automated playtest (design §48–49).
-//   1. Bot run (deterministic, game time): the bot plays the 60-second loop; screenshots
-//      are captured at each milestone; pacing metrics are checked against design targets.
+//   1. Bot run (deterministic, game time): the bot plays the whole MVP run — alley to the
+//      warehouse climax; screenshots are captured at each milestone; pacing metrics are
+//      checked against the design targets (§49).
 //   2. Real-input smoke test (live loop): keyboard W / Space / R through the actual event path.
 // Output: renders/review/game/*.png + renders/review/game/playtest-report.json
-// Usage: node tools/playtest.mjs [--seed N] [--seconds 90]
+// Usage: node tools/playtest.mjs [--seed N] [--seconds 330]
 import { mkdir, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -15,7 +16,7 @@ import { chromium } from 'playwright';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const arg = (name, fallback) => (process.argv.includes(name) ? process.argv[process.argv.indexOf(name) + 1] : fallback);
 const seed = Number(arg('--seed', 1337));
-const maxSeconds = Number(arg('--seconds', 90));
+const maxSeconds = Number(arg('--seconds', 330));
 const out = path.join(root, 'renders/review/game');
 await mkdir(out, { recursive: true });
 
@@ -27,6 +28,9 @@ const HUMAN_TARGETS = {
   firstGrowth: { min: 10, max: 20 }, // class 2 / tier 2
   mediumObjects: { min: 30, max: 60 }, // class 3 unlock
   clearlyLargerObject: { max: 75 }, // first class-4 absorb (the dumpster) — the 60 s milestone
+  vehicles: { min: 90, max: 180 }, // first class-5 absorb (a car)
+  structures: { min: 180, max: 360 }, // first class-7 absorb (tank, garages, warehouse panel)
+  warehouseClimax: { min: 300, max: 480 }, // last warehouse part recycled
 };
 const BOT_SPEEDUP = 1.7;
 const TARGETS = Object.fromEntries(
@@ -54,6 +58,7 @@ try {
     return name;
   };
   const start = await page.evaluate(() => window.__GROW__.state());
+  const spawnPerf = await page.evaluate(() => window.__GROW__.perf());
   await shot('00-spawn');
 
   const captured = new Set();
@@ -61,7 +66,7 @@ try {
   const shots = [];
   let s = start;
   let lastSample = -5;
-  while (s.t < maxSeconds) {
+  while (s.t < maxSeconds && !(s.won && captured.has('10-warehouse-destroyed'))) {
     s = await page.evaluate(() => window.__GROW__.runBot(0.5));
     const m = s.metrics;
     if (s.t - lastSample >= 5) {
@@ -75,6 +80,10 @@ try {
       ['04-class4-unlocked', m.classUnlockAt[4] !== undefined],
       ['05-large-object-absorbed', m.firstAbsorbOfClassAt[4] !== undefined],
       ['06-at-60s', s.t >= 60],
+      ['07-first-vehicle', m.firstAbsorbOfClassAt[5] !== undefined],
+      ['08-structures', m.firstAbsorbOfClassAt[7] !== undefined],
+      ['09-warehouse-teardown', m.climaxPartsLeft <= m.climaxPartsTotal / 2],
+      ['10-warehouse-destroyed', s.won && s.t >= (m.climaxAt ?? 0) + 1.5],
     ];
     for (const [name, happened] of moments) {
       if (happened && !captured.has(name)) {
@@ -100,9 +109,14 @@ try {
     firstGrowth: m.tierAt[2],
     mediumObjects: m.classUnlockAt[3],
     clearlyLargerObject: m.firstAbsorbOfClassAt[4],
+    vehicles: m.firstAbsorbOfClassAt[5],
+    structures: m.firstAbsorbOfClassAt[7],
+    warehouseClimax: m.climaxAt,
   };
   for (const [k, target] of Object.entries(TARGETS)) check(`pacing ${k} ${JSON.stringify(target)}`, within(pacing[k], target), `${pacing[k]} s`);
-  check('stuck events ≤ 3', m.stuckEvents <= 3, `${m.stuckEvents}`);
+  check('tier 4 reached (Industrial Recycler)', s.tier >= 4, `tier ${s.tier}`);
+  check('warehouse destroyed (win condition)', s.won && m.climaxPartsLeft === 0, `climaxAt ${m.climaxAt} s, parts left ${m.climaxPartsLeft}`);
+  check('stuck events ≤ 15 over the full run', m.stuckEvents <= 15, `${m.stuckEvents}`);
   report.bot.pacing = pacing;
 
   // ── 2. Real-input smoke test ──────────────────────────────────────────────
@@ -120,7 +134,7 @@ try {
   await live.waitForFunction((f) => window.__THREE_GAME_DIAGNOSTICS__.frame >= f + 90, d0.frame, { timeout: 300_000, polling: 200 });
   await live.keyboard.up('KeyW');
   const d1 = await live.evaluate(() => window.__THREE_GAME_DIAGNOSTICS__);
-  await live.screenshot({ path: path.join(out, '07-live-after-input.png') });
+  await live.screenshot({ path: path.join(out, '11-live-after-input.png') });
   await live.keyboard.press('KeyR');
   // Wait for the frame that applies the restart (software rendering can be < 5 fps).
   await live.waitForFunction(() => window.__THREE_GAME_DIAGNOSTICS__?.metrics.resets >= 1, null, { timeout: 120_000, polling: 200 }).catch(() => {});
@@ -133,8 +147,11 @@ try {
   // Render budget for the shipping (high) tier is measured on the bot page, which runs quality=high.
   const hi = await page.evaluate(() => window.__GROW__.perf());
   report.smoke.perfHigh = hi;
-  check('draw calls ≤ 300 (high tier, desktop budget)', hi.drawCalls <= 300, `${hi.drawCalls} calls`);
-  check('triangles ≤ 750k (high tier, desktop budget)', hi.triangles <= 750_000, `${hi.triangles} tris`);
+  report.smoke.perfSpawn = spawnPerf;
+  for (const [when, p] of [['spawn', spawnPerf], ['end of run', hi]]) {
+    check(`draw calls ≤ 300 (high tier, ${when})`, p.drawCalls <= 300, `${p.drawCalls} calls`);
+    check(`triangles ≤ 750k (high tier, ${when})`, p.triangles <= 750_000, `${p.triangles} tris`);
+  }
   report.smoke.softwareRendered = /swiftshader|llvmpipe|software/i.test(perf.gpu);
   check('no page or console errors', report.errors.length === 0, report.errors.join(' | ') || 'none');
 } finally {
