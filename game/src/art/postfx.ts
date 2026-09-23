@@ -1,14 +1,14 @@
 import * as THREE from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js';
-import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { CinematicOutputPass } from './cinematicOutput';
 
 /**
  * Render pipeline by quality tier (technical-art.md: ≤ 2 post passes beyond render + output).
- *   high   → MSAA 4× + GTAO (contact/crevice occlusion) + bloom on authored emissives
- *   medium → MSAA 4× + bloom
+ *   high   → MSAA 4× + GTAO (contact/crevice occlusion) + bloom on authored emissives + cinematic output
+ *   medium → MSAA 4× + bloom + cinematic output
  *   low    → direct render, no composer
  */
 export type Quality = 'high' | 'medium' | 'low';
@@ -17,6 +17,7 @@ export class RenderPipeline {
   private composer: EffectComposer | null = null;
   private gtao: GTAOPass | null = null;
   private bloom: UnrealBloomPass | null = null;
+  readonly output: CinematicOutputPass | null = null;
 
   constructor(
     private readonly renderer: THREE.WebGLRenderer,
@@ -37,9 +38,10 @@ export class RenderPipeline {
       this.gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 12 });
       this.composer.addPass(this.gtao);
     }
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 0.32, 0.35, 0.92);
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 0.14, 0.35, 1.25);
     this.composer.addPass(this.bloom);
-    this.composer.addPass(new OutputPass());
+    this.output = new CinematicOutputPass(); // tone map + grade + lens finish in the output pass (no extra pass)
+    this.composer.addPass(this.output);
   }
 
   setSize(w: number, h: number): void {

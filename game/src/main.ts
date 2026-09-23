@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { bakeEnvironment } from './art/environment';
+import { bakeSkyEnvironment, loadHdriEnvironment } from './art/environment';
 import { MaterialLibrary } from './art/materials';
 import { RenderPipeline, type Quality } from './art/postfx';
 import { buildTextureKit } from './art/textures';
@@ -12,6 +12,7 @@ import { FIXED_DT, Game } from './game/Game';
  *   ?test=1          no RAF loop; the playtest harness advances time through window.__GROW__
  *   ?seed=N          deterministic layout / effects seed
  *   ?quality=high|medium|low   render tier (default: high on desktop, medium on touch devices)
+ *   ?tonemap=agx|aces|neutral  tone mapping curve for look development (default agx)
  */
 const params = new URLSearchParams(location.search);
 const testMode = params.has('test');
@@ -22,10 +23,11 @@ const quality = (params.get('quality') as Quality | null) ?? (touch ? 'medium' :
 const renderer = new THREE.WebGLRenderer({ antialias: quality === 'low', preserveDrawingBuffer: testMode, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, touch ? 1.5 : 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.95;
+const TONEMAPS = { agx: THREE.AgXToneMapping, aces: THREE.ACESFilmicToneMapping, neutral: THREE.NeutralToneMapping } as const;
+renderer.toneMapping = TONEMAPS[(params.get('tonemap') as keyof typeof TONEMAPS) ?? 'agx'] ?? THREE.AgXToneMapping;
+renderer.toneMappingExposure = Number(params.get('exposure') ?? 1.0);
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.info.autoReset = false; // count every pass of a frame (composer renders the scene more than once)
 document.body.appendChild(renderer.domElement);
 
@@ -33,8 +35,14 @@ const kit = buildTextureKit(quality === 'low' ? 256 : 512, Math.min(8, renderer.
 const lib = new MaterialLibrary(kit);
 const input = new Input(renderer.domElement);
 const game = new Game(input, seed, lib);
-game.scene.environment = bakeEnvironment(renderer);
-game.scene.environmentIntensity = 0.85;
+// Real photographed HDRI for image-based lighting; the procedural sky bake is the offline fallback.
+const hdri = await loadHdriEnvironment(renderer, `${import.meta.env.BASE_URL}hdri/pedestrian_overpass_1k.hdr`).catch((e) => {
+  console.warn('HDRI unavailable, using sky bake', e);
+  return null;
+});
+game.scene.environment = hdri?.texture ?? bakeSkyEnvironment(renderer);
+game.scene.environmentRotation.y = hdri?.rotationY ?? 0;
+game.scene.environmentIntensity = 1.1;
 const pipeline = new RenderPipeline(renderer, game.scene, game.camera, quality);
 let bot: Bot | null = null;
 let fpsFrames = 0;
@@ -53,6 +61,8 @@ resize();
 function renderFrame(): void {
   renderer.info.reset();
   pipeline.setAoScale(0.6 + game.player.diameter * 0.9);
+  pipeline.output?.setTime(game.time);
+  game.sky.userData.uniforms.uTime.value = game.time;
   pipeline.render();
   // Published after every frame (live loop and test hooks) for the QA canvas inspector.
   (window as unknown as Record<string, unknown>).__THREE_GAME_DIAGNOSTICS__ = { ...game.snapshot(), fps, renderer: rendererStats() };
@@ -144,8 +154,22 @@ if (!testMode) {
     game.camera.lookAt(tx, ty, tz);
     game.camera.fov = fov;
     game.camera.updateProjectionMatrix();
+    game.focusShadow(tx + (px - tx) * 0.2, tz + (pz - tz) * 0.2);
   },
   render: () => renderFrame(),
+  /** Per-mesh cost table for the performance engineer: triangles × instances, shadow casting. */
+  meshStats: () => {
+    const rows: { name: string; tris: number; count: number; cast: boolean; mat: string }[] = [];
+    game.scene.traverseVisible((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      const g = m.geometry;
+      const tris = (g.index ? g.index.count : g.getAttribute('position').count) / 3;
+      const count = (m as THREE.InstancedMesh).isInstancedMesh ? (m as THREE.InstancedMesh).count : 1;
+      rows.push({ name: m.name || m.parent?.name || '?', tris: tris * count, count, cast: m.castShadow, mat: (m.material as THREE.Material).name ?? '' });
+    });
+    return rows.sort((a, b) => b.tris - a.tris);
+  },
   perf: () => {
     renderFrame();
     return { fps, drawCalls: renderer.info.render.calls, ...rendererStats() };

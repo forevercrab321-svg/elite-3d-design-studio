@@ -11,7 +11,7 @@ import { classForPower, diameterForMass, massForDiameter, progressToNextClass, t
 import { Hud } from '../ui/Hud';
 import { SPAWN, groundHeight } from '../world/scrapCity';
 import type { MaterialLibrary } from '../art/materials';
-import { FOG_COLOR, SUN_DIRECTION, createSkyDome } from '../art/environment';
+import { FOG_COLOR, SUN_COLOR, SUN_DIRECTION, createSkyDome } from '../art/environment';
 import { World, type WorldObject } from '../world/World';
 
 export const FIXED_DT = 1 / 60;
@@ -53,7 +53,8 @@ export class Game {
   readonly rig: CameraRig;
   readonly hud = new Hud();
   effects: Effects;
-  readonly sun = new THREE.DirectionalLight(0xffe2bf, 3.1);
+  readonly sun = new THREE.DirectionalLight(SUN_COLOR, 3.4);
+  readonly sky: THREE.Mesh;
   player!: PlayerState;
   metrics!: Metrics;
   time = 0;
@@ -69,17 +70,19 @@ export class Game {
     this.seed = seed;
     this.world = new World(lib);
     this.model = new PlayerModel(lib);
-    this.scene.fog = new THREE.Fog(FOG_COLOR, 90, 420);
-    this.scene.add(createSkyDome(), this.world.root, this.model.root);
+    this.scene.fog = new THREE.Fog(FOG_COLOR, 80, 520); // aerial perspective: distance hazes toward the warm horizon
+    this.sky = createSkyDome();
+    this.scene.add(this.sky, this.world.root, this.model.root);
 
     // The sky-baked environment map carries most ambient light; the hemisphere adds bounce.
-    const sky = new THREE.HemisphereLight(0xcfdcec, 0x6e6254, 0.55);
+    // Warm ground bounce keeps shaded streets from going navy under the blue sky dome.
+    const sky = new THREE.HemisphereLight(0xc7cfd8, 0x7a6450, 0.8);
     sky.name = 'LIGHT_Sky';
     this.scene.add(sky);
     // Late afternoon: low warm sun from the south-west, long readable shadows (design §28).
     this.sun.name = 'LIGHT_Sun';
     this.sun.castShadow = true;
-    this.sun.shadow.mapSize.set(2048, 2048);
+    this.sun.shadow.mapSize.set(4096, 4096);
     this.sun.shadow.bias = -0.00025;
     this.sun.shadow.normalBias = 0.025;
     this.sun.shadow.radius = 3;
@@ -128,6 +131,7 @@ export class Game {
     this.rig.pitch = 1;
     this.model.update(1, d, 0, this.player.heading, this.player.x, this.player.z, 0, groundHeight(this.player.x, this.player.z));
     this.rig.snap(this.player.x, this.player.z, this.player.heading, d);
+    this.updateSun();
     this.hud.setHint(0);
     this.beaconTarget = this.pickBeaconTarget();
     this.refreshHud();
@@ -340,17 +344,28 @@ export class Game {
 
   // ── Presentation helpers ────────────────────────────────────────────────────
   private updateSun(): void {
+    // One 4096² sun shadow map covering the view ahead of the player, so buildings throw their
+    // long golden-hour shadows across the street.
     const p = this.player;
-    const extent = 10 + p.diameter * 9;
-    this.sun.target.position.set(p.x, 0, p.z);
-    this.sun.position.set(p.x + SUN_DIRECTION.x * 70, SUN_DIRECTION.y * 70, p.z + SUN_DIRECTION.z * 70);
+    const extent = 42 + p.diameter * 10;
+    const ahead = extent * 0.45;
+    this.focusShadow(p.x - Math.sin(this.rig.yaw) * ahead, p.z - Math.cos(this.rig.yaw) * ahead, extent);
+  }
+
+  /** Centre the sun's shadow frustum on (fx, fz); the focus snaps to shadow texels (no shimmer). */
+  focusShadow(fx: number, fz: number, extent = 42 + this.player.diameter * 10): void {
+    const texel = (extent * 2) / this.sun.shadow.mapSize.x;
+    const sx = Math.round(fx / texel) * texel;
+    const sz = Math.round(fz / texel) * texel;
+    this.sun.target.position.set(sx, 0, sz);
+    this.sun.position.set(sx + SUN_DIRECTION.x * 150, SUN_DIRECTION.y * 150, sz + SUN_DIRECTION.z * 150);
     if (Math.abs(extent - this.shadowExtent) > this.shadowExtent * 0.05) {
       this.shadowExtent = extent;
       const cam = this.sun.shadow.camera;
       cam.left = cam.bottom = -extent;
       cam.right = cam.top = extent;
-      cam.near = 1;
-      cam.far = 180;
+      cam.near = 20;
+      cam.far = 320;
       cam.updateProjectionMatrix();
     }
   }
