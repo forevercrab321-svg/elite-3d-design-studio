@@ -63,6 +63,7 @@ function renderFrame(): void {
   pipeline.setAoScale(0.6 + game.player.diameter * 0.9);
   pipeline.output?.setTime(game.time);
   game.sky.userData.uniforms.uTime.value = game.time;
+  game.world.dressing.update(game.time);
   pipeline.render();
   // Published after every frame (live loop and test hooks) for the QA canvas inspector.
   (window as unknown as Record<string, unknown>).__THREE_GAME_DIAGNOSTICS__ = { ...game.snapshot(), fps, renderer: rendererStats() };

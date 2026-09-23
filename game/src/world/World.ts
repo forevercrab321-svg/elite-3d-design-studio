@@ -5,6 +5,7 @@ import { circleVsObb, obbRadius, type Contact, type Obb } from '../core/collisio
 import { createSeededRandom } from '../core/rng';
 import { TINTED, type MaterialLibrary, type Role } from '../art/materials';
 import { buildCity } from './architecture';
+import { buildDressing, type Dressing } from './dressing';
 import { buildPropParts, type PropParts } from './props';
 import { CLUSTERS, PLACEMENTS, STATIC_BLOCKS, WORLD_BOUNDS, groundHeight } from './scrapCity';
 
@@ -49,6 +50,8 @@ export class World {
   readonly staticColliders: Obb[] = [];
   /** Building masses the camera must not pass through (invisible proxies). */
   readonly occluders: THREE.Object3D[];
+  /** Trees, weeds and decals (static, animated by wind). */
+  readonly dressing: Dressing;
   objects: WorldObject[] = [];
   private readonly batches = new Map<ObjectTypeId, TypeBatch>();
   private readonly partsCache = new Map<ObjectTypeId, PropParts>();
@@ -68,6 +71,9 @@ export class World {
     for (const m of city.meshes) this.root.add(m);
     this.occluders = city.occluders;
     for (const b of STATIC_BLOCKS) if (b.collide !== false && (b.y ?? 0) < 0.5) this.staticColliders.push({ cx: b.x, cz: b.z, hx: b.w / 2, hz: b.d / 2, yaw: 0 });
+    this.dressing = buildDressing();
+    for (const m of this.dressing.meshes) this.root.add(m);
+    this.staticColliders.push(...this.dressing.colliders);
     this.objectsRoot.name = 'OBJECTS';
     this.root.add(this.objectsRoot);
   }
@@ -154,7 +160,8 @@ export class World {
       const mesh = new THREE.InstancedMesh(geometry, this.lib.roles[role], capacity);
       mesh.name = `OBJ_${typeId}_${role}`;
       // Real shadows for the body roles of class ≥ 2 objects; trim, lamps, glass and tiny debris rely on GTAO contact occlusion.
-      mesh.castShadow = def.objectClass >= 2 && SHADOW_ROLES.has(role);
+      // Tyres/rubber only earn a shadow on vehicles; on cones, bins and dumpsters they are tiny trims.
+      mesh.castShadow = def.objectClass >= 2 && SHADOW_ROLES.has(role) && (role !== 'tread' || def.objectClass >= 5);
       mesh.receiveShadow = true;
       mesh.frustumCulled = false; // instances span the whole map; per-instance culling is a Phase 7 task
       mesh.count = 0;
