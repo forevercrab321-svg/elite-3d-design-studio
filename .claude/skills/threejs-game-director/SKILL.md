@@ -1,7 +1,6 @@
 ---
 name: threejs-game-director
 description: "Entrypoint for building, upgrading, and finishing Three.js browser games. Routes work across the sibling threejs-* skills for gameplay, graphics, UI, 3D/image/audio asset generation, debugging, and release. Use for build-a-game, upgrade, polish, premium, AAA, high-fidelity, showcase, from-scratch, endless runner, arcade, action, and release-ready requests."
-disable-model-invocation: true
 ---
 
 # Three.js Game Director

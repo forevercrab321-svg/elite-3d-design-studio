@@ -4,7 +4,19 @@ Single place for settled decisions (CLAUDE.md §19–20). Update on every approv
 
 ## Active project
 
-_None yet — awaiting the first brief from the Creative Director._
+**GROW EVERYTHING**: browser 3D growth/destruction game. Brief: `game/CLAUDE.md`. Status: Phase 1 greybox, 60-second prototype DONE (bot-verified), human playtest pending.
+
+### Decisions (2026-09-23)
+
+| Decision | Choice | Type | Reversible |
+| --- | --- | --- | --- |
+| Stack | Existing Vite + TS + three.js (no React/R3F) | INFERRED (§35 "use the existing stack") | Yes: systems are framework-agnostic |
+| Physics | Custom circle-vs-box collision in Phase 1, Rapier from Phase 4 | INFERRED (§61 don't overbuild) | Yes |
+| Power | Power = collector diameter (m); mass → diameter by a cube-root law | INFERRED | Tunable in `game/src/config` |
+| Class thresholds | 0 / 0.3 / 0.6 / 0.9 / 1.5 / 3 / 5 / 8 / 14 / 25 / 50 m | INFERRED | Config |
+| Tier unlocks | T2 at class 2, T3 at class 5 (vehicles), T4 at class 7, T5 at class 9 | INFERRED from §42 example | Config |
+| Player identity | Grey metal plus safety-orange paint and amber intake glow | INFERRED (§27) | Phase 5 art pass |
+| World orientation | Alley faces downtown (−Z); warehouse and crane in the spawn sight line | REQUIRED (§21–22 promises) | — |
 
 ## Locked elements
 
