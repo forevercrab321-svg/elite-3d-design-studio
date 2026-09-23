@@ -54,6 +54,13 @@ export const arenaConfig = {
    */
   catchUpMax: 0.6,
   leaderBounty: 0.25,
+  /** Power-up crates (refill like other small props). */
+  powerCount: 5,
+  speedMul: 1.4,
+  speedSeconds: 8,
+  magnetMul: 1.8,
+  magnetSeconds: 8,
+  shieldSeconds: 6,
   /** Coins (local reward currency) by final rank 1..4, plus per kill. */
   coinsByRank: [100, 60, 35, 20],
   coinsPerKill: 15,

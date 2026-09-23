@@ -67,6 +67,12 @@ export interface Actor {
   eliminatedAt: number;
   respawnAt: number;
   invulnerableUntil: number;
+  /** Power-ups (match time they run out). */
+  shieldUntil: number;
+  speedUntil: number;
+  magnetUntil: number;
+  bubble: THREE.Mesh;
+  ringMat: THREE.MeshBasicMaterial;
   stunUntil: number;
   kills: number;
   deaths: number;
@@ -196,6 +202,7 @@ export class ArenaGame {
     const extra: Cluster[] = [{ type: 'GOLD_CRATE', x: (b.minX + b.maxX) / 2, z: (b.minZ + b.maxZ) / 2, radius: Math.min(b.maxX - b.minX, b.maxZ - b.minZ) * 0.45, count: A.goldCrateCount }];
     // Fair starts: every spawn gets the same ring of starter scrap, whatever zone it sits in.
     for (const sp of city.spawns) for (const [type, radius, count] of STARTER_RING) extra.push({ type, x: sp.x, z: sp.z, radius, count });
+    for (const type of ['POWER_SPEED', 'POWER_MAGNET', 'POWER_SHIELD'] as const) extra.push({ type, x: (b.minX + b.maxX) / 2, z: (b.minZ + b.maxZ) / 2, radius: Math.min(b.maxX - b.minX, b.maxZ - b.minZ) * 0.47, count: A.powerCount });
     this.world.spawnObjects(seed, extra);
     const supporting = new Set(this.world.objects.flatMap((o) => o.supports));
     for (const o of this.world.objects) {
@@ -217,13 +224,15 @@ export class ArenaGame {
     const d = diameterForMass(growthConfig.startMass);
     const model = new PlayerModel(this.lib, vehicle.id);
     skipAO(model.root);
-    const ring = new THREE.Mesh(
-      new THREE.RingGeometry(0.62, 0.72, 48).rotateX(-Math.PI / 2),
-      new THREE.MeshBasicMaterial({ color: SLOT_COLORS[r.slot % 4], transparent: true, opacity: 0.85, depthWrite: false }),
-    );
+    const ringMat = new THREE.MeshBasicMaterial({ color: SLOT_COLORS[r.slot % 4], transparent: true, opacity: 0.85, depthWrite: false });
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.72, 48).rotateX(-Math.PI / 2), ringMat);
+    const bubble = new THREE.Mesh(new THREE.SphereGeometry(0.5, 24, 16), new THREE.MeshBasicMaterial({ color: 0x6fe8ff, transparent: true, opacity: 0.22, depthWrite: false }));
+    bubble.name = `FX_Shield_${r.slot}`;
+    bubble.visible = false;
+    skipAO(bubble);
     ring.name = `FX_SlotRing_${r.slot}`;
     skipAO(ring);
-    this.scene.add(model.root, ring);
+    this.scene.add(model.root, ring, bubble);
     const a: Actor = {
       id: r.id,
       slot: r.slot,
@@ -252,6 +261,11 @@ export class ArenaGame {
       eliminatedAt: 0,
       respawnAt: 0,
       invulnerableUntil: A.invulnerableSeconds,
+      shieldUntil: 0,
+      speedUntil: 0,
+      magnetUntil: 0,
+      bubble,
+      ringMat,
       stunUntil: 0,
       kills: 0,
       deaths: 0,
@@ -334,7 +348,15 @@ export class ArenaGame {
       a.model.update(dt, a.diameter, a.speed, a.heading, a.x, a.z, a.turnVelocity * Math.min(1, Math.abs(a.speed) / top), this.city.groundHeight(a.x, a.z));
       a.ring.visible = a.alive;
       a.ring.position.set(a.x, this.city.groundHeight(a.x, a.z) + 0.03, a.z);
-      a.ring.scale.setScalar(a.diameter * 0.95);
+      const magnet = this.matchTime < a.magnetUntil;
+      const speedy = this.matchTime < a.speedUntil;
+      a.ring.scale.setScalar(a.diameter * 0.95 * (magnet ? 1.6 + 0.08 * Math.sin(this.time * 8) : 1));
+      a.ringMat.color.setHex(magnet ? 0xb05cff : speedy ? 0x3fa9ff : SLOT_COLORS[a.slot % 4]);
+      a.bubble.visible = a.alive && this.matchTime < a.shieldUntil;
+      if (a.bubble.visible) {
+        a.bubble.position.set(a.x, this.city.groundHeight(a.x, a.z) + a.diameter * 0.45, a.z);
+        a.bubble.scale.setScalar(a.diameter * 1.35 * (1 + 0.03 * Math.sin(this.time * 6)));
+      }
     }
     const focus = this.cameraTarget();
     if (focus) {
@@ -361,7 +383,8 @@ export class ArenaGame {
   }
 
   topSpeed(a: Actor): number {
-    return MC.baseTopSpeed * a.vehicle.speed * Math.pow(a.targetDiameter / growthConfig.startDiameter, MC.topSpeedExponent);
+    const boost = this.matchTime < a.speedUntil ? A.speedMul : 1;
+    return MC.baseTopSpeed * a.vehicle.speed * boost * Math.pow(a.targetDiameter / growthConfig.startDiameter, MC.topSpeedExponent);
   }
 
   private moveActor(a: Actor, dt: number, wx: number, wz: number, dash: boolean): void {
@@ -426,7 +449,7 @@ export class ArenaGame {
 
   // ── Objects: propose, then apply the host's grant ─────────────────────────
   private reach(a: Actor): number {
-    return (a.diameter / 2 + a.diameter * CC.reachFactor + CC.reachFlat) * a.vehicle.reach;
+    return (a.diameter / 2 + a.diameter * CC.reachFactor + CC.reachFlat) * a.vehicle.reach * (this.matchTime < a.magnetUntil ? A.magnetMul : 1);
   }
 
   private proposeCollection(a: Actor): void {
@@ -558,6 +581,18 @@ export class ArenaGame {
     a.combo = this.time <= a.comboUntil ? a.combo + 1 : 1;
     a.comboUntil = this.time + A.comboWindow;
     const mult = Math.min(A.comboMax, 1 + A.comboStep * (a.combo - 1));
+    if (o.def.power) {
+      const t = this.matchTime;
+      const [label, secs] = o.def.power === 'speed' ? ['⚡ 加速', A.speedSeconds] : o.def.power === 'magnet' ? ['🧲 强磁', A.magnetSeconds] : ['🛡 护盾', A.shieldSeconds];
+      if (o.def.power === 'speed') a.speedUntil = t + secs;
+      else if (o.def.power === 'magnet') a.magnetUntil = t + secs;
+      else a.shieldUntil = t + secs;
+      if (a.kind === 'local') {
+        this.hud.toast(`${label} ${secs} 秒`);
+        this.onEvent?.({ kind: 'unlock', cls: 1 });
+        this.onFeed?.(`获得道具：${label}`, 'bonus');
+      }
+    }
     let gain = o.def.bonus ? Math.max(o.def.rewardMass, a.mass * A.goldCrateShare) : o.def.rewardMass;
     gain *= mult * this.catchUp(a);
     const climaxLeft = o.def.climax ? this.world.objects.filter((x) => x.def.climax && x.state !== 'absorbed').length : -1;
@@ -653,7 +688,7 @@ export class ArenaGame {
 
   // ── Players eating players ─────────────────────────────────────────────────
   canEat(a: Actor, b: Actor): boolean {
-    if (a === b || !a.alive || !b.alive || this.matchTime < b.invulnerableUntil || this.matchTime < a.invulnerableUntil) return false;
+    if (a === b || !a.alive || !b.alive || this.matchTime < b.invulnerableUntil || this.matchTime < a.invulnerableUntil || this.matchTime < b.shieldUntil) return false;
     return a.diameter >= b.diameter * A.eatRatio * a.vehicle.eatRatio;
   }
 
@@ -717,6 +752,7 @@ export class ArenaGame {
     a.alive = true;
     a.diameter = a.targetDiameter;
     a.invulnerableUntil = this.matchTime + A.invulnerableSeconds;
+    a.shieldUntil = a.speedUntil = a.magnetUntil = 0;
     if (a.kind === 'local') {
       this.rig.snap(a.x, a.z, a.heading, a.diameter);
       this.hud.toast('重生 · 3 秒无敌 INVULNERABLE');
@@ -751,7 +787,8 @@ export class ArenaGame {
   // ── Network mirror ─────────────────────────────────────────────────────────
   wireState(a: Actor): WireState {
     const r = (v: number, k = 100) => Math.round(v * k) / k;
-    const flags = (a.alive ? 1 : 0) | (a.eliminated ? 2 : 0) | (this.matchTime < a.invulnerableUntil ? 4 : 0);
+    const t = this.matchTime;
+    const flags = (a.alive ? 1 : 0) | (a.eliminated ? 2 : 0) | (t < a.invulnerableUntil ? 4 : 0) | (t < a.shieldUntil ? 8 : 0) | (t < a.speedUntil ? 16 : 0) | (t < a.magnetUntil ? 32 : 0);
     return [r(a.x), r(a.z), r(a.heading, 1000), r(a.targetDiameter, 1000), r(a.speed), r(a.mass, 10), a.lives, flags, a.kills, a.deaths, a.objects, a.tier];
   }
 
@@ -765,6 +802,9 @@ export class ArenaGame {
     a.alive = (s[7] & 1) === 1;
     a.eliminated = (s[7] & 2) === 2;
     if (s[7] & 4) a.invulnerableUntil = Math.max(a.invulnerableUntil, this.matchTime + 0.2);
+    if (s[7] & 8) a.shieldUntil = Math.max(a.shieldUntil, this.matchTime + 0.3);
+    if (s[7] & 16) a.speedUntil = Math.max(a.speedUntil, this.matchTime + 0.3);
+    if (s[7] & 32) a.magnetUntil = Math.max(a.magnetUntil, this.matchTime + 0.3);
     a.kills = s[8];
     a.deaths = s[9];
     a.objects = s[10];

@@ -93,6 +93,8 @@ export interface ObjectType {
   requiredPower?: number;
   /** Part of the climax structure: absorbing every such object wins the run. */
   climax?: boolean;
+  /** Arena power-up crate: absorbing it grants a timed ability instead of much mass. */
+  power?: 'speed' | 'magnet' | 'shield';
   /** Tall landmark part: when its support fails it topples sideways as it falls. */
   topple?: boolean;
   /** Arena bonus pickup: worth a share of the collector's current mass (see arenaConfig). */
@@ -100,6 +102,9 @@ export interface ObjectType {
 }
 
 export const OBJECT_TYPES = {
+  POWER_SPEED: { power: 'speed', label: 'Speed crate', objectClass: 1, size: [0.55, 0.45, 0.55], shape: 'goldCrate', colors: [0x3fa9ff], rewardMass: 1, destructionType: 'collect' },
+  POWER_MAGNET: { power: 'magnet', label: 'Magnet crate', objectClass: 1, size: [0.55, 0.45, 0.55], shape: 'goldCrate', colors: [0xb05cff], rewardMass: 1, destructionType: 'collect' },
+  POWER_SHIELD: { power: 'shield', label: 'Shield crate', objectClass: 1, size: [0.55, 0.45, 0.55], shape: 'goldCrate', colors: [0x3fe0c0], rewardMass: 1, destructionType: 'collect' },
   GOLD_CRATE: { bonus: true, label: 'Golden crate', objectClass: 1, size: [0.5, 0.42, 0.5], shape: 'goldCrate', colors: [0xf2c14e], rewardMass: 3, destructionType: 'collect' },
   SCRAP: { label: 'Metal scrap', objectClass: 0, size: [0.09, 0.04, 0.07], shape: 'scrap', colors: [0x8d8f91, 0x9a8a74, 0x6f7a80, 0xa0673f], rewardMass: 0.14, destructionType: 'collect' },
   CAN: { label: 'Can', objectClass: 1, size: [0.066, 0.12, 0.066], shape: 'cylinder', colors: [0xb8402f, 0x3f6fa8, 0xc9b458, 0x5c8a4f], rewardMass: 0.28, destructionType: 'collect' },

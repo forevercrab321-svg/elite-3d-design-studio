@@ -84,6 +84,7 @@ const CSS = `
 #arena .map { position: absolute; right: 18px; bottom: 64px; width: 184px; height: 184px; border-radius: 14px; background: rgba(16,18,20,.55); backdrop-filter: blur(6px); }
 #arena .tag.edge { background: rgba(16,18,20,.75); }
 #arena .combo small { font-size: 12px; color: #8be07a; letter-spacing: .08em; }
+#arena .combo small.pw { color: #9fd8ff; }
 #arena .tag { position: absolute; transform: translate(-50%, -100%); font-size: 11px; font-weight: 800; letter-spacing: .06em; padding: 2px 7px; border-radius: 6px; background: rgba(16,18,20,.55); white-space: nowrap; }
 #arena .res { position: absolute; inset: 0; display: grid; place-items: center; padding-inline: 16px; background: rgba(12,13,15,.55); pointer-events: auto; }
 #arena .res .card { width: min(560px, 100%); padding: 26px; border-radius: 16px; background: rgba(20,21,23,.9); box-shadow: 0 30px 80px rgba(0,0,0,.5); }
@@ -161,7 +162,7 @@ export class ArenaUi {
         <div class="col"><div class="h">选择车辆 VEHICLE</div><div class="vehs"></div></div>
       </div>
       <div class="foot">
-        <div class="rules">规则：比对手大 25% 就能把它整个吞掉（得到它 60% 的质量）。每人 3 条命，被吞后留 45% 质量重生。${A.roundSeconds / 60} 分钟结束，或只剩一人，或地标被拆完。金色箱子、连击、第一滴血、吞掉第一名（悬赏）、拆掉地标最后一块都有奖励；落后的人吃东西有追赶加成；冲刺撞上吃不动的东西会被眩晕并掉质量。</div>
+        <div class="rules">规则：比对手大 25% 就能把它整个吞掉（得到它 60% 的质量）。每人 3 条命，被吞后留 45% 质量重生。${A.roundSeconds / 60} 分钟结束，或只剩一人，或地标被拆完。金色箱子、连击、第一滴血、吞掉第一名（悬赏）、拆掉地标最后一块都有奖励；落后的人吃东西有追赶加成；道具箱：⚡加速、🧲强磁、🛡护盾（不会被吃）；冲刺撞上吃不动的东西会被眩晕并掉质量。</div>
         <div class="actions">
           <button class="btn" data-a="join">${me ? '离开 · 观战' : '加入比赛'}</button>
           ${me && !host ? `<button class="btn" data-a="ready">${s.ready ? '取消准备' : '准备 READY'}</button>` : ''}
@@ -277,6 +278,10 @@ export class ArenaUi {
     const parts: string[] = [];
     if (me && me.combo >= 2 && g.time <= me.comboUntil) parts.push(`连击 ×${Math.min(A.comboMax, 1 + A.comboStep * (me.combo - 1)).toFixed(1)}`);
     if (cu > 1.05) parts.push(`<small>追赶加成 +${Math.round((cu - 1) * 100)}%</small>`);
+    if (me && me.alive) {
+      const t = g.matchTime;
+      for (const [until, label] of [[me.speedUntil, '⚡ 加速'], [me.magnetUntil, '🧲 强磁'], [me.shieldUntil, '🛡 护盾']] as const) if (t < until) parts.push(`<small class="pw">${label} ${Math.ceil(until - t)}s</small>`);
+    }
     combo.innerHTML = parts.join('<br>');
     this.renderTags(g);
     if (performance.now() - this.mapAt > 90) {
@@ -303,8 +308,8 @@ export class ArenaUi {
     for (const o of g.world.objects) {
       if (o.state === 'absorbed') continue;
       const cls = o.def.objectClass;
-      if (o.def.bonus) {
-        ctx.fillStyle = '#ffd35a';
+      if (o.def.bonus || o.def.power) {
+        ctx.fillStyle = o.def.power === 'speed' ? '#3fa9ff' : o.def.power === 'magnet' ? '#b05cff' : o.def.power === 'shield' ? '#3fe0c0' : '#ffd35a';
         ctx.beginPath();
         ctx.arc(mx(o.x), mz(o.z), 3, 0, Math.PI * 2);
         ctx.fill();
@@ -383,6 +388,7 @@ export class ArenaUi {
         const m = Math.max(Math.abs(ex), Math.abs(ey)) || 1;
         ex = (ex / m) * 0.9;
         ey = (ey / m) * 0.84;
+        if (ex > 0.6) ey = Math.max(ey, -0.2); // keep clear of the minimap (bottom-right)
         const arrow = Math.abs(ex) > Math.abs(ey) ? (ex > 0 ? '▶' : '◀') : ey > 0 ? '▲' : '▼';
         const dist = g.local ? Math.round(Math.hypot(a.x - g.local.x, a.z - g.local.z)) : 0;
         tag.classList.add('edge');
