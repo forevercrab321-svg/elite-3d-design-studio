@@ -36,7 +36,7 @@ export type GameEvent =
   | { kind: 'boing' }
   | { kind: 'burp' }
   | { kind: 'pop' }
-  | { kind: 'horn' };
+  | { kind: 'horn'; horn?: import('../config/cosmetics').HornSound };
 
 /** Seconds of on-the-spot destruction before a large object is pulled in. */
 const BREAK_PHASE: Record<string, number> = { collect: 0, crush: 0.32, break: 0.22, rip: 0.45, collapse: 0.35, push: 0 };

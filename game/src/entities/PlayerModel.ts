@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { SkinDef } from '../config/cosmetics';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { MaterialLibrary } from '../art/materials';
@@ -31,10 +32,11 @@ export class PlayerModel {
   constructor(
     lib: MaterialLibrary,
     readonly look: VehicleLook = 'collector',
+    skin?: SkinDef,
   ) {
     const R = lib.roles;
     const vdef = VEHICLES[look];
-    const shell = new THREE.MeshPhysicalMaterial({ name: 'MAT_Player_Shell', color: vdef.shell, roughness: 0.34, metalness: 0.1, clearcoat: 1, clearcoatRoughness: 0.12, envMapIntensity: 1.1 });
+    const shell = new THREE.MeshPhysicalMaterial({ name: 'MAT_Player_Shell', color: skin?.shell ?? vdef.shell, roughness: skin?.roughness ?? 0.34, metalness: skin?.metalness ?? 0.1, clearcoat: 1, clearcoatRoughness: 0.12, envMapIntensity: 1.1 });
     const gunmetal = new THREE.MeshStandardMaterial({ name: 'MAT_Player_Gunmetal', color: 0x3a3f44, roughness: 0.42, metalness: 0.85, envMapIntensity: 1.1 });
     // Hazard chevrons scaled for a ~0.5 m lip: clone the kit texture with its own repeat.
     const hz = lib.kit.hazard;
@@ -45,7 +47,7 @@ export class PlayerModel {
       return c;
     };
     const hazard = new THREE.MeshStandardMaterial({ name: 'MAT_Player_Hazard', map: rep(hz.map), normalMap: rep(hz.normalMap), roughnessMap: rep(hz.roughnessMap), metalness: 0.1 });
-    this.glow = new THREE.MeshStandardMaterial({ name: 'MAT_Player_IntakeGlow', color: 0x2a1300, emissive: 0xff9a2a, emissiveIntensity: 2.4, roughness: 0.4 });
+    this.glow = new THREE.MeshStandardMaterial({ name: 'MAT_Player_IntakeGlow', color: 0x2a1300, emissive: skin?.glow ?? 0xff9a2a, emissiveIntensity: 2.4, roughness: 0.4 });
     // Draw-call discipline: bright metal shares steel, rubber shares matte black, all small lamps share one vertex-coloured emissive.
     const M = { shell, gunmetal, hazard, steel: R.steel, chrome: R.steel, rubber: R.darkTrim, tread: R.tread, dark: R.darkTrim, glass: R.glass, glow: this.glow };
     const LAMP = { white: [1, 0.95, 0.85], red: [0.85, 0.06, 0.04], amber: [1, 0.55, 0.08] } as const;

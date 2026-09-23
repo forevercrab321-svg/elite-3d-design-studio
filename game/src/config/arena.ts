@@ -19,6 +19,8 @@ export const arenaConfig = {
   firstBloodBonus: 0.2,
   /** Victim keeps this share of mass (never below the start mass) and respawns after a delay. */
   respawnMassKeep: 0.45,
+  /** Rewarded-ad revive (once per match) keeps this share of the mass instead. */
+  reviveMassKeep: 0.75,
   respawnDelay: 3,
   invulnerableSeconds: 3,
   /** Chain absorbs within this window to build a combo (+10 % per step, capped). */

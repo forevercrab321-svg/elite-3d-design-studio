@@ -16,7 +16,10 @@ import { ArenaBot } from './ArenaBot';
 import { ArenaGame } from './ArenaGame';
 import { ArenaSession, type MatchState } from './ArenaSession';
 import { ArenaUi } from './ArenaUi';
-import { award } from './progress';
+import { addCoins, award, progress, unlockGift } from './progress';
+import type { GiftRule } from '../config/cosmetics';
+import { createPlatform } from '../platform/Platform';
+import type { CrazyGamesPlatform } from '../platform/CrazyGamesPlatform';
 
 /**
  * Arena mode entry: pick the transport (claude.ai room → online with friends; ?net=local →
@@ -26,7 +29,9 @@ import { award } from './progress';
 export async function runArena(ctx: AppContext): Promise<void> {
   const { renderer, lib, input, quality, testMode, params } = ctx;
   const nickname = params.get('name') ?? savedName() ?? `${L('玩家', 'Player')}${Math.floor(Math.random() * 900 + 100)}`;
-  const platform = params.get('platform') ?? 'web';
+  // Portal SDK (CrazyGames / Poki) or our own site; never throws, bounded wait.
+  const portal = await createPlatform();
+  const platform = portal.name;
   let net: Net | null = null;
   const want = params.get('net');
   if (want === 'local') net = new LocalNet(params.get('room') ?? 'dev', nickname);
@@ -34,7 +39,7 @@ export async function runArena(ctx: AppContext): Promise<void> {
     // claude.ai artifact → its room; stand-alone build with a backend → a public room code.
     if (want !== 'online') net = await RoomNet.connect();
     if (!net && backendConfigured()) {
-      const code = (params.get('room') ?? newRoomCode()).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) || newRoomCode();
+      const code = (portal.invitedRoom() ?? params.get('room') ?? newRoomCode()).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) || newRoomCode();
       const url = new URL(location.href);
       url.searchParams.set('room', code);
       history.replaceState(null, '', url);
@@ -73,6 +78,8 @@ export async function runArena(ctx: AppContext): Promise<void> {
     usePipeline(preview);
   };
 
+  let lobbyDirty = true;
+  let lobbySig = '';
   const session: ArenaSession = new ArenaSession(
     net,
     {
@@ -108,7 +115,76 @@ export async function runArena(ctx: AppContext): Promise<void> {
     nickname,
   );
   const ui = new ArenaUi(session, modeLabel);
-  ui.onShare = () => track('share_click', { room: true });
+  const prog0 = progress();
+  session.setCosmetics(prog0.skin, prog0.horn, prog0.hat);
+  ui.installPanels({
+    equipped: (skin, horn, hat) => session.setCosmetics(skin, horn, hat),
+    share: () => shareInvite(),
+    previewHorn: (horn) => audio?.handle({ kind: 'horn', horn }),
+    volumes: (music, sfx) => audio?.setVolumes(music, sfx),
+    changed: () => ui.renderLobby(),
+  });
+  // Ads: silence the mix while one plays; solo rounds also freeze (online rounds cannot pause).
+  let adPaused = false;
+  portal.onPause = () => {
+    adPaused = true;
+    audio?.setAdHold(true);
+  };
+  portal.onResume = () => {
+    adPaused = false;
+    audio?.setAdHold(false);
+  };
+  ui.adsAvailable = portal.adsAvailable;
+  ui.inviteUrl = () => (net instanceof SupabaseNet ? portal.inviteLinkAsync(net.room) : Promise.resolve(location.href));
+  ui.onRevive = () => {
+    const g = game;
+    if (!g?.reviveHold()) return;
+    track('ad_revive', {});
+    void portal.rewarded('revive').then((ok) => {
+      if (game === g) g.reviveRelease(ok);
+      track('ad_revive_result', { ok });
+    });
+  };
+  ui.onDoubleCoins = async (coins) => {
+    track('ad_double', {});
+    const ok = await portal.rewarded('double_coins');
+    if (ok) addCoins(coins);
+    track('ad_double_result', { ok });
+    return ok;
+  };
+  let gameplayOn = false;
+  let tipShown = testMode;
+  try {
+    tipShown ||= localStorage.getItem('grow-arena-tip') === '1';
+  } catch {
+    /* storage unavailable: show the tip every session */
+  }
+  // CrazyGames' site-wide mute wins over our own audio settings.
+  const cg = portal as Partial<CrazyGamesPlatform>;
+  if (portal.name === 'crazygames') {
+    if (cg.muteAudio) audio?.setMuted(true);
+    cg.onMuteSettingChange = (m) => audio?.setMuted(m);
+  }
+  /** Friend gifts: announce newly unlocked items (lobby notice, or a toast in a round). */
+  const gift = (rule: GiftRule): void => {
+    const items = unlockGift(rule);
+    if (!items.length) return;
+    const names = items.map((x) => L(x.nameZh, x.name)).join(' · ');
+    ui.notice(`🎁 ${L('好友礼物已解锁', 'Friend gift unlocked')}: ${names}`);
+    track('gift_unlock', { rule });
+  };
+  const shareInvite = async (): Promise<void> => {
+    const url = await ui.inviteUrl();
+    try {
+      if (navigator.share && matchMedia('(pointer: coarse)').matches) await navigator.share({ title: 'GROW EVERYTHING', text: L('来和我一起吞掉整座城市！', 'Come eat the city with me!'), url });
+      else await navigator.clipboard?.writeText(url);
+    } catch {
+      return; // share sheet dismissed: no gift
+    }
+    track('share_click', { room: true });
+    gift('share');
+  };
+  ui.onShare = () => gift('share');
   ui.onEmote = (id) => {
     game?.emote(id);
     track('emote', { id });
@@ -123,8 +199,6 @@ export async function runArena(ctx: AppContext): Promise<void> {
     location.hash = 'story';
     location.reload();
   };
-  let lobbyDirty = true;
-  let lobbySig = '';
   buildPreview(session.city);
 
   function resize(): void {
@@ -143,7 +217,26 @@ export async function runArena(ctx: AppContext): Promise<void> {
 
   let flyT = 0;
   function tick(dt: number): void {
+    if (adPaused && net?.kind === 'solo') return;
     session.update(dt);
+    // First-run tip, once per browser, just after GO.
+    if (!tipShown && game?.local?.alive && game.phase === 'playing' && game.matchTime > 1.4) {
+      tipShown = true;
+      const touch = matchMedia('(pointer: coarse)').matches;
+      game.hud.toast(touch ? L('左手拖动移动 · 吃比你小的东西和对手 · 右下角冲刺', 'Drag left to move · eat anything smaller, rivals too · DASH bottom-right') : L('WASD 移动 · 吃比你小的东西和对手 · 空格冲刺', 'WASD to move · eat anything smaller, rivals too · SPACE to dash'));
+      try {
+        localStorage.setItem('grow-arena-tip', '1');
+      } catch {
+        /* ignore */
+      }
+    }
+    // Portal gameplay events: "playing" only while the local machine is alive in a live round.
+    const playingNow = !!game && game.phase === 'playing' && !!game.local?.alive;
+    if (playingNow !== gameplayOn) {
+      gameplayOn = playingNow;
+      if (playingNow) portal.gameplayStart();
+      else portal.gameplayStop();
+    }
     if (game) {
       game.step(dt);
       audio?.setTension(game.phase === 'playing' && A.roundSeconds - game.matchTime < 30);
@@ -154,6 +247,15 @@ export async function runArena(ctx: AppContext): Promise<void> {
         const me = standings.find((s) => s.id === session.selfId());
         const earned = me && !testMode ? award(me.rank, me.kills, game.city.level) : { coins: 0, unlocked: null };
         ui.showResults(standings, session.selfId(), earned);
+        if (me?.rank === 1) portal.happy();
+        // Played with real friends (other humans who were in the room from the start)?
+        if (me && !testMode) {
+          const friends = session.match.roster.filter((r) => r.kind === 'player' && r.id !== session.selfId()).length;
+          if (friends >= 1) gift('friend1');
+          if (friends >= 3) gift('friend3');
+        }
+        // Natural break: an interstitial while the results card is up (rate-limited in the adapter).
+        if (!testMode) window.setTimeout(() => void portal.midroll(), 1500);
         const mine = standings.find((x) => x.id === session.selfId());
         track('match_end', { city: game.city.id, rank: mine?.rank ?? null, mass: mine ? Math.round(mine.mass) : null, kills: mine?.kills ?? null, deaths: mine?.deaths ?? null, seconds: Math.round(game.matchTime), landmark: game.climaxLeft() === 0 });
         if (session.isHost()) void submitMatch(session, game, standings);
@@ -195,6 +297,7 @@ export async function runArena(ctx: AppContext): Promise<void> {
   }
 
   resize();
+  portal.loadingFinished();
   if (!testMode) {
     const adapt = installRenderGuards(renderer, () => pipeline!, resize);
     let last = performance.now();

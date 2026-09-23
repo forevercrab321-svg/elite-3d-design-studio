@@ -89,6 +89,7 @@ export class GooglyEyes {
       this.pupils.push(pupil);
     }
     this.group.name = 'FX_GooglyEyes';
+    this.group.userData.decoration = true;
     parent.add(this.group);
   }
 
@@ -107,7 +108,7 @@ export class GooglyEyes {
     // Bounds of the parts that are actually shown at this tier (hidden tier parts don't count).
     const box = new THREE.Box3();
     const walk = (o: THREE.Object3D) => {
-      if (!o.visible) return;
+      if (!o.visible || o.userData.decoration) return;
       const m = o as THREE.Mesh;
       if (m.isMesh && m.geometry) {
         m.geometry.computeBoundingBox();

@@ -7,6 +7,7 @@ import { awards } from './comedy';
 import { L } from '../i18n';
 import type { ArenaSession } from './ArenaSession';
 import { progress } from './progress';
+import { ArenaPanels, type PanelHooks } from './ArenaPanels';
 
 /**
  * Arena UI (DOM over the canvas): lobby, in-round overlay (timer, scoreboard, kill feed,
@@ -108,6 +109,9 @@ const CSS = `
 #arena .res tr.me td { color: #ffb347; font-weight: 800; }
 #arena .res .earn { text-align: center; margin-top: 14px; font-size: 13px; }
 #arena .res .actions { justify-content: center; margin-top: 16px; }
+#arena .notice { position: absolute; top: 14%; left: 50%; transform: translateX(-50%); z-index: 4; padding: 10px 16px; border-radius: 12px; background: rgba(40,16,30,.92); border: 1px solid #ff7eb6; font-size: 14px; font-weight: 800; letter-spacing: .04em; white-space: nowrap; animation: feed 4.2s forwards; }
+#arena .revive { position: absolute; top: calc(40% + 80px); left: 50%; transform: translateX(-50%); white-space: nowrap; }
+#arena .res .earn .btn { margin-left: 10px; padding: 8px 12px; font-size: 12px; }
 body:has(#arena .lobby:not([hidden])) .ge-dash, body:has(#arena .res:not([hidden])) .ge-dash { display: none; }
 /* Phones play in landscape: HUD hugs the corners, thumbs own the bottom corners. */
 @media (pointer: coarse), (max-height: 520px) {
@@ -147,6 +151,14 @@ export class ArenaUi {
   onStory: (() => void) | null = null;
   onEmote: ((id: number) => void) | null = null;
   onShare: (() => void) | null = null;
+  /** Rewarded ads (platform SDK): null / false hides the ad buttons. */
+  adsAvailable = false;
+  onRevive: (() => void) | null = null;
+  onDoubleCoins: ((coins: number) => Promise<boolean>) | null = null;
+  /** Share URL for this room (portal SDKs build their own invite links). */
+  inviteUrl: () => Promise<string> = async () => location.href;
+  /** Shop and settings modals (hooks set by the arena entry). */
+  panels!: ArenaPanels;
 
   constructor(
     private readonly session: ArenaSession,
@@ -162,6 +174,10 @@ export class ArenaUi {
     this.overlay = this.el.querySelector('.overlay') as HTMLElement;
     this.results = this.el.querySelector('.res') as HTMLElement;
     this.renderLobby();
+  }
+
+  installPanels(hooks: PanelHooks): void {
+    this.panels = new ArenaPanels(this.el, hooks);
   }
 
   // ── Lobby ─────────────────────────────────────────────────────────────────
@@ -180,7 +196,7 @@ export class ArenaUi {
     const peersN = s.net.peers().length;
     const invite =
       s.net.kind === 'online'
-        ? `${L('房间号', 'Room')} <b class="code"></b> · ${L('把链接发给好友就能一起玩（最多 4 人）', 'Send the link to friends to play together (up to 4)')}<br><button class="btn" data-a="copy">${L('复制邀请链接', 'Copy invite link')}</button>`
+        ? `${L('房间号', 'Room')} <b class="code"></b> · ${L('把链接发给好友就能一起玩（最多 4 人）', 'Send the link to friends to play together (up to 4)')}<br>🎁 ${L('分享就送派对帽，和好友打完一局送限定涂装', 'Share for a free Party Hat; play a match with a friend for an exclusive skin')}<br><button class="btn" data-a="copy">${L('复制邀请链接', 'Copy invite link')}</button>`
         : s.net.kind === 'room'
           ? L('邀请好友：点页面右上角的 <b>Share</b>，给好友「可互动」或更高权限，再把链接发给他们。好友用自己的 Claude 账号登录打开即可加入。', 'Invite friends: click <b>Share</b> (top right), give them “can interact”, and send them the link. They join with their own Claude account.')
           : s.net.kind === 'local'
@@ -282,8 +298,10 @@ export class ArenaUi {
         else if (a === 'ready') s.setReady(!s.ready);
         else if (a === 'start') s.start();
         else if (a === 'story') this.onStory?.();
+        else if (a === 'shop') return this.panels?.showShop();
+        else if (a === 'settings') return this.panels?.showSettings();
         else if (a === 'copy') {
-          void navigator.clipboard?.writeText(location.href).then(() => ((el as HTMLElement).textContent = L('已复制 ✓', 'Copied ✓')));
+          void this.inviteUrl().then((url) => navigator.clipboard?.writeText(url)).then(() => ((el as HTMLElement).textContent = L('已复制 ✓', 'Copied ✓')));
           this.onShare?.();
           return;
         }
@@ -303,10 +321,12 @@ export class ArenaUi {
     if (s.match.ph === 'lobby') return;
     if (!this.overlay.dataset.built) {
       this.overlay.dataset.built = '1';
-      this.overlay.innerHTML = `<div class="timer"><b class="hex">5:00</b><span></span></div><div class="board"></div><div class="feed"></div><div class="center"></div><div class="combo"></div><div class="tags"></div><canvas class="map" width="368" height="368" aria-label="minimap"></canvas><div class="emotes" aria-label="emotes"><button data-e="1" title="1">😂</button><button data-e="3" title="3">👋</button><button data-e="4" title="4">🐷</button><button data-e="6" title="H">📯</button></div>`;
+      this.overlay.innerHTML = `<div class="timer"><b class="hex">5:00</b><span></span></div><div class="board"></div><div class="feed"></div><div class="center"></div><button class="btn primary revive" hidden>📺 ${L('看广告复活 · 保留 75% 质量', 'Watch an ad: revive with 75% mass')}</button><div class="combo"></div><div class="tags"></div><canvas class="map" width="368" height="368" aria-label="minimap"></canvas><div class="emotes" aria-label="emotes"><button data-e="1" title="1">😂</button><button data-e="3" title="3">👋</button><button data-e="4" title="4">🐷</button><button data-e="6" title="H">📯</button></div>`;
       this.overlay.querySelectorAll<HTMLButtonElement>('.emotes button').forEach((b) => (b.onclick = () => this.onEmote?.(Number(b.dataset.e))));
       g.onFeed = (text, tone) => this.feed(text, tone);
+      (this.overlay.querySelector('.revive') as HTMLButtonElement).onclick = () => this.onRevive?.();
     }
+    (this.overlay.querySelector('.revive') as HTMLElement).hidden = !(this.adsAvailable && g.canRevive());
     const left = Math.max(0, A.roundSeconds - g.matchTime);
     (this.overlay.querySelector('.timer b') as HTMLElement).textContent = `${Math.floor(left / 60)}:${Math.floor(left % 60).toString().padStart(2, '0')}`;
     const climax = g.world.objects.filter((o) => o.def.climax).length;
@@ -330,6 +350,7 @@ export class ArenaUi {
     if (g.phase === 'countdown') center.innerHTML = `<b>${Math.max(1, Math.ceil(g.countdown))}</b><span>${L('准备', 'GET READY')}</span>`;
     else if (g.phase === 'playing' && g.matchTime < 1.2) center.innerHTML = `<b>GO</b><span>${L('开吃！', 'EAT!')}</span>`;
     else if (me && me.eliminated) center.innerHTML = `<span>${L('已出局 · 观战中（点击切换视角）', 'Eliminated · spectating (tap to switch)')}</span>`;
+    else if (me && !me.alive && !isFinite(me.respawnAt)) center.innerHTML = `<span>${L('广告播放中…', 'Ad playing…')}</span>`;
     else if (me && !me.alive) center.innerHTML = `<b>${Math.max(0, me.respawnAt - g.matchTime).toFixed(1)}</b><span>${L('重生中', 'RESPAWNING')}</span>`;
     else if (!me) center.innerHTML = `<span>${L('观战中 · 下一局可加入', 'Spectating · join next round')}</span>`;
     else center.textContent = '';
@@ -508,10 +529,28 @@ export class ArenaUi {
       aw.appendChild(d);
     }
     (this.results.querySelector('.earn') as HTMLElement).innerHTML = localId && standings.some((s) => s.id === localId) ? `${L('获得', 'Earned')} <span class="coins">◎ ${earned.coins}</span> ${L('金币', 'coins')}${earned.unlocked ? ` · ${L('解锁新关卡', 'New level unlocked')}: <b>${earned.unlocked}</b>` : ''}` : L('观战中', 'Spectating');
+    if (this.adsAvailable && earned.coins > 0 && this.onDoubleCoins) {
+      const dbl = Object.assign(document.createElement('button'), { className: 'btn primary', textContent: `📺 ${L('看广告金币翻倍', 'Watch an ad: double coins')}` });
+      dbl.onclick = async () => {
+        dbl.disabled = true;
+        const ok = await this.onDoubleCoins!(earned.coins);
+        dbl.textContent = ok ? `✓ +${earned.coins}` : L('广告暂不可用', 'No ad available');
+      };
+      (this.results.querySelector('.earn') as HTMLElement).appendChild(dbl);
+    }
     const b = this.results.querySelector('[data-a="lobby"]') as HTMLButtonElement | null;
     if (b) b.onclick = () => this.session.toLobby();
     const again = this.results.querySelector('[data-a="again"]') as HTMLButtonElement | null;
     if (again) again.onclick = () => this.session.rematch();
+  }
+
+  /** A short message over whatever screen is up (gift unlocks and similar). */
+  notice(text: string): void {
+    const n = document.createElement('div');
+    n.className = 'notice';
+    n.textContent = text;
+    this.el.appendChild(n);
+    window.setTimeout(() => n.remove(), 4200);
   }
 
   hideResults(): void {

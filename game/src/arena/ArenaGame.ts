@@ -21,6 +21,8 @@ import type { Cluster } from '../world/scrapCity';
 import type { ObjectTypeId } from '../config/objects';
 import { ArenaBot } from './ArenaBot';
 import { EMOTES, GooglyEyes, HORN, killQuip } from './comedy';
+import { hatById, hornById, skinById, type HornSound } from '../config/cosmetics';
+import { Hat } from '../entities/Hat';
 import type { GameEvent } from '../game/Game';
 
 /**
@@ -38,6 +40,9 @@ export interface RosterEntry {
   kind: 'player' | 'bot';
   name: string;
   vehicle: VehicleLook;
+  skin?: string;
+  horn?: string;
+  hat?: string;
 }
 
 export interface Actor {
@@ -94,6 +99,12 @@ export interface Actor {
   eatCooldown: Map<string, number>;
   /** The player closed the page mid-round: out of the round, never revived by stale presence. */
   left?: boolean;
+  /** Horn sound this machine honks with (cosmetic). */
+  horn: HornSound;
+  /** Mass just before the last time this machine was eaten (rewarded revive). */
+  deathMass: number;
+  /** Roof decoration (cosmetic), or null. */
+  hat: Hat | null;
 }
 
 export interface EatenEvent {
@@ -231,7 +242,7 @@ export class ArenaGame {
     const kind: ActorKind = r.kind === 'bot' ? 'bot' : r.id === localId ? 'local' : 'remote';
     const spawn = this.city.spawns[r.slot % this.city.spawns.length];
     const d = diameterForMass(growthConfig.startMass);
-    const model = new PlayerModel(this.lib, vehicle.id);
+    const model = new PlayerModel(this.lib, vehicle.id, skinById(r.skin));
     skipAO(model.root);
     const ringMat = new THREE.MeshBasicMaterial({ color: SLOT_COLORS[r.slot % 4], transparent: true, opacity: 0.85, depthWrite: false });
     const ring = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.72, 48).rotateX(-Math.PI / 2), ringMat);
@@ -269,6 +280,7 @@ export class ArenaGame {
       eliminated: false,
       eliminatedAt: 0,
       respawnAt: 0,
+      deathMass: 0,
       invulnerableUntil: A.invulnerableSeconds,
       shieldUntil: 0,
       speedUntil: 0,
@@ -276,6 +288,8 @@ export class ArenaGame {
       bubble,
       ringMat,
       eyes: new GooglyEyes(model.root),
+      horn: hornById(r.horn).id,
+      hat: hatById(r.hat).id === 'none' ? null : new Hat(model.root, hatById(r.hat).id),
       jolt: 0,
       say: '',
       sayUntil: 0,
@@ -364,6 +378,8 @@ export class ArenaGame {
       a.model.update(dt, a.diameter, a.speed, a.heading, a.x, a.z, a.turnVelocity * Math.min(1, Math.abs(a.speed) / top), this.city.groundHeight(a.x, a.z));
       a.eyes.place(a.tier);
       a.eyes.update(dt, a.speed, a.heading, a.diameter, a.jolt);
+      a.hat?.place(a.tier);
+      a.hat?.update(dt, a.speed, a.jolt);
       a.jolt = Math.max(0, a.jolt - dt * 3);
       if (this.matchTime < a.stunUntil) this.sayFor(a, '💫', 0.2);
       a.ring.visible = a.alive;
@@ -699,6 +715,29 @@ export class ArenaGame {
     if (this.local) this.world.applyEligibility(this.local.power);
   }
 
+  /** Rewarded revive (once per match): only while waiting to respawn with lives left. */
+  private revived = false;
+  canRevive(): boolean {
+    const me = this.local;
+    return !!me && !this.revived && this.phase === 'playing' && !me.alive && !me.eliminated && isFinite(me.respawnAt) && this.matchTime < me.respawnAt - 0.3 && me.deathMass > growthConfig.startMass * 2;
+  }
+
+  /** The ad starts: hold the respawn until it resolves. */
+  reviveHold(): boolean {
+    if (!this.canRevive()) return false;
+    this.revived = true;
+    this.local!.respawnAt = Infinity;
+    return true;
+  }
+
+  /** The ad ended: respawn now, keeping `A.reviveMassKeep` of the mass when it was earned. */
+  reviveRelease(granted: boolean): void {
+    const me = this.local;
+    if (!me || me.alive || me.eliminated) return;
+    if (granted) this.setMass(me, Math.max(me.mass, me.deathMass * A.reviveMassKeep));
+    me.respawnAt = this.matchTime;
+  }
+
   /** Show a bubble over a machine for `secs` (everyone renders their own). */
   sayFor(a: Actor, text: string, secs: number): void {
     a.say = text;
@@ -712,7 +751,7 @@ export class ArenaGame {
     me.emote = id;
     me.emoteSeq++;
     this.sayFor(me, EMOTES[id], 2.2);
-    this.onEvent?.({ kind: id === HORN ? 'horn' : 'pop' });
+    this.onEvent?.(id === HORN ? { kind: 'horn', horn: me.horn } : { kind: 'pop' });
   }
 
   /** Machines that cannot eat each other bounce apart like bumper cars ("boing"). */
@@ -790,6 +829,7 @@ export class ArenaGame {
       v.lives = Math.max(0, v.lives - 1);
       v.alive = false;
       v.speed = 0;
+      v.deathMass = v.mass;
       this.setMass(v, Math.max(growthConfig.startMass, v.mass * A.respawnMassKeep));
       if (v.lives <= 0) {
         v.eliminated = true;
@@ -900,7 +940,7 @@ export class ArenaGame {
       if (id > 0 && id < EMOTES.length) {
         this.sayFor(a, EMOTES[id], 2.2);
         const focus = this.cameraTarget();
-        if (id === HORN && focus && Math.hypot(focus.x - a.x, focus.z - a.z) < 60 + focus.diameter * 6) this.onEvent?.({ kind: 'horn' });
+        if (id === HORN && focus && Math.hypot(focus.x - a.x, focus.z - a.z) < 60 + focus.diameter * 6) this.onEvent?.({ kind: 'horn', horn: a.horn });
       }
     }
     a.kills = s[8];

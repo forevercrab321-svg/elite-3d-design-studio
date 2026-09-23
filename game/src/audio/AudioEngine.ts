@@ -8,6 +8,8 @@ import type { GameEvent } from '../game/Game';
  * `M` toggles mute. Presentation only: the simulation never waits on audio.
  */
 import { THEMES, type MusicTheme } from './themes';
+import type { HornSound } from '../config/cosmetics';
+import { loadSettings } from '../settings';
 
 export class AudioEngine {
   private ctx: AudioContext | null = null;
@@ -29,6 +31,10 @@ export class AudioEngine {
   private trackNode: MediaElementAudioSourceNode | null = null;
   private trackLive = false;
   private tension = 1;
+  /** Player volume settings (0–1), applied on top of the mix levels. */
+  private vol = loadSettings();
+  /** Held by platform ads: silent until released, independent of the player's mute. */
+  private adHold = false;
 
   constructor() {
     const start = () => this.start();
@@ -49,10 +55,11 @@ export class AudioEngine {
     comp.threshold.value = -16;
     comp.ratio.value = 4;
     this.master = ctx.createGain();
-    this.master.gain.value = this.muted ? 0 : 0.8;
+    this.master.gain.value = this.muted || this.adHold ? 0 : 0.8;
     this.sfx = ctx.createGain();
     this.music = ctx.createGain();
-    this.music.gain.value = 0.22;
+    this.music.gain.value = 0.22 * this.vol.music;
+    this.sfx.gain.value = this.vol.sfx;
     this.sfx.connect(this.master);
     this.music.connect(this.master);
     this.master.connect(comp).connect(ctx.destination);
@@ -107,7 +114,28 @@ export class AudioEngine {
 
   setMuted(m: boolean): void {
     this.muted = m;
-    if (this.ctx) this.master.gain.setTargetAtTime(m ? 0 : 0.8, this.ctx.currentTime, 0.05);
+    this.applyMaster();
+  }
+
+  /** Ads (portal SDKs) must play over silence: hold the mix at zero until released. */
+  setAdHold(on: boolean): void {
+    this.adHold = on;
+    this.applyMaster();
+    if (this.track) {
+      if (on) this.track.pause();
+      else if (this.trackLive) void this.track.play().catch(() => undefined);
+    }
+  }
+
+  setVolumes(music: number, sfx: number): void {
+    this.vol = { music, sfx };
+    if (!this.ctx) return;
+    this.music.gain.setTargetAtTime(0.22 * music, this.ctx.currentTime, 0.05);
+    this.sfx.gain.setTargetAtTime(sfx, this.ctx.currentTime, 0.05);
+  }
+
+  private applyMaster(): void {
+    if (this.ctx) this.master.gain.setTargetAtTime(this.muted || this.adHold ? 0 : 0.8, this.ctx.currentTime, 0.05);
   }
 
   dispose(): void {
@@ -202,7 +230,7 @@ export class AudioEngine {
         this.popSound();
         break;
       case 'horn':
-        this.horn();
+        this.horn(e.horn ?? 'clown');
         break;
     }
   }
@@ -272,8 +300,12 @@ export class AudioEngine {
     this.env(v.gain, t, 0.15, 0.002, 0.06);
   }
 
-  /** Clown horn: two detuned squares, "honk-honk". */
-  private horn(): void {
+  /** Horn by cosmetic id; the default clown horn is two detuned squares, "honk-honk". */
+  private horn(kind: HornSound): void {
+    if (kind === 'duck') return this.duck();
+    if (kind === 'bike') return this.bell();
+    if (kind === 'trombone') return this.trombone();
+    if (kind === 'air') return this.airHorn();
     const ctx = this.ctx!;
     for (const k of [0, 0.22]) {
       const t = ctx.currentTime + k;
@@ -293,6 +325,45 @@ export class AudioEngine {
       f.connect(g).connect(this.sfx);
       this.env(g, t, 0.12, 0.01, 0.17);
     }
+  }
+
+  /** One pitched voice through a lowpass, with a pitch path of [time offset, Hz] points. */
+  private voice(type: OscillatorType, path: [number, number][], dur: number, peak: number, cutoff: number, at = 0): void {
+    const ctx = this.ctx!;
+    const t = ctx.currentTime + at;
+    const o = ctx.createOscillator();
+    const f = ctx.createBiquadFilter();
+    const g = ctx.createGain();
+    o.type = type;
+    f.type = 'lowpass';
+    f.frequency.value = cutoff;
+    o.frequency.setValueAtTime(path[0][1], t);
+    for (const [dt, hz] of path.slice(1)) o.frequency.linearRampToValueAtTime(hz, t + dt);
+    o.connect(f).connect(g).connect(this.sfx);
+    o.start(t);
+    o.stop(t + dur + 0.05);
+    this.env(g, t, peak, 0.01, dur);
+  }
+
+  /** Rubber duck: a nasal squeak that bends up then down, twice. */
+  private duck(): void {
+    for (const k of [0, 0.2]) this.voice('sawtooth', [[0, 900], [0.05, 1250], [0.14, 820]], 0.15, 0.1, 2600, k);
+  }
+
+  /** Bicycle bell: two bright inharmonic sines, "ring-ring". */
+  private bell(): void {
+    for (const k of [0, 0.16]) for (const hz of [2350, 3480, 5100]) this.voice('sine', [[0, hz]], 0.5, hz > 3000 ? 0.04 : 0.08, 8000, k);
+  }
+
+  /** Sad trombone: "wah wah wah waaah", falling. */
+  private trombone(): void {
+    const notes: [number, number, number][] = [[0, 294, 0.28], [0.32, 277, 0.28], [0.64, 262, 0.28], [0.96, 247, 0.9]];
+    for (const [at, hz, dur] of notes) this.voice('sawtooth', dur > 0.5 ? [[0, hz], [0.2, hz * 1.02], [0.4, hz * 0.98], [0.6, hz * 1.02], [0.85, hz * 0.97]] : [[0, hz]], dur, 0.1, 900, at);
+  }
+
+  /** Stadium air horn: loud detuned saws, one long blast. */
+  private airHorn(): void {
+    for (const hz of [466, 470, 587]) this.voice('sawtooth', [[0, hz * 0.97], [0.05, hz]], 0.7, 0.06, 2400);
   }
 
   private beep(freq: number, dur: number): void {

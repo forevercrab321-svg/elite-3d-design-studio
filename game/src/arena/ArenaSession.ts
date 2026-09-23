@@ -1,4 +1,5 @@
 import { arenaConfig as A } from '../config/arena';
+import { HATS, HORNS, SKINS } from '../config/cosmetics';
 import { VEHICLE_ORDER, type VehicleLook } from '../config/vehicles';
 import type { Net, NetPeer } from '../net/Net';
 import { CITIES, cityById } from '../world/cities';
@@ -36,6 +37,10 @@ export interface LobbyPlayer {
   id: string;
   name: string;
   vehicle: VehicleLook;
+  /** Cosmetics (skin id, horn id): looks only, never stats. */
+  skin?: string;
+  horn?: string;
+  hat?: string;
   ready: boolean;
   isMe: boolean;
   guest: boolean;
@@ -55,6 +60,9 @@ export class ArenaSession {
   game: ArenaGame | null = null;
   /** My lobby choices (published in presence). */
   vehicle: VehicleLook = 'collector';
+  skin = 'stock';
+  horn = 'clown';
+  hat = 'none';
   joined = true;
   ready = false;
   /** Host-side lobby settings. */
@@ -99,7 +107,7 @@ export class ArenaSession {
       .peers()
       .filter((p) => p.presence.j === true)
       .slice(0, A.maxPlayers)
-      .map((p) => ({ id: p.id, name: this.net.nameOf(p), vehicle: asVehicle(p.presence.v), ready: p.presence.r === true, isMe: p.isMe, guest: p.guest }));
+      .map((p) => ({ id: p.id, name: this.net.nameOf(p), vehicle: asVehicle(p.presence.v), skin: shortId(p.presence.k), horn: shortId(p.presence.hn), hat: shortId(p.presence.ht), ready: p.presence.r === true, isMe: p.isMe, guest: p.guest }));
   }
 
   spectators(): NetPeer[] {
@@ -133,6 +141,13 @@ export class ArenaSession {
 
   setVehicle(v: VehicleLook): void {
     this.vehicle = v;
+    this.publishLobbyPresence();
+  }
+
+  setCosmetics(skin: string, horn: string, hat: string): void {
+    this.skin = skin;
+    this.horn = horn;
+    this.hat = hat;
     this.publishLobbyPresence();
   }
 
@@ -179,12 +194,17 @@ export class ArenaSession {
     // Drop the finished round first: host duties must never run the new epoch on the old game.
     if (this.game) this.endGame();
     const players = this.lobbyPlayers();
-    const roster: RosterEntry[] = players.map((p, i) => ({ id: p.id, slot: i, kind: 'player', name: p.name, vehicle: p.vehicle }));
+    const roster: RosterEntry[] = players.map((p, i) => ({ id: p.id, slot: i, kind: 'player', name: p.name, vehicle: p.vehicle, skin: p.skin, horn: p.horn, hat: p.hat }));
     if (this.bots) {
       const seedNames = [...BOT_NAMES];
       for (let slot = roster.length; slot < A.maxPlayers; slot++) {
         const name = seedNames.splice(Math.floor(Math.random() * seedNames.length), 1)[0];
-        roster.push({ id: `bot-${slot}`, slot, kind: 'bot', name, vehicle: VEHICLE_ORDER[(slot + 1) % VEHICLE_ORDER.length] });
+        // Rivals show off a random shop skin and horn half of the time.
+        const skin = Math.random() < 0.5 ? SKINS[1 + Math.floor(Math.random() * (SKINS.length - 1))].id : undefined;
+        const horn = HORNS[Math.floor(Math.random() * HORNS.length)].id;
+        const buyable = HATS.filter((h) => h.price > 0);
+        const hat = Math.random() < 0.4 ? buyable[Math.floor(Math.random() * buyable.length)].id : undefined;
+        roster.push({ id: `bot-${slot}`, slot, kind: 'bot', name, vehicle: VEHICLE_ORDER[(slot + 1) % VEHICLE_ORDER.length], skin, horn, hat });
       }
     }
     this.match = { ep: this.match.ep + 1, ph: 'countdown', host: this.net.selfId() ?? '', city: this.city, seed: Math.floor(Math.random() * 1e9), bots: this.bots, roster, t: 0 };
@@ -199,7 +219,7 @@ export class ArenaSession {
   }
 
   private publishLobbyPresence(): void {
-    this.net.setPresence({ nk: this.nickname, j: this.joined, v: this.vehicle, r: this.ready });
+    this.net.setPresence({ nk: this.nickname, j: this.joined, v: this.vehicle, k: this.skin, hn: this.horn, ht: this.hat, r: this.ready });
   }
 
   // ── Per-frame driver ──────────────────────────────────────────────────────
@@ -431,6 +451,11 @@ export class ArenaSession {
     this.hooks.endGame();
     this.game = null;
   }
+}
+
+/** Cosmetic ids from other peers: short identifiers only (resolved against the catalog). */
+function shortId(v: unknown): string | undefined {
+  return typeof v === 'string' && /^[a-z0-9_]{1,16}$/.test(v) ? v : undefined;
 }
 
 function asVehicle(v: unknown): VehicleLook {
