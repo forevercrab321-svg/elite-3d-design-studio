@@ -74,3 +74,23 @@ Visual review loop: 3 rounds of `npm run art:review`. Defects found by looking, 
 - The street ran out into empty ground.
 
 All are fixed.
+
+## 2026-09-23 — Realism pass (regression check)
+
+This pass changed only rendering and dressing. Trees and the sign pole add small static colliders (0.2 m trunks), placed on the sidewalks and at the lot perimeter, away from the bot's routes.
+
+| Seed | Tier 2 | Class 3 | Stuck | All assertions | High-tier budget at end |
+| --- | --- | --- | --- | --- | --- |
+| 1337 | 7.8 s | 18.2 s | 0 | PASS (17/17) | 284 calls / 659k tris |
+| 7 | 8.4 s | 19.4 s | 0 | PASS (17/17) | 284 / 659k |
+| 2026 | 7.6 s | 20.4 s | 0 | PASS (17/17) | 284 / 659k |
+
+Pacing is identical to Phase 5. `npm run inspect:game` reports every budget row within limits (textures 60/60).
+
+Defects found in review shots and fixed:
+- Ground stain decals were near-opaque and made black blobs in the alley.
+- Stain blotches reached their atlas cell edges, which showed quad outlines.
+- Rooftops showed a pitch-black asphalt repeat.
+- Shop shelving read as a saturated mosaic.
+- The car's rear shut line and side skirt ran through the wheel arches.
+- A first dressing build went over budget at 308 calls and 765k triangles.

@@ -42,3 +42,11 @@ Triangles per instance: scrap ~120, brick 12, can ~100, bottle ~160, cardboard ~
 Static architecture (`game/src/world/architecture.ts`) merges everything per material. Untextured metals share one vertex-coloured material (colour × baked ground AO). Facades are authored per visible face: window reveals, sills, lintels, frames, storefronts, awnings, cornices, downpipes, AC units and service doors.
 
 When `TRIPO_API_KEY` is available, the planned upgrade is Tripo hero models for the collector tiers, the car family and the warehouse. They would be validated against these footprints and part names and swapped into `props.ts` (see the pipeline above).
+
+## Third-party assets
+
+| Asset | Path | Licence | Notes |
+| --- | --- | --- | --- |
+| HDRI `pedestrian_overpass_1k.hdr` | `public/hdri/` | CC0 (Poly Haven) | Lighting only (the visible sky stays procedural); see `public/hdri/LICENSE.md` |
+
+Any new third-party file must carry its licence next to it and a row here. External hosts (Poly Haven, ambientCG and jsDelivr) are blocked from the cloud build environment. Photoscan textures therefore have to be committed by the user or fetched from a reachable mirror.

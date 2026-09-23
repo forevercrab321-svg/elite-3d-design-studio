@@ -1,11 +1,11 @@
 {
-  "seed": 1337,
-  "date": "2026-09-23T04:30:07.954Z",
+  "seed": 2026,
+  "date": "2026-09-23T15:04:07.195Z",
   "bot": {
     "seconds": 90,
     "final": {
-      "mass": 1298.1000000000024,
-      "diameter": 2.2327876751632547,
+      "mass": 1298.1000000000026,
+      "diameter": 2.232787675163255,
       "cls": 4,
       "tier": 2,
       "remaining": 13,
@@ -13,22 +13,22 @@
     },
     "metrics": {
       "firstMoveAt": 0.016666666666666666,
-      "firstCollectAt": 0.6833333333333338,
+      "firstCollectAt": 0.3833333333333333,
       "classUnlockAt": {
-        "2": 7.799999999999978,
-        "3": 18.200000000000248,
-        "4": 24.73333333333321
+        "2": 7.599999999999978,
+        "3": 20.383333333333457,
+        "4": 27.549999999999716
       },
       "tierAt": {
         "1": 0,
-        "2": 7.799999999999978
+        "2": 7.599999999999978
       },
       "firstAbsorbOfClassAt": {
-        "0": 0.6833333333333338,
-        "1": 0.8000000000000008,
-        "2": 9.450000000000049,
-        "3": 18.600000000000225,
-        "4": 29.79999999999959
+        "0": 0.5833333333333335,
+        "1": 0.3833333333333333,
+        "2": 8.866666666666687,
+        "3": 22.05000000000003,
+        "4": 35.56666666666593
       },
       "objectsCollected": 245,
       "bumps": 4,
@@ -38,107 +38,107 @@
     "timeline": [
       {
         "t": 0.5,
-        "mass": 5,
-        "diameter": 0.35,
+        "mass": 5.6,
+        "diameter": 0.36,
         "cls": 1,
         "tier": 1,
-        "collected": 0
+        "collected": 2
       },
       {
         "t": 5.5,
-        "mass": 18.6,
-        "diameter": 0.53,
+        "mass": 21.6,
+        "diameter": 0.56,
         "cls": 1,
         "tier": 1,
-        "collected": 48
+        "collected": 50
       },
       {
         "t": 10.5,
-        "mass": 32.3,
-        "diameter": 0.65,
+        "mass": 31.3,
+        "diameter": 0.64,
         "cls": 2,
         "tier": 2,
-        "collected": 76
+        "collected": 69
       },
       {
         "t": 15.5,
-        "mass": 66,
-        "diameter": 0.82,
+        "mass": 60.8,
+        "diameter": 0.79,
         "cls": 2,
         "tier": 2,
-        "collected": 108
+        "collected": 94
       },
       {
         "t": 20.5,
-        "mass": 240.3,
-        "diameter": 1.26,
+        "mass": 87,
+        "diameter": 0.9,
         "cls": 3,
         "tier": 2,
-        "collected": 138
+        "collected": 117
       },
       {
         "t": 25.5,
-        "mass": 410.8,
-        "diameter": 1.52,
+        "mass": 258.4,
+        "diameter": 1.28,
+        "cls": 3,
+        "tier": 2,
+        "collected": 136
+      },
+      {
+        "t": 30.5,
+        "mass": 439.3,
+        "diameter": 1.56,
         "cls": 4,
         "tier": 2,
         "collected": 156
       },
       {
-        "t": 30.5,
-        "mass": 634.5,
-        "diameter": 1.75,
-        "cls": 4,
-        "tier": 2,
-        "collected": 168
-      },
-      {
         "t": 35.5,
-        "mass": 991.7,
-        "diameter": 2.03,
+        "mass": 499.4,
+        "diameter": 1.61,
         "cls": 4,
         "tier": 2,
-        "collected": 177
+        "collected": 160
       },
       {
         "t": 40.5,
-        "mass": 1105.4,
-        "diameter": 2.12,
+        "mass": 1022.2,
+        "diameter": 2.05,
         "cls": 4,
         "tier": 2,
-        "collected": 190
+        "collected": 178
       },
       {
         "t": 45.5,
-        "mass": 1118,
-        "diameter": 2.12,
+        "mass": 1128.3,
+        "diameter": 2.13,
         "cls": 4,
         "tier": 2,
         "collected": 192
       },
       {
         "t": 50.5,
-        "mass": 1279.5,
-        "diameter": 2.22,
+        "mass": 1129.3,
+        "diameter": 2.13,
         "cls": 4,
         "tier": 2,
-        "collected": 210
+        "collected": 199
       },
       {
         "t": 55.5,
-        "mass": 1297.3,
-        "diameter": 2.23,
+        "mass": 1261.7,
+        "diameter": 2.21,
         "cls": 4,
         "tier": 2,
-        "collected": 239
+        "collected": 212
       },
       {
         "t": 60.5,
-        "mass": 1298.1,
+        "mass": 1296.3,
         "diameter": 2.23,
         "cls": 4,
         "tier": 2,
-        "collected": 245
+        "collected": 232
       },
       {
         "t": 65.5,
@@ -191,15 +191,15 @@
       "06-at-60s"
     ],
     "pacing": {
-      "firstCollection": 0.6833333333333338,
-      "firstGrowth": 7.799999999999978,
-      "mediumObjects": 18.200000000000248,
-      "clearlyLargerObject": 29.79999999999959
+      "firstCollection": 0.3833333333333333,
+      "firstGrowth": 7.599999999999978,
+      "mediumObjects": 20.383333333333457,
+      "clearlyLargerObject": 35.56666666666593
     }
   },
   "smoke": {
-    "moved": 6.152267367898915,
-    "collectedDuringSmoke": 11,
+    "moved": 6.321283394972358,
+    "collectedDuringSmoke": 12,
     "afterRestart": {
       "mass": 5,
       "x": 0,
@@ -207,17 +207,17 @@
       "resets": 1
     },
     "perf": {
-      "fps": 11.612154054577191,
+      "fps": 14.755065905961176,
       "drawCalls": 136,
       "calls": 136,
-      "triangles": 324970,
-      "geometries": 92,
-      "textures": 41,
-      "programs": 33,
+      "triangles": 343006,
+      "geometries": 94,
+      "textures": 44,
+      "programs": 42,
       "instancedMeshes": 54,
-      "sceneMeshes": 89,
+      "sceneMeshes": 93,
       "playerMeshes": 14,
-      "shadowCasters": 47,
+      "shadowCasters": 43,
       "postPasses": 0,
       "quality": "low",
       "dpr": 1,
@@ -225,16 +225,16 @@
     },
     "perfHigh": {
       "fps": 0,
-      "drawCalls": 286,
-      "calls": 286,
-      "triangles": 636526,
-      "geometries": 101,
-      "textures": 60,
-      "programs": 49,
+      "drawCalls": 284,
+      "calls": 284,
+      "triangles": 658534,
+      "geometries": 103,
+      "textures": 63,
+      "programs": 58,
       "instancedMeshes": 54,
-      "sceneMeshes": 96,
+      "sceneMeshes": 100,
       "playerMeshes": 22,
-      "shadowCasters": 55,
+      "shadowCasters": 51,
       "postPasses": 2,
       "quality": "high",
       "dpr": 1,
@@ -256,7 +256,7 @@
     {
       "name": "collect tiny objects",
       "pass": true,
-      "detail": "class0 0.6833333333333338, class1 0.8000000000000008"
+      "detail": "class0 0.5833333333333335, class1 0.3833333333333333"
     },
     {
       "name": "gain mass",
@@ -276,27 +276,27 @@
     {
       "name": "collect a clearly larger object (class 4)",
       "pass": true,
-      "detail": "at 29.79999999999959 s"
+      "detail": "at 35.56666666666593 s"
     },
     {
       "name": "pacing firstCollection {\"max\":2.9}",
       "pass": true,
-      "detail": "0.6833333333333338 s"
+      "detail": "0.3833333333333333 s"
     },
     {
       "name": "pacing firstGrowth {\"min\":5.9,\"max\":11.8}",
       "pass": true,
-      "detail": "7.799999999999978 s"
+      "detail": "7.599999999999978 s"
     },
     {
       "name": "pacing mediumObjects {\"min\":17.6,\"max\":35.3}",
       "pass": true,
-      "detail": "18.200000000000248 s"
+      "detail": "20.383333333333457 s"
     },
     {
       "name": "pacing clearlyLargerObject {\"max\":44.1}",
       "pass": true,
-      "detail": "29.79999999999959 s"
+      "detail": "35.56666666666593 s"
     },
     {
       "name": "stuck events ≤ 3",
@@ -306,7 +306,7 @@
     {
       "name": "keyboard W moves the player",
       "pass": true,
-      "detail": "6.15 m over 98 game frames"
+      "detail": "6.32 m over 103 game frames"
     },
     {
       "name": "R restarts the run",
@@ -316,12 +316,12 @@
     {
       "name": "draw calls ≤ 300 (high tier, desktop budget)",
       "pass": true,
-      "detail": "286 calls"
+      "detail": "284 calls"
     },
     {
       "name": "triangles ≤ 750k (high tier, desktop budget)",
       "pass": true,
-      "detail": "636526 tris"
+      "detail": "658534 tris"
     },
     {
       "name": "no page or console errors",

@@ -20,6 +20,7 @@ Single place for settled decisions (CLAUDE.md §19–20). Update on every approv
 | Art pass (2026-09-23) | "更加真实高端的3D": procedural PBR kit, authored props/architecture/player, sky env + GTAO + bloom; no external generation (no API keys) | REQUIRED (Creative Director) → INFERRED implementation | Yes: props/architecture are data-driven; GLB swap path documented |
 | Quality tiers | high (GTAO+bloom), medium (bloom), low (none); touch devices default to medium | INFERRED | Yes |
 | Sidewalk height | Raised 0.12 m visually, collision unchanged | INFERRED (realism) | Yes |
+| Realism pass (2026-09-23) | "整体视觉更真实，不要像低端3D游戏": HDRI IBL + golden-hour sun, AgX + cinematic output, weathering, interior-mapped windows, trees/weeds/decals | REQUIRED (Creative Director) → INFERRED implementation | Yes: each layer is a separate module/flag (`?tonemap`, `?quality`) |
 
 ## Locked elements
 
@@ -49,8 +50,12 @@ Single place for settled decisions (CLAUDE.md §19–20). Update on every approv
 
 | Date | Feedback | Controlling parameter changed | Result |
 | --- | --- | --- | --- |
-| — | — | — | — |
+| 2026-09-23 | 更加真实高端的3D | Procedural PBR kit, authored models | Phase 5 art pass |
+| 2026-09-23 | 整体视觉像低端3D游戏 | Lighting (HDRI, sun 20°, AgX), post grade, surface shaders, dressing | Realism pass; budgets held |
 
 ## Pending issues
 
-- —
+- Plaster facade still flat and yellow in direct sun.
+- Skyline towers are simple boxes.
+- VFX and HUD are below premium (Phase 6).
+- Photoscanned textures would need a reachable asset host or user-supplied files.

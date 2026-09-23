@@ -27,19 +27,19 @@
     },
     "alphaPixels": 4096,
     "variance": 255,
-    "colorBuckets": 118,
+    "colorBuckets": 248,
     "metrics": {
-      "colorBuckets": 156,
-      "colorEntropyBits": 4.19,
-      "edgeDensity": 0.31,
+      "colorBuckets": 372,
+      "colorEntropyBits": 5.17,
+      "edgeDensity": 0.391,
       "luminance": {
-        "mean": 62.8,
-        "p5": 16.7,
-        "p95": 87,
-        "contrast": 70.3
+        "mean": 64.6,
+        "p5": 8.7,
+        "p95": 130,
+        "contrast": 121.3
       },
-      "dominantColorShare": 0.336,
-      "nonBackgroundShare": 0.664
+      "dominantColorShare": 0.193,
+      "nonBackgroundShare": 0.807
     },
     "renderBudget": {
       "tier": "desktop",
@@ -47,19 +47,19 @@
       "rows": [
         {
           "metric": "calls",
-          "actual": 262,
+          "actual": 290,
           "limit": 300,
           "ok": true
         },
         {
           "metric": "triangles",
-          "actual": 632446,
+          "actual": 686010,
           "limit": 750000,
           "ok": true
         },
         {
           "metric": "geometries",
-          "actual": 92,
+          "actual": 94,
           "limit": 300,
           "ok": true
         },
@@ -102,15 +102,15 @@
       },
       "fps": 0,
       "renderer": {
-        "calls": 262,
-        "triangles": 632446,
-        "geometries": 92,
+        "calls": 290,
+        "triangles": 686010,
+        "geometries": 94,
         "textures": 60,
-        "programs": 48,
+        "programs": 58,
         "instancedMeshes": 54,
-        "sceneMeshes": 89,
+        "sceneMeshes": 93,
         "playerMeshes": 14,
-        "shadowCasters": 47,
+        "shadowCasters": 43,
         "postPasses": 2,
         "quality": "high",
         "dpr": 1,

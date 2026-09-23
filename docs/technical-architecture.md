@@ -59,24 +59,29 @@ tools/inspect-game.mjs        threejs-qa-release canvas inspector (pixel metrics
 
 | Tier | Pipeline | Textures |
 | --- | --- | --- |
-| high | MSAA 4× render target → GTAO (radius follows player size) → bloom (threshold 0.92, authored emissives only) → OutputPass | 512² |
-| medium | MSAA 4× → bloom → OutputPass | 512² |
+| high | MSAA 4× HalfFloat target → GTAO (radius follows player size) → bloom (0.14 / 0.35 / 1.25, authored emissives only) → CinematicOutputPass | 512² |
+| medium | MSAA 4× → bloom → CinematicOutputPass | 512² |
 | low | Direct render, native antialias | 256² |
 
-- Shadows: one PCF directional shadow map (2048²) following the player; the extent grows with size.
+- Shadows: one PCF directional shadow map (4096²) focused ahead of the camera, texel-snapped to avoid shimmer; the extent grows with size.
 - `renderer.info.autoReset = false`, so counts include every pass of a frame.
-- The environment map is baked once from the sky dome (PMREM).
+- IBL: `public/hdri/pedestrian_overpass_1k.hdr` (CC0) → PMREM, `scene.environmentRotation` aligns its sun with `SUN_DIRECTION`. If it fails to load, the environment is baked from the procedural sky dome.
+- Tone mapping: AgX by default (`?tonemap=agx|aces|neutral`, `?exposure=`). Grade, vignette, grain and chromatic aberration run inside the output pass (`CinematicOutputPass`).
+- Surface shaders are injected with `onBeforeCompile` plus `customProgramCacheKey`: `weathering()` (wall/ground/prop) and `interiorMapping()` (window and shop glass, per-window `roomCenter` attribute).
+- Set dressing (`world/dressing.ts`) is 3 merged meshes: trunks+pits+sign pole (vertex colour), leaf canopies (alpha-tested, wind sway, custom depth material for shadows), and weeds+decals sharing one atlas texture.
+- `__GROW__.meshStats()` returns a per-mesh triangle/instance/shadow table for budget work.
 
 ### Measured (2026-09-23, high tier, 1600×900)
 
 | View | Draw calls | Triangles | Geometries | Textures |
 | --- | --- | --- | --- | --- |
-| Spawn (gameplay camera) | 262 | 632k | 92 | 60 |
-| Worst measured: 60 s bot run, T2 player in the lot | 286 | 636k | — | — |
+| Spawn (gameplay camera), realism pass | 290 | 686k | 94 | 60 |
+| Worst review view (cafe street / chase cam) | 290 | 686k | 94 | 60 |
+| Bot run end state (all 3 seeds) | 284 | 659k | — | — |
 | Desktop budget | ≤ 300 | ≤ 750k | ≤ 300 | ≤ 60 |
 | Mobile (medium tier, iPhone 13 viewport) | 136 / ≤ 150 ✔ | 316k / ≤ 300k ✘ | 92 ✔ | 54 / ≤ 40 ✘ |
 
-Draw calls were cut from ~400 to under 300 by merging player parts per material, per-axle wheel groups, folding trim/lamp/chrome roles and merging untextured arch metals. Startup in the cloud CPU renderer is ~13 s, dominated by first-frame shader compilation (31 programs); on a real GPU this should be ~1 s, which is **not yet measured**.
+Realism-pass trims to stay inside the budget: bicycle wheels (fewer torus segments and spokes), bin lathes (28 → 22), no shadow casting for tyre/trim roles below class 5, the dark brick reusing the red brick's normal/roughness maps, and weeds living in the decal atlas. Draw calls were cut earlier from ~400 to under 300 by merging player parts per material, per-axle wheel groups, folding trim/lamp/chrome roles and merging untextured arch metals. Startup in the cloud CPU renderer is ~13 s, dominated by first-frame shader compilation (31 programs); on a real GPU this should be ~1 s, which is **not yet measured**.
 
 ## Performance (earlier notes)
 
