@@ -207,8 +207,9 @@ export class ArenaSession {
       const presence: Record<string, unknown> = { ep: this.match.ep };
       if (g.local) presence.s = g.wireState(g.local);
       if (host) {
-        const b: Record<string, WireState> = {};
-        for (const a of g.actors) if (a.kind === 'bot') b[a.id] = g.wireState(a);
+        // AI rivals as [slot, ...state] rows: presence keys stay plain identifiers.
+        const b: number[][] = [];
+        for (const a of g.actors) if (a.kind === 'bot') b.push([a.slot, ...g.wireState(a)]);
         presence.b = b;
       } else presence.b = null;
       // ~20 Hz and only when something changed (the room coalesces at ~30 Hz anyway).
@@ -230,8 +231,12 @@ export class ArenaSession {
       for (const p of this.net.peers()) {
         if (p.isMe || p.presence.ep !== this.match.ep) continue;
         if (Array.isArray(p.presence.s)) g.applyWire(p.id, p.presence.s as WireState);
-        if (p.id === this.hostId() && p.presence.b && typeof p.presence.b === 'object') {
-          for (const [id, s] of Object.entries(p.presence.b as Record<string, WireState>)) if (id.startsWith('bot-')) g.applyWire(id, s);
+        if (p.id === this.hostId() && Array.isArray(p.presence.b)) {
+          for (const row of p.presence.b as unknown[]) {
+            if (!Array.isArray(row)) continue;
+            const id = this.idOf(row[0]);
+            if (id?.startsWith('bot-')) g.applyWire(id, row.slice(1) as WireState);
+          }
         }
       }
       // Proposals → host, batched.
