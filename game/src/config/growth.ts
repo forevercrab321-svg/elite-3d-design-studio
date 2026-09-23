@@ -23,7 +23,7 @@ export const growthConfig = {
 
 export const movementConfig = {
   baseTopSpeed: 3.4, // m/s at start diameter
-  topSpeedExponent: 0.45, // top speed ∝ (d/d0)^0.45: faster in m/s, slower in body lengths
+  topSpeedExponent: 0.36, // top speed ∝ (d/d0)^0.36: faster in m/s, much slower in body lengths (mass reads as heavy)
   accelSeconds: 0.16, // time to top speed at start mass
   accelMassDrag: 0.35, // accel time grows with ln(mass ratio): heavier = slower to spin up
   baseTurnRate: 11, // rad/s
@@ -42,6 +42,11 @@ export const collectionConfig = {
   /** Objects needing up to this much more power than the player has can be shoved. */
   pushPowerRatio: 0.72,
   bumpToastCooldown: 1.6,
+  /** Anti-frustration vacuum: debris smaller than this fraction of the machine is pulled from further away. */
+  vacuumSizeRatio: 0.08,
+  vacuumReachMultiplier: 2.6,
+  /** Destruction phase length grows with class above 5: tearing down a structure takes a beat. */
+  heavyPhasePerClass: 1.0,
 } as const;
 
 export const cameraConfig = {

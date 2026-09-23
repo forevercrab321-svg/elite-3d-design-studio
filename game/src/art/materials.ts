@@ -18,7 +18,8 @@ export type Role =
   | 'glassTint' // bottle glass, tinted
   | 'aluminium' // cans, tinted (printed label colour)
   | 'fabric' // awnings, seat pads, tinted
-  | 'wood' // slats, pallets
+  | 'wood' // slats (chairs, tables)
+  | 'timber' // sawn timber, tinted (pallets, scaffold boards, bearers)
   | 'steel' // bare/brushed steel
   | 'chrome'
   | 'rubber'
@@ -37,7 +38,7 @@ export type Role =
   | 'roofMetal'
   | 'concreteProp';
 
-export const TINTED: ReadonlySet<Role> = new Set<Role>(['paint', 'carPaint', 'plastic', 'glossyPlastic', 'cardboard', 'propBrick', 'glassTint', 'aluminium', 'fabric', 'corrugated']);
+export const TINTED: ReadonlySet<Role> = new Set<Role>(['paint', 'carPaint', 'plastic', 'glossyPlastic', 'cardboard', 'propBrick', 'glassTint', 'aluminium', 'fabric', 'corrugated', 'concreteProp', 'timber']);
 
 function tex(set: { map: THREE.Texture; normalMap: THREE.Texture; roughnessMap: THREE.Texture }, normalScale = 1) {
   return { map: set.map, normalMap: set.normalMap, roughnessMap: set.roughnessMap, normalScale: new THREE.Vector2(normalScale, normalScale) };
@@ -72,6 +73,7 @@ export class MaterialLibrary {
       aluminium: std({ color: 0xffffff, roughness: 0.3, metalness: 0.75, envMapIntensity: 1.2 }),
       fabric: phy({ color: 0xffffff, roughness: 0.9, sheen: 0.6, sheenRoughness: 0.6, sheenColor: new THREE.Color(0xffffff), envMapIntensity: 0.4 }),
       wood: std({ color: 0x8a6440, roughness: 0.78, metalness: 0 }),
+      timber: std({ color: 0xffffff, ...tex(kit.cardboard, 0.9), roughness: 0.85, metalness: 0 }),
       steel: std({ color: 0xa9afb5, roughness: 0.42, metalness: 1, envMapIntensity: 1.1 }),
       chrome: std({ color: 0xe6e9ec, roughness: 0.12, metalness: 1, envMapIntensity: 1.3 }),
       rubber: std({ color: 0x1a1a1c, roughness: 0.9, metalness: 0, envMapIntensity: 0.35 }),
@@ -123,7 +125,8 @@ export class MaterialLibrary {
     weathering(this.arch.metals, 'wall', 0.6);
     weathering(this.arch.skylineWindows, 'wall', 0.5);
     for (const k of ['asphalt', 'sidewalk', 'gravel', 'roofing'] as const) weathering(this.arch[k], 'ground');
-    for (const r of ['paint', 'corrugated', 'concreteProp', 'roofMetal'] as const) weathering(this.roles[r], 'prop', 0.8);
+    for (const r of ['paint', 'concreteProp', 'roofMetal'] as const) weathering(this.roles[r], 'prop', 0.8);
+    weathering(this.roles.corrugated, 'prop', 0.35); // containers: grime blotches read as camouflage on dark paint
     interiorMapping(this.arch.windowGlass as THREE.MeshPhysicalMaterial, { width: 3.2, depth: 4.2, height: 3.0, floorBelowCentre: 1.75, litChance: 0.3, shop: false });
     interiorMapping(this.arch.shopGlass as THREE.MeshPhysicalMaterial, { width: 3.6, depth: 6, height: 3.8, floorBelowCentre: 1.9, litChance: 1, shop: true });
   }

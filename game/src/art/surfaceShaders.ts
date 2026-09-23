@@ -24,7 +24,10 @@ const NOISE = /* glsl */ `
 `;
 
 const VERTEX_WORLD = /* glsl */ `
-  #ifdef USE_INSTANCING
+  #if defined( USE_BATCHING )
+    vec4 wWorld = modelMatrix * batchingMatrix * vec4(transformed, 1.0);
+    vWNormal = normalize(mat3(modelMatrix) * mat3(batchingMatrix) * objectNormal);
+  #elif defined( USE_INSTANCING )
     vec4 wWorld = modelMatrix * instanceMatrix * vec4(transformed, 1.0);
     vWNormal = normalize(mat3(modelMatrix) * mat3(instanceMatrix) * objectNormal);
   #else

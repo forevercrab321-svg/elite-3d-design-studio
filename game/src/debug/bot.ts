@@ -13,6 +13,7 @@ export class Bot {
   private lastDist = Infinity;
   private checkAt = 0;
   private readonly blacklist = new Map<number, number>();
+  private readonly stuckCount = new Map<number, number>();
   private wanderUntil = 0;
   private wanderX = 0;
   private wanderZ = -1;
@@ -27,7 +28,7 @@ export class Bot {
       wx = this.wanderX;
       wz = this.wanderZ;
     } else {
-      if (!this.target || this.target.state !== 'idle' || p.power < this.target.requiredPower) this.pick(game);
+      if (!this.target || !game.world.isEligible(this.target, p.power)) this.pick(game);
       if (!this.target) {
         wx = 0;
         wz = -1; // nothing reachable: head downtown
@@ -38,7 +39,10 @@ export class Bot {
         if (t >= this.checkAt) {
           if (this.lastDist - dist < 0.08 * Math.max(1, p.diameter) && this.lastDist !== Infinity) {
             game.metrics.stuckEvents++;
-            this.blacklist.set(this.target.id, t + 4);
+            // Repeatedly unreachable targets are dropped for longer each time (4 s, 12 s, 36 s…).
+            const n = (this.stuckCount.get(this.target.id) ?? 0) + 1;
+            this.stuckCount.set(this.target.id, n);
+            this.blacklist.set(this.target.id, t + 4 * Math.pow(3, n - 1));
             this.target = null;
             const side = game.frame % 2 ? 1 : -1;
             this.wanderX = -wz / (dist || 1) * side;
@@ -82,7 +86,7 @@ export class Bot {
     let best: WorldObject | null = null;
     let bestScore = Infinity;
     for (const o of game.world.objects) {
-      if (o.state !== 'idle' || p.power < o.requiredPower) continue;
+      if (!game.world.isEligible(o, p.power)) continue;
       if ((this.blacklist.get(o.id) ?? 0) > game.time) continue;
       const d = Math.hypot(o.x - p.x, o.z - p.z);
       // Like a player who just read the unlock banner, it favours the newest class it can take.

@@ -3,7 +3,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import type { MaterialLibrary } from '../art/materials';
 import { bakeGroundAO, boxProjectUV } from '../art/uv';
 import { createSeededRandom } from '../core/rng';
-import { CURB_HEIGHT, GROUND, STATIC_BLOCKS, type StaticBlock } from './scrapCity';
+import { CURB_HEIGHT, GROUND, STATIC_BLOCKS, WORLD_BOUNDS, type StaticBlock } from './scrapCity';
 
 /**
  * Static Scrap City: building masses with authored facades, ground with real curbs,
@@ -139,6 +139,11 @@ export function buildCity(lib: MaterialLibrary): CityBuild {
     { block: byName('Bldg_Street_West'), cx: -30, cz: 0, ry: Math.PI, len: 30, ground: 'shop', seed: 5 },
     { block: byName('Bldg_Street_East'), cx: 30, cz: 0, ry: Math.PI, len: 30, ground: 'shop', seed: 6 },
     { block: byName('Bldg_Alley_Back'), cx: 0, cz: 36.5, ry: Math.PI, len: 30, ground: 'plain', seed: 7 },
+    // Street-end blocks: the street terminates on facades, and their south faces back the site and yard.
+    { block: byName('Bldg_StreetEnd_West'), cx: -44, cz: -6, ry: Math.PI / 2, len: 12, ground: 'shop', seed: 8 },
+    { block: byName('Bldg_StreetEnd_East'), cx: 44, cz: -6, ry: -Math.PI / 2, len: 12, ground: 'shop', seed: 9 },
+    { block: byName('Bldg_StreetEnd_West'), cx: -65.5, cz: -12, ry: Math.PI, len: 43, ground: 'service', seed: 10 },
+    { block: byName('Bldg_StreetEnd_East'), cx: 65.5, cz: -12, ry: Math.PI, len: 43, ground: 'service', seed: 11 },
   ];
   for (const f of faces) facade(batch, f);
 
@@ -147,6 +152,7 @@ export function buildCity(lib: MaterialLibrary): CityBuild {
   groundPlane(batch);
   streetFurniture(batch);
   crane(batch);
+  perimeter(batch);
   skyline(batch);
 
   const cast = new Set<ArchKey>(['brick', 'darkBrick', 'plaster', 'concrete', 'steelDark', 'awning', 'craneYellow']);
@@ -376,9 +382,52 @@ function streetFurniture(batch: Batch): void {
   }
   // Bollards protecting the alley mouth corners.
   for (const x of [-3.9, 3.9]) batch.add('steelDark', new THREE.CylinderGeometry(0.1, 0.1, 0.95, 12), x, CURB_HEIGHT + 0.475, -0.4);
-  // Construction hoarding around the crane base.
-  for (let x = -2; x <= 12; x += 2.4) batch.add('awning', box(2.3, 2.4, 0.06), x, 1.2, -51);
-  for (let z = -60; z <= -52; z += 2.4) batch.add('awning', box(0.06, 2.4, 2.3), 13, 1.2, z);
+}
+
+/**
+ * Edge of the playable city south of the street: a precast concrete boundary wall on the
+ * bounds, low industrial sheds behind it, yard light masts and access-road markings.
+ */
+function perimeter(batch: Batch): void {
+  const { minX, maxX, minZ } = WORLD_BOUNDS;
+  const wall = (x0: number, z0: number, x1: number, z1: number) => {
+    const len = Math.hypot(x1 - x0, z1 - z0);
+    const n = Math.round(len / 3);
+    const ry = Math.atan2(x1 - x0, z1 - z0) + Math.PI / 2;
+    for (let i = 0; i < n; i++) {
+      const t = (i + 0.5) / n;
+      const x = x0 + (x1 - x0) * t;
+      const z = z0 + (z1 - z0) * t;
+      batch.add('concrete', box(len / n - 0.04, 2.4, 0.18), x, 1.2, z, ry);
+      batch.add('concrete', box(0.3, 2.6, 0.3), x0 + (x1 - x0) * (i / n), 1.3, z0 + (z1 - z0) * (i / n)); // posts
+    }
+    batch.add('steelDark', box(len, 0.04, 0.04), (x0 + x1) / 2, 2.75, (z0 + z1) / 2, ry); // barbed-wire line
+  };
+  wall(minX - 0.4, -12, minX - 0.4, minZ - 0.4);
+  wall(maxX + 0.4, -12, maxX + 0.4, minZ - 0.4);
+  wall(minX - 0.4, minZ - 0.4, maxX + 0.4, minZ - 0.4);
+  // Backdrop sheds beyond the wall (visual only), portal-framed with sheet roofs.
+  const rand = createSeededRandom(5150);
+  const shed = (x: number, z: number, w: number, d: number, h: number) => {
+    batch.add(rand() < 0.5 ? 'concrete' : 'metalLight', box(w, h, d), x, h / 2, z);
+    batch.add('roofing', box(w + 0.6, 0.3, d + 0.6), x, h + 0.15, z);
+    for (let k = 0; k < 3; k++) batch.add('steelDark', box(0.6, 0.8, 0.6), x + (rand() - 0.5) * w * 0.6, h + 0.7, z + (rand() - 0.5) * d * 0.6);
+  };
+  for (let x = -110; x <= 110; x += 28 + rand() * 8) shed(x, minZ - 14 - rand() * 10, 22 + rand() * 6, 14 + rand() * 8, 7 + rand() * 7);
+  for (const side of [-1, 1]) for (let z = -24; z >= minZ; z -= 26 + rand() * 6) shed(side * (maxX + 16 + rand() * 8), z, 14 + rand() * 8, 20 + rand() * 6, 6 + rand() * 8);
+  // Yard light masts.
+  for (const [x, z] of [[46, -50], [66, -40], [60, -90], [-60, -36], [-30, -110], [30, -104]] as const) {
+    batch.add('steelDark', new THREE.CylinderGeometry(0.16, 0.24, 16, 10), x, 8, z);
+    batch.add('steelDark', box(2.4, 0.16, 0.16), x, 16, z);
+    for (const s of [-1, 1]) {
+      batch.add('steelDark', box(0.6, 0.3, 0.7), x + s * 1.1, 15.8, z);
+      batch.add('lampGlow', box(0.5, 0.02, 0.6), x + s * 1.1, 15.64, z);
+    }
+  }
+  // Access road markings (edge lines and centre dashes) and container bay lines in the yard.
+  for (let x = -72; x <= 72; x += 6) batch.add('paintLine', box(3, 0.004, 0.14), x, 0.012, -47);
+  for (const z of [-42.8, -51.2]) batch.add('paintLine', box(146, 0.004, 0.12), 0, 0.012, z);
+  for (const x of [46.8, 53, 59.2]) batch.add('paintLine', box(0.14, 0.004, 32), x, 0.012, -32);
 }
 
 /** Tower crane: lattice mast, slewing unit, cab, jib and counter-jib with ties. Painted steel. */
@@ -436,10 +485,8 @@ function skyline(batch: Batch): void {
     }
   };
   // Street-end closure: nearer mid-rise blocks so the street never runs out into empty ground.
-  ring(-48, 32, -68, -50, 6, 10, 24);
-  ring(-48, 32, 50, 68, 6, 10, 24);
-  ring(-190, -120, -140, 140, 22, 25, 80); // downtown behind the warehouse
+  ring(-230, -170, -170, 170, 26, 30, 90); // downtown behind the warehouse
   ring(60, 110, -120, 120, 14, 18, 45); // behind the alley
-  ring(-110, 50, -150, -70, 10, 16, 40); // west
-  ring(-110, 50, 70, 150, 10, 16, 40); // east
+  ring(-150, 50, -200, -125, 12, 16, 40); // west
+  ring(-150, 50, 125, 200, 12, 16, 40); // east
 }

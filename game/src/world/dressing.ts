@@ -13,7 +13,8 @@ export interface Dressing {
   meshes: THREE.Object3D[];
   colliders: Obb[];
   /** Advance wind animation (game time, seconds). */
-  update(t: number): void;
+  /** Advance wind (game time, s); canopies closer to the camera than `fadeNear` m dissolve away. */
+  update(t: number, fadeNear?: number): void;
 }
 
 // ── Canvas textures ──────────────────────────────────────────────────────────
@@ -263,7 +264,7 @@ export function buildDressing(): Dressing {
   trunkMesh.castShadow = trunkMesh.receiveShadow = true;
   colliders.push({ cx: 4.3, cz: -2.34, hx: 0.06, hz: 0.06, yaw: 0 });
 
-  const leafUniforms = { uTime: { value: 0 } };
+  const leafUniforms = { uTime: { value: 0 }, uFadeNear: { value: 0 } };
   const leaves = new THREE.MeshStandardMaterial({
     name: 'MAT_Leaves',
     map: leafTexture(rand),
@@ -275,6 +276,15 @@ export function buildDressing(): Dressing {
   });
   leaves.onBeforeCompile = (shader) => {
     shader.uniforms.uTime = leafUniforms.uTime;
+    shader.uniforms.uFadeNear = leafUniforms.uFadeNear;
+    // Camera-side canopies dissolve (screen-door) so a tree never hides the machine.
+    shader.fragmentShader = 'uniform float uFadeNear;\n' + shader.fragmentShader.replace(
+      '#include <alphatest_fragment>',
+      `#include <alphatest_fragment>
+       float camD = length(vViewPosition);
+       float keep = smoothstep(uFadeNear * 0.6, uFadeNear, camD);
+       if (keep < 1.0 && fract(sin(dot(floor(gl_FragCoord.xy), vec2(12.9898, 78.233))) * 43758.5453) > keep) discard;`,
+    );
     shader.vertexShader = 'uniform float uTime;\n' + shader.vertexShader.replace(
       '#include <begin_vertex>',
       `#include <begin_vertex>
@@ -374,8 +384,9 @@ export function buildDressing(): Dressing {
   return {
     meshes,
     colliders,
-    update(t: number) {
+    update(t: number, fadeNear = 0) {
       leafUniforms.uTime.value = t;
+      leafUniforms.uFadeNear.value = fadeNear;
     },
   };
 }

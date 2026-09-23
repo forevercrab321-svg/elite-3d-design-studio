@@ -8,11 +8,18 @@ import type { ObjectTypeId } from '../config/objects';
  *            │  7 m wide         │  street cars, the parking lot, the crane and the
  *   z =   0  ┴──  alley mouth  ──┴  warehouse — the promises (§22).
  *   z = −12   ZONE B  street + café sidewalk (parked cars are class 5: impossible now)
- *   z = −40   ZONE C  parking lot
- *   z = −66…−98       warehouse (class 8) — the MVP climax, visible from the first second
+ *   z = −40   ZONE C  parking lot (carts, motorcycles, cars)
+ *   x < −36   ZONE D  construction site behind a hoarding line (pallets → machinery)
+ *   x > +36   ZONE E  industrial yard (containers, trucks, storage tanks)
+ *   z = −67…−97       warehouse — the MVP climax, visible from the first second, built from
+ *                     class-7 parts: wall panels, gable panels, roof bays (collapse), sign
+ *   z < −100          back lot: garages and tanks
  */
 
-export const WORLD_BOUNDS = { minX: -44, maxX: 44, minZ: -100, maxZ: 36 } as const;
+export const WORLD_BOUNDS = { minX: -80, maxX: 80, minZ: -126, maxZ: 36 } as const;
+
+/** Warehouse footprint (centre and size), shared by the layout, the slab and the HUD. */
+export const WAREHOUSE = { x: 0, z: -82, w: 48, d: 30, wallH: 11.5 } as const;
 export const SPAWN = { x: 0, z: 32, heading: 0 } as const;
 
 /** Sidewalks are raised above the road (visual only; gameplay collision stays 2D). */
@@ -36,6 +43,9 @@ export const GROUND: { name: string; surface: Surface; x: number; z: number; w: 
   { name: 'Ground_Sidewalk_South', surface: 'sidewalk', x: 0, z: -10.75, w: 90, d: 2.5 },
   { name: 'Ground_ParkingLot', surface: 'lot', x: 0, z: -26, w: 64, d: 28 },
   { name: 'Ground_WarehouseApron', surface: 'lot', x: 0, z: -58, w: 60, d: 12 },
+  { name: 'Ground_AccessRoad', surface: 'asphalt', x: 0, z: -47, w: 150, d: 9 },
+  { name: 'Ground_YardSlab', surface: 'lot', x: 58, z: -60, w: 44, d: 92 },
+  { name: 'Ground_BackLot', surface: 'lot', x: 0, z: -112, w: 150, d: 24 },
 ];
 
 /** Static architecture: solid, not yet destructible (buildings join the class system in Phase 4). */
@@ -69,6 +79,12 @@ export const STATIC_BLOCKS: StaticBlock[] = [
   { name: 'Crane_Mast', x: 5, z: -56, w: 1.6, d: 1.6, h: 38, material: 'steel' },
   { name: 'Crane_Jib', x: -4, z: -56, w: 36, d: 1.2, h: 1.2, material: 'steel', y: 38, collide: false },
   { name: 'Crane_Counterweight', x: 11, z: -56, w: 3, d: 2, h: 2, material: 'concrete', y: 36.5, collide: false },
+  // Street ends: blocks close the street (and the city north of z = −12) beyond the playable width.
+  { name: 'Bldg_StreetEnd_West', x: -65.5, z: 12, w: 43, d: 48, h: 20, material: 'concrete' },
+  { name: 'Bldg_StreetEnd_East', x: 65.5, z: 12, w: 43, d: 48, h: 17, material: 'darkBrick' },
+  // Warehouse floor slab and dock apron: what remains after the climax.
+  { name: 'Warehouse_Slab', x: WAREHOUSE.x, z: WAREHOUSE.z, w: WAREHOUSE.w + 0.8, d: WAREHOUSE.d + 0.8, h: 0.18, material: 'concrete', collide: false },
+  { name: 'Warehouse_DockApron', x: 0, z: -66.2, w: 46, d: 1.8, h: 0.3, material: 'concrete', collide: false },
 ];
 
 export interface Placement {
@@ -76,6 +92,12 @@ export interface Placement {
   x: number;
   z: number;
   yaw?: number;
+  /** Height of the object's base (stacked containers, roof bays, the warehouse sign). */
+  y?: number;
+  /** Name other placements can reference as a support. */
+  tag?: string;
+  /** Objects holding this one up: when all are gone it falls; 'collapse' objects stay locked until then. */
+  supports?: string[];
 }
 
 export interface Cluster {
@@ -153,9 +175,112 @@ export const PLACEMENTS: Placement[] = [
   ...[-15, -9, -3, 3, 9, 15].map((x, i): Placement => ({ type: 'CAR_COMPACT', x, z: i % 2 ? -21 : -30, yaw: 0 })),
   { type: 'CAR_COMPACT', x: -21, z: -21, yaw: 0 },
   { type: 'CAR_COMPACT', x: 21, z: -30, yaw: 0 },
-  // The climax: visible down the alley from the first frame.
-  { type: 'WAREHOUSE', x: 0, z: -82 },
+  // ── Phase 3: class 3–4 transition in the street and lot ─────────────────────
+  ...[-30, -29.2, -28.4, -27.6].map((x): Placement => ({ type: 'SHOPPING_CART', x, z: -36.5, yaw: 0 })),
+  { type: 'SHOPPING_CART', x: -22, z: -26, yaw: 0.8 },
+  { type: 'SHOPPING_CART', x: 12, z: -34, yaw: -0.4 },
+  { type: 'SHOPPING_CART', x: 26, z: -24, yaw: 2.1 },
+  ...[22, 23.2, 24.4, 25.6, 26.8, 28].map((x, i): Placement => ({ type: 'MOTORCYCLE', x, z: -14.5, yaw: i % 2 ? 0.08 : -0.06 })),
+  { type: 'UTILITY_BOX', x: -34, z: -1.1 },
+  { type: 'UTILITY_BOX', x: 36, z: -1.1 },
+  { type: 'UTILITY_BOX', x: -13, z: -11.4, yaw: Math.PI },
+  { type: 'UTILITY_BOX', x: 13, z: -11.4, yaw: Math.PI },
+  { type: 'UTILITY_BOX', x: 33, z: -38 },
+  { type: 'VAN', x: -27, z: -30, yaw: 0 },
+  { type: 'VAN', x: 27, z: -21, yaw: 0 },
+  { type: 'VAN', x: 30, z: -8.3, yaw: Q },
+  // More parked cars in the lot bays: vehicles are the first "I can eat THAT" moment, so make it a feast.
+  ...[-18, -6, 6, 18].map((x): Placement => ({ type: 'CAR_COMPACT', x, z: -21, yaw: Math.PI })),
+  ...[-21, -9, 3, 15].map((x): Placement => ({ type: 'CAR_COMPACT', x, z: -30, yaw: 0 })),
+  { type: 'VAN', x: -24, z: -38, yaw: Q },
+  { type: 'VAN', x: 24, z: -38, yaw: -Q },
+  { type: 'VAN', x: 60, z: -14.5, yaw: Q },
+  // Hoarding line between the lot and the construction site (class 4: smash through it).
+  ...Array.from({ length: 20 }, (_, i): Placement => ({ type: 'HOARDING', x: -35.5, z: -14 - 1.2 - i * 2.4, yaw: -Q })),
+  // ── Zone D — construction site ──────────────────────────────────────────────
+  { type: 'SITE_CABIN', x: -73, z: -21, yaw: 0, tag: 'cab1' },
+  { type: 'SITE_CABIN', x: -73, z: -21, yaw: 0, y: 2.75, supports: ['cab1'] },
+  { type: 'SITE_CABIN', x: -73, z: -30.5, yaw: 0 },
+  { type: 'EXCAVATOR', x: -56, z: -50, yaw: 0.7 },
+  { type: 'TIPPER_TRUCK', x: -66, z: -61, yaw: Q },
+  { type: 'GENERATOR', x: -44, z: -19, yaw: 0 },
+  { type: 'GENERATOR', x: -49, z: -37, yaw: 0.3 },
+  { type: 'GENERATOR', x: -67, z: -42, yaw: -Q },
+  { type: 'PIPE_STACK', x: -60, z: -22, yaw: 0 },
+  { type: 'PIPE_STACK', x: -60, z: -31, yaw: 0 },
+  { type: 'PIPE_STACK', x: -44, z: -60, yaw: Q },
+  ...[-48, -45, -42].map((x): Placement => ({ type: 'SCAFFOLD', x, z: -44, yaw: 0 })),
+  { type: 'SCAFFOLD', x: -70, z: -52, yaw: Q },
+  { type: 'CONTAINER', x: -77, z: -40, yaw: 0 },
+  { type: 'CONTAINER', x: -77, z: -48, yaw: 0 },
+  { type: 'DUMPSTER', x: -40, z: -30, yaw: Q },
+  { type: 'DUMPSTER', x: -52, z: -63, yaw: 0 },
+  ...[-19, -23, -27].map((z): Placement => ({ type: 'PALLET_STACK', x: -52, z, yaw: 0.05 })),
+  ...[-40, -42.5].map((x): Placement => ({ type: 'PALLET_STACK', x, z: -52, yaw: -0.1 })),
+  ...[-38.5, -38.5, -38.5].map((x, i): Placement => ({ type: 'PALLET_STACK', x, z: -56 - i * 1.4, yaw: 0 })),
+  ...[-20, -26, -32, -38].map((z): Placement => ({ type: 'JERSEY_BARRIER', x: -64.5, z, yaw: 0 })),
+  // Band between the lot and the warehouse apron: barriers, a van and a generator by the crane.
+  ...[-24, -18, 18, 24].map((x): Placement => ({ type: 'JERSEY_BARRIER', x, z: -42.5, yaw: Q })),
+  ...[-6, -3, 3, 6].map((x): Placement => ({ type: 'JERSEY_BARRIER', x, z: -51.5, yaw: Q })),
+  { type: 'GENERATOR', x: 9, z: -58, yaw: Q },
+  { type: 'VAN', x: -14, z: -47, yaw: Q },
+  { type: 'PALLET_STACK', x: 2, z: -60 },
+  { type: 'PALLET_STACK', x: -1.5, z: -61, yaw: 0.2 },
+  // ── Zone E — industrial yard ────────────────────────────────────────────────
+  ...[-22, -29, -36].map((z, i): Placement => ({ type: 'CONTAINER', x: 50, z, yaw: 0, tag: `ya${i}` })),
+  { type: 'CONTAINER', x: 50, z: -29, yaw: 0, y: 2.59, supports: ['ya1'] },
+  ...[-22, -29, -36, -43].map((z, i): Placement => ({ type: 'CONTAINER', x: 56, z, yaw: 0, tag: `yb${i}` })),
+  { type: 'CONTAINER', x: 56, z: -22, yaw: 0, y: 2.59, supports: ['yb0'] },
+  { type: 'CONTAINER', x: 56, z: -36, yaw: 0, y: 2.59, supports: ['yb2'] },
+  ...[62, 68, 74].map((x): Placement => ({ type: 'CONTAINER', x, z: -54, yaw: Q })),
+  { type: 'CONTAINER', x: 70, z: -30, yaw: 0.05 },
+  ...[-22, -29, -36, -43].map((z, i): Placement => ({ type: 'CONTAINER', x: 62, z, yaw: 0, tag: `yc${i}` })),
+  { type: 'CONTAINER', x: 62, z: -29, yaw: 0, y: 2.59, supports: ['yc1'] },
+  { type: 'CONTAINER', x: 62, z: -43, yaw: 0, y: 2.59, supports: ['yc3'] },
+  ...[-104, -111].map((z): Placement => ({ type: 'CONTAINER', x: 8, z, yaw: Q })),
+  { type: 'TIPPER_TRUCK', x: -12, z: -108, yaw: Q },
+  { type: 'SITE_CABIN', x: -60, z: -80, yaw: 0 },
+  ...[-62, -70, -78].map((z): Placement => ({ type: 'CONTAINER', x: 50, z, yaw: 0.02 })),
+  { type: 'CONTAINER', x: -40, z: -96, yaw: Q },
+  { type: 'EXCAVATOR', x: 44, z: -112, yaw: -2.2 },
+  { type: 'SITE_CABIN', x: 74, z: -18, yaw: Q },
+  { type: 'VAN', x: 42, z: -24, yaw: 0.1 },
+  { type: 'VAN', x: 42, z: -33, yaw: -0.1 },
+  { type: 'TIPPER_TRUCK', x: 44, z: -72, yaw: 0 },
+  { type: 'TIPPER_TRUCK', x: 68, z: -84, yaw: Q },
+  { type: 'DELIVERY_TRUCK', x: 58, z: -70, yaw: -Q },
+  ...[-62, -68].map((z): Placement => ({ type: 'PIPE_STACK', x: 74, z, yaw: 0 })),
+  ...[-66, -70, -74].map((z): Placement => ({ type: 'PALLET_STACK', x: 38.5, z })),
+  ...[-90, -96, -102].map((z): Placement => ({ type: 'JERSEY_BARRIER', x: 38, z, yaw: 0 })),
+  // Storage tanks and garages: class-7 structures that warm the player up for the warehouse.
+  { type: 'FUEL_TANK', x: 52, z: -106 },
+  { type: 'FUEL_TANK', x: 64, z: -106 },
+  { type: 'FUEL_TANK', x: 70, z: -96 },
+  { type: 'FUEL_TANK', x: -66, z: -100 },
+  { type: 'GARAGE_ROW', x: -44, z: -118, yaw: Math.PI },
+  { type: 'GARAGE_ROW', x: -24, z: -118, yaw: Math.PI },
+  { type: 'GARAGE_ROW', x: 24, z: -118, yaw: Math.PI },
+  // ── The climax: the warehouse, visible down the alley from the first frame ────
+  ...warehouseParts(),
 ];
+
+/** The warehouse as a kit: 4 front + 4 back wall panels, 6 gable panels, 4 roof bays, 1 sign. */
+function warehouseParts(): Placement[] {
+  const { x: cx, z: cz, w, d, wallH } = WAREHOUSE;
+  const out: Placement[] = [];
+  const bays = [-18, -6, 6, 18];
+  bays.forEach((bx, i) => {
+    out.push({ type: 'WH_PANEL_FRONT', x: cx + bx, z: cz + d / 2 - 0.4, yaw: 0, tag: `whF${i}` });
+    out.push({ type: 'WH_PANEL_BACK', x: cx + bx, z: cz - d / 2 + 0.4, yaw: Math.PI, tag: `whB${i}` });
+    const end = i === 0 || i === 3;
+    out.push({ type: end ? 'WH_ROOF_END' : 'WH_ROOF', x: cx + bx, z: cz, y: wallH, yaw: i === 0 ? Math.PI : 0, supports: [`whF${i}`, `whB${i}`] });
+  });
+  for (const s of [-1, 1]) for (const dz of [-10, 0, 10]) out.push({ type: 'WH_PANEL_END', x: cx + s * (w / 2 - 0.4), z: cz + dz, yaw: s * Q });
+  out.push({ type: 'WH_SIGN', x: cx, z: cz + d / 2 + 0.3, y: 6.6, yaw: 0, supports: ['whF1', 'whF2'] });
+  // Interior mass exposed once the walls come off.
+  for (const [x, z] of [[-12, -77], [12, -77], [-4, -88], [4, -88]]) out.push({ type: 'PALLET_RACK', x: cx + x, z, yaw: 0 });
+  return out;
+}
 
 /** Seeded scatter for small debris: dense near spawn, a breadcrumb trail down the alley. */
 export const CLUSTERS: Cluster[] = [
@@ -193,4 +318,15 @@ export const CLUSTERS: Cluster[] = [
   { type: 'TRAFFIC_CONE', x: 0, z: -15, radius: 3, count: 5 },
   { type: 'CARDBOARD_BOX', x: 24, z: -10.6, radius: 1.5, count: 4 },
   { type: 'TRASH_BAG', x: -24, z: -10.6, radius: 1.5, count: 4 },
+  // Lot, site and yard: loose material between the set pieces.
+  { type: 'PALLET', x: -26, z: -17, radius: 2.5, count: 5 },
+  { type: 'PALLET', x: -46, z: -26, radius: 3, count: 6 },
+  { type: 'BRICK', x: -50, z: -32, radius: 3, count: 14 },
+  { type: 'TRAFFIC_CONE', x: -45, z: -46, radius: 4, count: 6 },
+  { type: 'CARDBOARD_BOX', x: -40, z: -40, radius: 3, count: 5 },
+  { type: 'SCRAP', x: -56, z: -40, radius: 6, count: 16 },
+  { type: 'PALLET_STACK', x: 46, z: -48, radius: 3, count: 3 },
+  { type: 'PALLET', x: 62, z: -40, radius: 4, count: 6 },
+  { type: 'SCRAP', x: 60, z: -64, radius: 8, count: 16 },
+  { type: 'TRAFFIC_CONE', x: 20, z: -46, radius: 6, count: 5 },
 ];

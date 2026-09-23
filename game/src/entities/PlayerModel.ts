@@ -21,6 +21,8 @@ export class PlayerModel {
   private readonly tierParts = new Map<number, THREE.Group>();
   private readonly unfold = new Map<number, number>();
   private readonly arms: THREE.Object3D[] = [];
+  private readonly jaws: THREE.Object3D[] = [];
+  private chomp = 0;
   private bob = 0;
   private t = 0;
   private readonly glow: THREE.MeshStandardMaterial;
@@ -202,6 +204,34 @@ export class PlayerModel {
     t3.add(mesh('RollCage', new THREE.TubeGeometry(cage, 24, 0.018, 8), M.gunmetal));
     t3.add(mesh('RollCage_Lights', lampGeo(new THREE.BoxGeometry(0.3, 0.03, 0.03), LAMP.white), R.lamps, 0, 0.915, -0.005));
 
+    // ── Tier 4: industrial recycler — track pods, crusher jaws, cyclone, twin stacks ──
+    const t4 = this.part(4);
+    for (const s of [-1, 1]) {
+      const side = s < 0 ? 'L' : 'R';
+      t4.add(mesh(`TrackPod_${side}`, rbox(0.15, 0.3, 1.0, 0.12), M.tread, s * 0.56, 0.15, 0.05));
+      t4.add(mesh(`TrackFrame_${side}`, rbox(0.06, 0.12, 0.7, 0.03), M.gunmetal, s * 0.64, 0.17, 0.05));
+      for (const z of [-0.28, 0.05, 0.38]) t4.add(mesh(`TrackRoller_${side}`, new THREE.CylinderGeometry(0.075, 0.075, 0.03, 14).rotateZ(Math.PI / 2), M.steel, s * 0.645, 0.13, z));
+      t4.add(mesh(`TrackStrut_${side}`, rbox(0.14, 0.08, 0.3, 0.02), M.gunmetal, s * 0.44, 0.24, 0.05));
+      t4.add(mesh(`Armour_Hazard_${side}`, rbox(0.02, 0.1, 0.62, 0.008), M.hazard, s * 0.35, 0.52, 0.04));
+      t4.add(mesh(`Stack_${side}`, new THREE.CylinderGeometry(0.035, 0.04, 0.42, 12), M.chrome, s * 0.2, 1.06, 0.4));
+      t4.add(mesh(`Stack_Cap_${side}`, new THREE.CylinderGeometry(0.045, 0.045, 0.03, 12), M.dark, s * 0.2, 1.28, 0.4));
+      // Crusher jaw on a pivot so it can chomp.
+      const jaw = new THREE.Group();
+      jaw.name = `CrusherJaw_${side}`;
+      jaw.position.set(s * 0.3, 0.28, -0.52);
+      jaw.add(mesh(`Jaw_${side}_Plate`, rbox(0.06, 0.34, 0.26, 0.02), M.gunmetal, 0, 0, -0.1));
+      for (let k = 0; k < 4; k++) jaw.add(mesh(`Jaw_${side}_Tooth`, new THREE.ConeGeometry(0.025, 0.07, 6).rotateZ(-s * Math.PI / 2), M.steel, -s * 0.05, -0.12 + k * 0.08, -0.16));
+      jaw.add(mesh(`Jaw_${side}_Ram`, new THREE.CylinderGeometry(0.018, 0.018, 0.26, 8).rotateX(Math.PI / 2), M.chrome, 0, 0.14, 0.05));
+      t4.add(jaw);
+      this.jaws.push(jaw);
+    }
+    t4.add(mesh('Cyclone_Drum', new THREE.CylinderGeometry(0.13, 0.13, 0.22, 20), M.shell, -0.12, 1.0, 0.26));
+    t4.add(mesh('Cyclone_Cone', new THREE.CylinderGeometry(0.13, 0.04, 0.14, 20), M.gunmetal, -0.12, 0.83, 0.26));
+    t4.add(mesh('Cyclone_Duct', new THREE.TorusGeometry(0.12, 0.025, 8, 16, Math.PI), M.gunmetal, -0.12, 1.1, 0.14, 0, Math.PI / 2));
+    t4.add(mesh('LightBar', lampGeo(new THREE.BoxGeometry(0.5, 0.035, 0.03), LAMP.white), R.lamps, 0, 0.95, -0.24));
+    t4.add(mesh('LightBar_Mount', new THREE.BoxGeometry(0.54, 0.03, 0.05), M.dark, 0, 0.925, -0.22));
+    for (const s of [-1, 1]) t4.add(mesh('Beacon_T4', lampGeo(new THREE.SphereGeometry(0.03, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), LAMP.amber), R.lamps, s * 0.28, 0.95, -0.24));
+
     mergeStaticParts(this.chassis);
   }
 
@@ -228,6 +258,7 @@ export class PlayerModel {
   /** Brief intake flare when something is absorbed. */
   pulseIntake(amount: number): void {
     this.glow.emissiveIntensity = Math.min(8, this.glow.emissiveIntensity + amount);
+    this.chomp = Math.min(1, this.chomp + amount * 0.25);
   }
 
   update(dt: number, diameter: number, speed: number, heading: number, x: number, z: number, lean: number, groundY = 0): void {
@@ -245,6 +276,9 @@ export class PlayerModel {
     this.chassis.rotation.x = THREE.MathUtils.lerp(this.chassis.rotation.x, -Math.min(1, speed / (4 * diameter + 1)) * 0.03, 1 - Math.exp(-6 * dt));
     this.glow.emissiveIntensity += (2.4 - this.glow.emissiveIntensity) * (1 - Math.exp(-5 * dt));
     for (const arm of this.arms) arm.rotation.x = 0.4 + Math.sin(this.t * 1.7 + arm.position.x * 9) * 0.06;
+    // Crusher jaws snap shut on every big absorb, then reopen.
+    this.chomp = Math.max(0, this.chomp - dt * 2.5);
+    for (const jaw of this.jaws) jaw.rotation.y = Math.sign(jaw.position.x) * (0.35 - 0.5 * Math.sin(this.chomp * Math.PI));
     for (const [t, group] of this.tierParts) {
       if (!group.visible) continue;
       const p = Math.min(1, (this.unfold.get(t) ?? 1) + dt * 2.2);

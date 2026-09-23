@@ -5,11 +5,13 @@ import { circleVsObb, obbRadius, type Contact, type Obb } from '../core/collisio
 import { createSeededRandom } from '../core/rng';
 import { TINTED, type MaterialLibrary, type Role } from '../art/materials';
 import { buildCity } from './architecture';
+import { skipAO } from '../art/layers';
 import { buildDressing, type Dressing } from './dressing';
 import { buildPropParts, type PropParts } from './props';
+import { makeLod } from './lod';
 import { CLUSTERS, PLACEMENTS, STATIC_BLOCKS, WORLD_BOUNDS, groundHeight } from './scrapCity';
 
-const SHADOW_ROLES: ReadonlySet<Role> = new Set<Role>(['paint', 'carPaint', 'plastic', 'glossyPlastic', 'cardboard', 'corrugated', 'roofMetal', 'concreteProp', 'wood', 'tread', 'rubber']);
+const SHADOW_ROLES: ReadonlySet<Role> = new Set<Role>(['paint', 'carPaint', 'plastic', 'glossyPlastic', 'cardboard', 'corrugated', 'roofMetal', 'concreteProp', 'wood', 'timber', 'tread', 'rubber', 'steel', 'propBrick']);
 
 export type ObjectState = 'idle' | 'pulled' | 'absorbed';
 
@@ -17,17 +19,27 @@ export interface WorldObject {
   id: number;
   typeId: ObjectTypeId;
   def: ObjectType;
-  index: number;
+  /** Instance ids in each material batch this object's model spans. */
+  instances: { batch: RoleBatch; id: number; geometryId: number; lodId: number }[];
+  /** Currently drawn with the simplified far geometry. */
+  lod: boolean;
   x: number;
   y: number;
   z: number;
+  /** Resting height of the base (ground, or the top of whatever supports it). */
   baseY: number;
   yaw: number;
   scale: number;
+  /** Destruction deformation: 0 = intact, 1 = fully crushed (flattened, splayed). */
+  squash: number;
+  /** Lean about the object's local X axis (rip / collapse), radians. */
+  tilt: number;
   obb: Obb;
   radius: number;
   requiredPower: number;
   baseColor: THREE.Color;
+  /** Current instance tint (eligibility), written by applyEligibility. */
+  tint: THREE.Color;
   state: ObjectState;
   vx: number;
   vy: number;
@@ -36,13 +48,28 @@ export interface WorldObject {
   spin: number;
   bumpCooldown: number;
   dirty: boolean;
+  /** Objects holding this one up (stacked containers, roof bays on wall panels). */
+  supports: WorldObject[];
+  /** True while a 'collapse' object is still held up: it cannot be absorbed yet. */
+  anchored: boolean;
+  /** Falling after its supports were removed (vy integrates gravity until it lands). */
+  falling: boolean;
+  matrix: THREE.Matrix4;
 }
 
-/** One gameplay object type rendered as one InstancedMesh per material role. */
-interface TypeBatch {
-  meshes: THREE.InstancedMesh[];
-  tinted: THREE.InstancedMesh[];
-  count: number;
+/**
+ * Props render through one BatchedMesh per (material role × size set): every object type that
+ * uses a role shares its multi-draw call, and BatchedMesh culls instances per camera (the
+ * main view and the sun's shadow camera alike). The small set (class ≤ 5) skips the GTAO pass.
+ */
+interface RoleBatch {
+  mesh: THREE.BatchedMesh;
+  tinted: boolean;
+}
+
+/** A support was removed: objects resting on it start to fall. */
+export interface CollapseEvent {
+  object: WorldObject;
 }
 
 export class World {
@@ -53,17 +80,19 @@ export class World {
   /** Trees, weeds and decals (static, animated by wind). */
   readonly dressing: Dressing;
   objects: WorldObject[] = [];
-  private readonly batches = new Map<ObjectTypeId, TypeBatch>();
+  private readonly roleBatches = new Map<string, RoleBatch>();
   private readonly partsCache = new Map<ObjectTypeId, PropParts>();
+  private readonly lodCache = new Map<ObjectTypeId, Partial<Record<Role, THREE.BufferGeometry>>>();
   private readonly objectsRoot = new THREE.Group();
-  private readonly matrix = new THREE.Matrix4();
   private readonly quat = new THREE.Quaternion();
   private readonly spinQ = new THREE.Quaternion();
-  private readonly tmpColor = new THREE.Color();
   private readonly tmpPos = new THREE.Vector3();
   private readonly tmpScale = new THREE.Vector3();
   private readonly xAxis = new THREE.Vector3(1, 0, 0);
   private readonly contact: Contact = { nx: 0, nz: 0, depth: 0 };
+  private readonly tiltQ = new THREE.Quaternion();
+  /** Instances drawn last frame (after culling), for diagnostics. */
+  visibleInstances = 0;
 
   constructor(private readonly lib: MaterialLibrary) {
     this.root.name = 'SCRAP_CITY';
@@ -72,7 +101,10 @@ export class World {
     this.occluders = city.occluders;
     for (const b of STATIC_BLOCKS) if (b.collide !== false && (b.y ?? 0) < 0.5) this.staticColliders.push({ cx: b.x, cz: b.z, hx: b.w / 2, hz: b.d / 2, yaw: 0 });
     this.dressing = buildDressing();
-    for (const m of this.dressing.meshes) this.root.add(m);
+    for (const m of this.dressing.meshes) {
+      if (m.name !== 'DRESS_TreeTrunks') skipAO(m);
+      this.root.add(m);
+    }
     this.staticColliders.push(...this.dressing.colliders);
     this.objectsRoot.name = 'OBJECTS';
     this.root.add(this.objectsRoot);
@@ -80,16 +112,20 @@ export class World {
 
   /** (Re)spawn every gameplay object deterministically from the layout data. */
   spawnObjects(seed: number): void {
-    for (const batch of this.batches.values()) for (const m of batch.meshes) m.removeFromParent();
-    this.batches.clear();
+    for (const rb of this.roleBatches.values()) {
+      rb.mesh.removeFromParent();
+      rb.mesh.dispose();
+    }
+    this.roleBatches.clear();
     this.objects = [];
     const rand = createSeededRandom(seed);
 
-    const pending: { typeId: ObjectTypeId; x: number; z: number; yaw: number }[] = [];
+    const pending: { typeId: ObjectTypeId; x: number; z: number; yaw: number; y?: number; tag?: string; supports?: string[] }[] = [];
     const occupied: { x: number; z: number; r: number }[] = [];
     for (const p of PLACEMENTS) {
-      pending.push({ typeId: p.type, x: p.x, z: p.z, yaw: p.yaw ?? 0 });
-      occupied.push({ x: p.x, z: p.z, r: footprintRadius(OBJECT_TYPES[p.type]) });
+      pending.push({ typeId: p.type, x: p.x, z: p.z, yaw: p.yaw ?? 0, y: p.y, tag: p.tag, supports: p.supports });
+      // Hand placements may overlap on purpose (stacks, the warehouse kit); scatter still avoids their footprints.
+      occupied.push({ x: p.x, z: p.z, r: Math.min(footprintRadius(OBJECT_TYPES[p.type]), 4) });
     }
     for (const c of CLUSTERS) {
       const def = OBJECT_TYPES[c.type];
@@ -109,29 +145,32 @@ export class World {
 
     const counts = new Map<ObjectTypeId, number>();
     for (const p of pending) counts.set(p.typeId, (counts.get(p.typeId) ?? 0) + 1);
-    for (const [typeId, count] of counts) this.batches.set(typeId, this.createBatch(typeId, count));
+    const geometryIds = this.createBatches(counts);
 
+    const byTag = new Map<string, WorldObject>();
     for (const p of pending) {
       const def = OBJECT_TYPES[p.typeId] as ObjectType;
-      const batch = this.batches.get(p.typeId)!;
-      const index = batch.count++;
       const [w, , d] = def.size;
-      const baseY = groundHeight(p.x, p.z);
+      const baseY = p.y ?? groundHeight(p.x, p.z);
       const obj: WorldObject = {
         id: this.objects.length,
         typeId: p.typeId,
         def,
-        index,
+        instances: geometryIds.get(p.typeId)!.map(({ batch, geometryId, lodId }) => ({ batch, id: batch.mesh.addInstance(geometryId), geometryId, lodId })),
+        lod: false,
         x: p.x,
         y: baseY,
         z: p.z,
         baseY,
         yaw: p.yaw,
         scale: 1,
+        squash: 0,
+        tilt: 0,
         obb: { cx: p.x, cz: p.z, hx: w / 2, hz: d / 2, yaw: p.yaw },
         radius: 0,
         requiredPower: def.requiredPower ?? SIZE_CLASSES[def.objectClass].requiredPower,
         baseColor: new THREE.Color(def.colors[Math.floor(rand() * def.colors.length)]),
+        tint: new THREE.Color(1, 1, 1),
         state: 'idle',
         vx: 0,
         vy: 0,
@@ -140,39 +179,135 @@ export class World {
         spin: 0,
         bumpCooldown: 0,
         dirty: true,
+        supports: [],
+        anchored: false,
+        falling: false,
+        matrix: new THREE.Matrix4(),
       };
       obj.radius = obbRadius(obj.obb);
       this.objects.push(obj);
+      if (p.tag) byTag.set(p.tag, obj);
     }
-    for (const batch of this.batches.values()) for (const m of batch.meshes) m.count = batch.count;
+    pending.forEach((p, i) => {
+      if (!p.supports) return;
+      const o = this.objects[i];
+      o.supports = p.supports.map((t) => byTag.get(t)).filter((x): x is WorldObject => !!x);
+      o.anchored = o.def.destructionType === 'collapse' && o.supports.length > 0;
+    });
     this.syncInstances();
   }
 
-  private createBatch(typeId: ObjectTypeId, capacity: number): TypeBatch {
-    let parts = this.partsCache.get(typeId);
-    if (!parts) {
-      parts = buildPropParts(OBJECT_TYPES[typeId] as ObjectType, typeId.length * 31);
-      this.partsCache.set(typeId, parts);
-    }
-    const def = OBJECT_TYPES[typeId] as ObjectType;
-    const batch: TypeBatch = { meshes: [], tinted: [], count: 0 };
-    for (const [role, geometry] of Object.entries(parts) as [Role, THREE.BufferGeometry][]) {
-      const mesh = new THREE.InstancedMesh(geometry, this.lib.roles[role], capacity);
-      mesh.name = `OBJ_${typeId}_${role}`;
-      // Real shadows for the body roles of class ≥ 2 objects; trim, lamps, glass and tiny debris rely on GTAO contact occlusion.
-      // Tyres/rubber only earn a shadow on vehicles; on cones, bins and dumpsters they are tiny trims.
-      mesh.castShadow = def.objectClass >= 2 && SHADOW_ROLES.has(role) && (role !== 'tread' || def.objectClass >= 5);
-      mesh.receiveShadow = true;
-      mesh.frustumCulled = false; // instances span the whole map; per-instance culling is a Phase 7 task
-      mesh.count = 0;
-      if (TINTED.has(role)) {
-        mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 3).fill(1), 3);
-        batch.tinted.push(mesh);
+  /** Absorbable right now: idle, not held up by a support, and within the player's power. */
+  isEligible(o: WorldObject, power: number): boolean {
+    return o.state === 'idle' && !o.anchored && !o.falling && power >= o.requiredPower;
+  }
+
+  /** Solid to the player: idle and either too big or still anchored. */
+  isSolid(o: WorldObject, power: number): boolean {
+    return o.state === 'idle' && (o.anchored || power < o.requiredPower);
+  }
+
+  /**
+   * Called when an object is absorbed: what it held up may fall. A spanning 'collapse' member
+   * (roof bay) fails as soon as either end loses its support; a stacked object (container)
+   * only falls once everything under it is gone.
+   */
+  releaseDependents(removed: WorldObject): WorldObject[] {
+    const released: WorldObject[] = [];
+    for (const o of this.objects) {
+      if (o.state !== 'idle' || o.falling || !o.supports.includes(removed)) continue;
+      const spans = o.def.destructionType === 'collapse';
+      if (spans || o.supports.every((s) => s.state === 'absorbed')) {
+        o.falling = true;
+        o.vy = 0;
+        o.baseY = groundHeight(o.x, o.z);
+        released.push(o);
       }
-      this.objectsRoot.add(mesh);
-      batch.meshes.push(mesh);
     }
-    return batch;
+    return released;
+  }
+
+  /** Advance falling objects; returns the ones that landed this step. */
+  updateFalling(dt: number): WorldObject[] {
+    const landed: WorldObject[] = [];
+    for (const o of this.objects) {
+      if (!o.falling || o.state !== 'idle') continue;
+      o.vy -= 9.8 * dt;
+      o.y += o.vy * dt;
+      o.tilt += dt * 0.35 * (o.id % 2 ? 1 : -1); // slump as it drops
+      if (o.y <= o.baseY) {
+        o.y = o.baseY;
+        o.falling = false;
+        o.anchored = false;
+        o.tilt = THREE.MathUtils.clamp(o.tilt, -0.12, 0.12);
+        o.squash = Math.max(o.squash, 0.25); // crumpled by the impact
+        landed.push(o);
+      }
+      o.dirty = true;
+    }
+    return landed;
+  }
+
+  /** Build the role batches for this spawn and register every type's role geometries in them. */
+  private createBatches(counts: Map<ObjectTypeId, number>): Map<ObjectTypeId, { batch: RoleBatch; geometryId: number; lodId: number }[]> {
+    const partsOf = (typeId: ObjectTypeId): PropParts => {
+      let parts = this.partsCache.get(typeId);
+      if (!parts) {
+        parts = buildPropParts(OBJECT_TYPES[typeId] as ObjectType, typeId.length * 31);
+        this.partsCache.set(typeId, parts);
+      }
+      return parts;
+    };
+    // Far LODs (quarter-density) for the heavy role geometries of class ≥ 3 objects.
+    const lodsOf = (typeId: ObjectTypeId) => {
+      let lods = this.lodCache.get(typeId);
+      if (!lods) {
+        lods = {};
+        if (OBJECT_TYPES[typeId].objectClass >= 3)
+          for (const [role, g] of Object.entries(partsOf(typeId)) as [Role, THREE.BufferGeometry][]) {
+            const lod = role === 'lamps' ? null : makeLod(g, role);
+            if (lod) lods[role] = lod;
+          }
+        this.lodCache.set(typeId, lods);
+      }
+      return lods;
+    };
+    // Size every batch first: BatchedMesh buffers are allocated up front.
+    const sizing = new Map<string, { role: Role; small: boolean; instances: number; vertices: number }>();
+    for (const [typeId, count] of counts) {
+      const small = OBJECT_TYPES[typeId].objectClass <= 5;
+      for (const [role, g] of Object.entries(partsOf(typeId)) as [Role, THREE.BufferGeometry][]) {
+        const key = `${small ? 'S' : 'L'}:${role}`;
+        const e = sizing.get(key) ?? { role, small, instances: 0, vertices: 0 };
+        e.instances += count;
+        e.vertices += g.getAttribute('position').count + (lodsOf(typeId)[role]?.getAttribute('position').count ?? 0);
+        sizing.set(key, e);
+      }
+    }
+    for (const [key, e] of sizing) {
+      const mesh = new THREE.BatchedMesh(e.instances, e.vertices, 0, this.lib.roles[e.role]);
+      mesh.name = `OBJ_${key.replace(':', '_')}`;
+      // Real shadows for body roles; trim, lamps and glass rely on MSAA/GTAO contact.
+      mesh.castShadow = SHADOW_ROLES.has(e.role);
+      mesh.receiveShadow = true;
+      mesh.sortObjects = false;
+      if (e.small) skipAO(mesh);
+      this.objectsRoot.add(mesh);
+      this.roleBatches.set(key, { mesh, tinted: TINTED.has(e.role) });
+    }
+    const out = new Map<ObjectTypeId, { batch: RoleBatch; geometryId: number; lodId: number }[]>();
+    for (const typeId of counts.keys()) {
+      const small = OBJECT_TYPES[typeId].objectClass <= 5;
+      const list: { batch: RoleBatch; geometryId: number; lodId: number }[] = [];
+      for (const [role, g] of Object.entries(partsOf(typeId)) as [Role, THREE.BufferGeometry][]) {
+        const batch = this.roleBatches.get(`${small ? 'S' : 'L'}:${role}`)!;
+        const geometryId = batch.mesh.addGeometry(g);
+        const lod = lodsOf(typeId)[role];
+        list.push({ batch, geometryId, lodId: lod ? batch.mesh.addGeometry(lod) : geometryId });
+      }
+      out.set(typeId, list);
+    }
+    return out;
   }
 
   /** Tint: absorbable objects show full paint colour, locked ones are desaturated and darker. */
@@ -180,33 +315,65 @@ export class World {
     const grey = new THREE.Color(0x6d6e70);
     for (const o of this.objects) {
       if (o.state === 'absorbed') continue;
-      const eligible = power >= o.requiredPower;
-      this.tmpColor.copy(o.baseColor);
-      if (!eligible) this.tmpColor.lerp(grey, 0.32).multiplyScalar(0.94);
-      for (const m of this.batches.get(o.typeId)!.tinted) m.setColorAt(o.index, this.tmpColor);
+      o.tint.copy(o.baseColor);
+      if (!(power >= o.requiredPower && !o.anchored)) o.tint.lerp(grey, 0.32).multiplyScalar(0.94);
+      for (const inst of o.instances) if (inst.batch.tinted) inst.batch.mesh.setColorAt(inst.id, o.tint);
     }
-    for (const b of this.batches.values()) for (const m of b.tinted) if (m.instanceColor) m.instanceColor.needsUpdate = true;
   }
 
+  /** Rebuild the instance transform of every object that moved or changed. */
   syncInstances(): void {
-    const touched = new Set<TypeBatch>();
     for (const o of this.objects) {
       if (!o.dirty) continue;
       o.dirty = false;
       const s = o.state === 'absorbed' ? 0 : o.scale;
       this.quat.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, o.yaw);
+      if (o.tilt) this.quat.multiply(this.tiltQ.setFromAxisAngle(this.xAxis, o.tilt));
       if (o.spin) this.quat.multiply(this.spinQ.setFromAxisAngle(this.xAxis, o.spin));
-      this.matrix.compose(this.tmpPos.set(o.x, o.y, o.z), this.quat, this.tmpScale.set(s, s, s));
-      const batch = this.batches.get(o.typeId)!;
-      for (const m of batch.meshes) m.setMatrixAt(o.index, this.matrix);
-      touched.add(batch);
+      const k = o.squash;
+      o.matrix.compose(this.tmpPos.set(o.x, o.y, o.z), this.quat, this.tmpScale.set(s * (1 + 0.18 * k), s * (1 - 0.55 * k), s * (1 + 0.1 * k)));
+      for (const inst of o.instances) {
+        inst.batch.mesh.setMatrixAt(inst.id, o.matrix);
+        if (o.state === 'absorbed') inst.batch.mesh.setVisibleAt(inst.id, false);
+      }
     }
-    for (const b of touched) for (const m of b.meshes) m.instanceMatrix.needsUpdate = true;
+  }
+
+  /**
+   * Per-frame distance culling and LOD (render only, never gameplay): objects smaller than
+   * ~3 px on screen are hidden; beyond ~9 sizes away the simplified geometry is drawn.
+   * Frustum culling per camera (view and shadow) is done by BatchedMesh itself.
+   */
+  cull(camera: THREE.Camera): void {
+    const cp = camera.position;
+    let visible = 0;
+    for (const o of this.objects) {
+      if (o.state === 'absorbed') continue;
+      const size = Math.max(o.def.size[0], o.def.size[1], o.def.size[2]);
+      const dx = o.x - cp.x;
+      const dy = o.y - cp.y;
+      const dz = o.z - cp.z;
+      const d2 = dx * dx + dy * dy + dz * dz;
+      const show = d2 < size * size * 260 * 260;
+      const lod = o.state === 'idle' && d2 > size * size * 9 * 9;
+      if (show) visible++;
+      for (const inst of o.instances) {
+        inst.batch.mesh.setVisibleAt(inst.id, show);
+        if (lod !== o.lod) inst.batch.mesh.setGeometryIdAt(inst.id, lod ? inst.lodId : inst.geometryId);
+      }
+      o.lod = lod;
+    }
+    this.visibleInstances = visible;
   }
 
   get instancedMeshCount(): number {
+    return this.roleBatches.size;
+  }
+
+  /** BatchedMesh keeps per-instance data in small float textures (matrices, draw indirection, colours). */
+  get batchDataTextures(): number {
     let n = 0;
-    for (const b of this.batches.values()) n += b.meshes.length;
+    for (const rb of this.roleBatches.values()) n += 2 + (rb.tinted ? 1 : 0);
     return n;
   }
 

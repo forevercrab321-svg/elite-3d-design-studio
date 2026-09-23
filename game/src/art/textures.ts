@@ -164,7 +164,7 @@ function concrete(size: number, aniso: number): PbrSet {
     const stain = smooth(0.45, 0.75, n.fbm(u + 0.3, v, 2, 4));
     const streak = smooth(0.55, 0.8, n.fbm(u, v, 16, 2, 4)) * 0.3;
     const seam = Math.abs((v * 4) % 1 - 0.5) > 0.495 ? -0.3 : 0; // formwork joints every 0.5 m
-    const tone = 132 + (f - 0.5) * 22 - stain * 22 - streak * 18;
+    const tone = 132 + (f - 0.5) * 22 - stain * 9 - streak * 10; // low-contrast stains: roofs and slabs tile it over large areas
     return { h: 0.5 + f * 0.12 + pores + seam * 0.5, r: tone, g: tone * 0.99, b: tone * 0.95, rough: 0.88 + f * 0.1 };
   }, aniso);
 }
@@ -179,7 +179,7 @@ function asphalt(size: number, aniso: number): PbrSet {
     const tar = smooth(0.6, 0.7, n.fbm(u + 0.7, v + 0.2, 3, 4));
     const crackField = Math.abs(n.fbm(u, v, 5, 3) - 0.5);
     const crack = crackField < 0.0035 && n.sample(u, v, 4) > 0.62 ? 1 : 0;
-    const tone = 92 + stone * 60 + (f - 0.5) * 18 - tar * 14 - crack * 16;
+    const tone = 92 + stone * 60 + (f - 0.5) * 18 - tar * 6 - crack * 16; // subtle tar: lots tile it over 60 m
     return { h: 0.5 + stone * 0.4 + f * 0.2 - crack * 0.25, r: tone, g: tone, b: tone * 1.03, rough: 0.9 - tar * 0.2 - stone * 0.05 };
   }, aniso);
 }
@@ -218,11 +218,11 @@ function corrugated(size: number, aniso: number): PbrSet {
     const ph = (u * ribs) % 1;
     const s = smooth(0.08, 0.2, ph) * smooth(0.62, 0.5, ph) * 2 - 1; // trapezoid crest
     const f = n.fbm(u, v, 8, 4);
-    const rust = smooth(0.62, 0.85, n.fbm(u, v, 24, 3, 2)) * (0.4 + 0.6 * smooth(0.3, 1, v));
+    const rust = smooth(0.7, 0.9, n.fbm(u, v, 24, 3, 2)) * (0.4 + 0.6 * smooth(0.3, 1, v));
     const shade = 205 + (f - 0.5) * 16 + s * 6;
-    const r = mix(shade, 120, rust * 0.6);
-    const g = mix(shade, 80, rust * 0.6);
-    const b = mix(shade, 55, rust * 0.6);
+    const r = mix(shade, 120, rust * 0.35);
+    const g = mix(shade, 80, rust * 0.35);
+    const b = mix(shade, 55, rust * 0.35);
     return { h: 0.5 + s * 0.45, r, g, b, rough: mix(0.45, 0.85, rust) + f * 0.1 };
   }, aniso);
 }

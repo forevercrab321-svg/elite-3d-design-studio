@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { AudioEngine } from './audio/AudioEngine';
 import { bakeSkyEnvironment, loadHdriEnvironment } from './art/environment';
 import { MaterialLibrary } from './art/materials';
 import { RenderPipeline, type Quality } from './art/postfx';
@@ -63,7 +64,9 @@ function renderFrame(): void {
   pipeline.setAoScale(0.6 + game.player.diameter * 0.9);
   pipeline.output?.setTime(game.time);
   game.sky.userData.uniforms.uTime.value = game.time;
-  game.world.dressing.update(game.time);
+  game.world.dressing.update(game.time, game.rig.distance * 0.85);
+  game.camera.updateMatrixWorld();
+  game.world.cull(game.camera);
   pipeline.render();
   // Published after every frame (live loop and test hooks) for the QA canvas inspector.
   (window as unknown as Record<string, unknown>).__THREE_GAME_DIAGNOSTICS__ = { ...game.snapshot(), fps, renderer: rendererStats() };
@@ -95,6 +98,8 @@ function rendererStats() {
     textures: renderer.info.memory.textures,
     programs: renderer.info.programs?.length ?? 0,
     instancedMeshes: game.world.instancedMeshCount,
+    visibleInstances: game.world.visibleInstances,
+    batchDataTextures: game.world.batchDataTextures,
     sceneMeshes: countMeshes(game.scene),
     playerMeshes: countMeshes(game.model.root),
     shadowCasters: countMeshes(game.scene, true),
@@ -106,6 +111,8 @@ function rendererStats() {
 }
 
 if (!testMode) {
+  const audio = new AudioEngine();
+  game.onEvent = (e) => audio.handle(e);
   let last = performance.now();
   let acc = 0;
   renderer.setAnimationLoop((now) => {
@@ -116,6 +123,7 @@ if (!testMode) {
       game.step(FIXED_DT);
       acc -= FIXED_DT;
     }
+    audio.update(Math.min(1, Math.abs(game.player.speed) / game.topSpeed()), game.player.diameter, game.player.tier);
     renderFrame();
     fpsFrames++;
     fpsTime += dt;
@@ -158,6 +166,8 @@ if (!testMode) {
     game.focusShadow(tx + (px - tx) * 0.2, tz + (pz - tz) * 0.2);
   },
   render: () => renderFrame(),
+  grant: (kg: number) => (game.grantMass(kg), game.snapshot()),
+  teleport: (x: number, z: number, heading = 0) => (game.teleport(x, z, heading), game.snapshot()),
   /** Per-mesh cost table for the performance engineer: triangles × instances, shadow casting. */
   meshStats: () => {
     const rows: { name: string; tris: number; count: number; cast: boolean; mat: string }[] = [];
@@ -176,3 +186,6 @@ if (!testMode) {
     return { fps, drawCalls: renderer.info.render.calls, ...rendererStats() };
   },
 };
+
+// QA handle (test mode only): lets profiling tools toggle passes and inspect the scene.
+if (testMode) (window as unknown as Record<string, unknown>).__GROW_DEBUG__ = { game, renderer, pipeline, THREE };

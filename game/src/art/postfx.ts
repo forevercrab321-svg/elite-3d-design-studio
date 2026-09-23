@@ -4,6 +4,7 @@ import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { CinematicOutputPass } from './cinematicOutput';
+import { LAYER_NO_AO } from './layers';
 
 /**
  * Render pipeline by quality tier (technical-art.md: ≤ 2 post passes beyond render + output).
@@ -36,6 +37,14 @@ export class RenderPipeline {
       this.gtao.blendIntensity = 0.85;
       this.gtao.updateGtaoMaterial({ radius: 0.6, distanceExponent: 1.4, thickness: 1.2, scale: 1, samples: 12 });
       this.gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 12 });
+      // The AO pre-pass renders the scene again: leave out everything on LAYER_NO_AO.
+      const gtao = this.gtao;
+      const render = gtao.render.bind(gtao);
+      gtao.render = (...args: Parameters<GTAOPass['render']>) => {
+        this.camera.layers.disable(LAYER_NO_AO);
+        render(...args);
+        this.camera.layers.enable(LAYER_NO_AO);
+      };
       this.composer.addPass(this.gtao);
     }
     this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 0.14, 0.35, 1.25);
