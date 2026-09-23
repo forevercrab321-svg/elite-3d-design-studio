@@ -47,6 +47,16 @@ const CSS = `
 #hud .legend { position: absolute; right: 22px; bottom: 22px; font-size: 10px; font-weight: 700; letter-spacing: .16em; opacity: .55; text-align: right; line-height: 1.8; text-shadow: 0 1px 2px rgba(0,0,0,.6); }
 #hud .legend kbd { font: inherit; color: #ffb347; }
 @media (max-width: 640px) { #hud .panel, #hud .obj { left: 12px; width: 210px; min-width: 0; } #hud .banner .big { font-size: 24px; } }
+@media (pointer: coarse), (max-width: 700px) {
+  #hud .legend { display: none; }
+  #hud .panel { left: 8px; right: auto; bottom: auto; top: calc(8px + env(safe-area-inset-top)); width: 150px; padding: 7px 10px 6px; }
+  #hud .mass { font-size: 22px; }
+  #hud .next, #hud .label { font-size: 9px; }
+  #hud .bar { margin: 6px 0 5px; height: 6px; }
+  #hud .banner .big { font-size: 24px; }
+  #hud .banner .sub { font-size: 10px; letter-spacing: .16em; }
+  #hud .hint { font-size: 12px; }
+}
 `;
 
 export interface EndStats {

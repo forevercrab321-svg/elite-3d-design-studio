@@ -547,7 +547,7 @@ export class ArenaGame {
     a.comboUntil = this.time + A.comboWindow;
     const mult = Math.min(A.comboMax, 1 + A.comboStep * (a.combo - 1));
     let gain = o.def.bonus ? Math.max(o.def.rewardMass, a.mass * A.goldCrateShare) : o.def.rewardMass;
-    gain *= mult;
+    gain *= mult * this.catchUp(a);
     const climaxLeft = o.def.climax ? this.world.objects.filter((x) => x.def.climax && x.state !== 'absorbed').length : -1;
     if (climaxLeft === 0) {
       gain += a.mass * A.landmarkBonus;
@@ -578,6 +578,48 @@ export class ArenaGame {
     return out;
   }
 
+  /** Host → everyone: which objects are gone, as a base64 bitset (~1 bit per object). */
+  absorbedBits(): string {
+    const n = this.world.objects.length;
+    const bytes = new Uint8Array(Math.ceil(n / 8));
+    for (const o of this.world.objects) if (o.state === 'absorbed') bytes[o.id >> 3] |= 1 << (o.id & 7);
+    let bin = '';
+    for (const b of bytes) bin += String.fromCharCode(b);
+    return btoa(bin);
+  }
+
+  /**
+   * Reconcile with the host's bitset: late joiners see the city as it is, and a dropped grant
+   * or refill cannot leave this client's world diverged. Objects this client is pulling into
+   * its own machine, or absorbed here in the last few seconds, are left to the normal flow.
+   */
+  syncAbsorbed(b64: string): void {
+    let bin: string;
+    try {
+      bin = atob(b64);
+    } catch {
+      return;
+    }
+    const objs = this.world.objects;
+    if (bin.length !== Math.ceil(objs.length / 8)) return;
+    let changed = false;
+    for (const o of objs) {
+      const gone = ((bin.charCodeAt(o.id >> 3) >> (o.id & 7)) & 1) === 1;
+      if (gone && o.state !== 'absorbed') {
+        const owner = o.owner ? this.byId.get(o.owner) : undefined;
+        if (o.state === 'pulled' && owner?.owned) continue;
+        o.state = 'absorbed';
+        o.dirty = true;
+        this.absorbedAt.set(o.id, this.matchTime);
+        this.world.releaseDependents(o);
+        changed = true;
+      } else if (!gone && o.state === 'absorbed' && this.matchTime - (this.absorbedAt.get(o.id) ?? -99) > 4) {
+        this.revive(o.id);
+      }
+    }
+    if (changed && this.local) this.world.applyEligibility(this.local.power);
+  }
+
   /** Put an absorbed prop back at home (every client, on the host's word). */
   revive(id: number): void {
     const o = this.world.objects[id];
@@ -587,6 +629,14 @@ export class ArenaGame {
     this.grants.delete(id);
     this.absorbedAt.delete(id);
     if (this.local) this.world.applyEligibility(this.local.power);
+  }
+
+  /** Object-gain multiplier for a machine behind the leader (1 for the leader). */
+  catchUp(a: Actor): number {
+    let lead = 0;
+    for (const b of this.actors) if (b.alive && b !== a) lead = Math.max(lead, b.mass);
+    if (lead <= a.mass) return 1;
+    return 1 + A.catchUpMax * Math.min(1, Math.max(0, 1 - Math.cbrt(a.mass / lead)));
   }
 
   // ── Players eating players ─────────────────────────────────────────────────

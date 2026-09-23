@@ -28,6 +28,8 @@ export interface MatchState {
   roster: RosterEntry[];
   t: number;
   standings?: Standing[];
+  /** Host, while playing: base64 bitset of absorbed objects (late joiners and drift repair). */
+  abs?: string;
 }
 
 export interface LobbyPlayer {
@@ -65,6 +67,8 @@ export class ArenaSession {
   private grantTimer = 0;
   private refillTimer = 0;
   private claimTimer = 0;
+  private presenceTimer = 0;
+  private lastPresence = '';
   private beaconTimer = 0;
   private resultsTimer = 0;
   private wasHost = false;
@@ -78,10 +82,11 @@ export class ArenaSession {
     this.publishLobbyPresence();
     net.onPeers(() => this.hooks.changed());
     net.on('match', (m) => this.onMatch(m.from, m.data as MatchState));
-    net.on('claim', (m) => this.onClaim(m.data as { ep: number; c: [number, string][] }));
-    net.on('grant', (m) => this.onGrant(m.from, m.data as { ep: number; g: [number, string][]; r?: number[] }));
-    net.on('eat', (m) => this.onEat(m.data as { ep: number; e: [string, string][] }));
-    net.on('eaten', (m) => this.onEaten(m.from, m.data as EatenEvent & { ep: number }));
+    // Wire format uses roster SLOTS (0–3) for machines, not peer ids: payloads stay small.
+    net.on('claim', (m) => this.onClaim(m.data as { ep: number; c: [number, number][] }));
+    net.on('grant', (m) => this.onGrant(m.from, m.data as { ep: number; g: [number, number][]; r?: number[] }));
+    net.on('eat', (m) => this.onEat(m.data as { ep: number; e: [number, number][] }));
+    net.on('eaten', (m) => this.onEaten(m.from, m.data as { ep: number; v: number; a: number; gain: number; first: boolean }));
   }
 
   // ── Who is here ───────────────────────────────────────────────────────────
@@ -194,7 +199,16 @@ export class ArenaSession {
         for (const a of g.actors) if (a.kind === 'bot') b[a.id] = g.wireState(a);
         presence.b = b;
       } else presence.b = null;
-      this.net.setPresence(presence);
+      // ~20 Hz and only when something changed (the room coalesces at ~30 Hz anyway).
+      this.presenceTimer += dt * 1000;
+      if (this.presenceTimer >= 50) {
+        this.presenceTimer = 0;
+        const sig = JSON.stringify(presence);
+        if (sig !== this.lastPresence) {
+          this.lastPresence = sig;
+          this.net.setPresence(presence);
+        }
+      }
       // Players whose page is gone drop out of the round.
       if (this.match.ph === 'playing') {
         const present = new Set(this.net.peers().map((p) => p.id));
@@ -212,8 +226,8 @@ export class ArenaSession {
       this.claimTimer += dt * 1000;
       if (this.claimTimer >= A.grantBatchMs) {
         this.claimTimer = 0;
-        if (g.outbox.claims.length) this.net.emit('claim', { ep: this.match.ep, c: g.outbox.claims.splice(0, 60) });
-        if (g.outbox.eats.length) this.net.emit('eat', { ep: this.match.ep, e: g.outbox.eats.splice(0, 8) });
+        if (g.outbox.claims.length) this.net.emit('claim', { ep: this.match.ep, c: g.outbox.claims.splice(0, 60).map(([o, a]) => [o, this.slotOf(a)]) });
+        if (g.outbox.eats.length) this.net.emit('eat', { ep: this.match.ep, e: g.outbox.eats.splice(0, 8).map(([v, a]) => [this.slotOf(v), this.slotOf(a)]) });
       }
     }
     if (!host) return;
@@ -222,7 +236,7 @@ export class ArenaSession {
     this.grantTimer += dt * 1000;
     if (this.grantTimer >= A.grantBatchMs && this.grantQueue.length) {
       this.grantTimer = 0;
-      this.net.emit('grant', { ep: this.match.ep, g: this.grantQueue.splice(0, 80) });
+      this.net.emit('grant', { ep: this.match.ep, g: this.grantQueue.splice(0, 80).map(([o, a]) => [o, this.slotOf(a)]) });
     }
     const m = this.match;
     if (m.ph === 'playing' && g) {
@@ -266,6 +280,7 @@ export class ArenaSession {
         m.bots = this.bots;
       }
       m.host = this.net.selfId() ?? m.host;
+      m.abs = m.ph === 'playing' && g ? g.absorbedBits() : undefined;
       this.net.emit('match', m);
     }
   }
@@ -310,15 +325,28 @@ export class ArenaSession {
       if (m.ph === 'playing' && g.phase === 'countdown') g.phase = 'playing';
       if (m.ph === 'results') g.phase = 'results';
       if (m.ph === 'playing' && !this.isHost() && Math.abs(g.matchTime - m.t) > 0.35) g.matchTime = m.t;
+      if (m.ph === 'playing' && from !== this.net.selfId() && typeof m.abs === 'string' && m.abs.length < 8000) g.syncAbsorbed(m.abs);
     }
     if (prev.ph !== this.match.ph || newEpoch) this.hooks.changed();
   }
 
-  private onClaim(d: { ep: number; c: [number, string][] }): void {
+  /** Roster slot of a machine id (−1 if unknown) and back. */
+  private slotOf(id: string): number {
+    return this.match.roster.find((r) => r.id === id)?.slot ?? -1;
+  }
+
+  private idOf(slot: unknown): string | null {
+    return typeof slot === 'number' ? (this.match.roster.find((r) => r.slot === slot)?.id ?? null) : null;
+  }
+
+  private onClaim(d: { ep: number; c: [number, number][] }): void {
     const g = this.game;
     if (!this.isHost() || !g || !d || d.ep !== this.match.ep || !Array.isArray(d.c)) return;
-    for (const [id, actor] of d.c) {
-      if (typeof id !== 'number' || typeof actor !== 'string' || this.granted.has(id)) continue;
+    for (const pair of d.c) {
+      if (!Array.isArray(pair)) continue;
+      const id = pair[0];
+      const actor = this.idOf(pair[1]);
+      if (typeof id !== 'number' || !actor || this.granted.has(id)) continue;
       const o = g.world.objects[id];
       const a = g.byId.get(actor);
       if (!o || !a || !a.alive || o.state === 'absorbed') continue;
@@ -328,21 +356,28 @@ export class ArenaSession {
     }
   }
 
-  private onGrant(from: string, d: { ep: number; g: [number, string][]; r?: number[] }): void {
+  private onGrant(from: string, d: { ep: number; g: [number, number][]; r?: number[] }): void {
     const g = this.game;
     if (!g || !d || d.ep !== this.match.ep || !Array.isArray(d.g) || from !== this.hostId()) return;
-    for (const [id, actor] of d.g) if (typeof id === 'number' && typeof actor === 'string') g.applyGrant(id, actor);
+    for (const pair of d.g) {
+      if (!Array.isArray(pair)) continue;
+      const actor = this.idOf(pair[1]);
+      if (typeof pair[0] === 'number' && actor) g.applyGrant(pair[0], actor);
+    }
     // Refills (the host already applied its own; revive ignores anything not absorbed).
     if (Array.isArray(d.r)) for (const id of d.r) if (typeof id === 'number') g.revive(id);
   }
 
-  private onEat(d: { ep: number; e: [string, string][] }): void {
+  private onEat(d: { ep: number; e: [number, number][] }): void {
     const g = this.game;
     if (!this.isHost() || !g || !d || d.ep !== this.match.ep || !Array.isArray(d.e) || this.match.ph !== 'playing') return;
-    for (const [victim, attacker] of d.e) {
-      const v = g.byId.get(victim);
-      const a = g.byId.get(attacker);
-      if (!v || !a) continue;
+    for (const pair of d.e) {
+      if (!Array.isArray(pair)) continue;
+      const victim = this.idOf(pair[0]);
+      const attacker = this.idOf(pair[1]);
+      const v = victim ? g.byId.get(victim) : undefined;
+      const a = attacker ? g.byId.get(attacker) : undefined;
+      if (!v || !a || !victim) continue;
       if ((this.lastEaten.get(victim) ?? -99) > g.matchTime - (A.respawnDelay + 0.5)) continue;
       // Validate on the host's view with slack for latency.
       if (!g.canEat(a, v)) continue;
@@ -350,16 +385,20 @@ export class ArenaSession {
       this.lastEaten.set(victim, g.matchTime);
       const first = !this.firstBlood;
       this.firstBlood = true;
-      const gain = v.mass * A.eatGain * (first ? 1 + A.firstBloodBonus : 1);
-      this.net.emit('eaten', { ep: this.match.ep, v: victim, a: attacker, gain, first });
+      const leader = g.actors.every((b) => b === v || !b.alive || b.mass <= v.mass);
+      const gain = v.mass * A.eatGain * (first ? 1 + A.firstBloodBonus : 1) * (leader ? 1 + A.leaderBounty : 1);
+      this.net.emit('eaten', { ep: this.match.ep, v: v.slot, a: a.slot, gain, first });
     }
   }
 
-  private onEaten(from: string, d: EatenEvent & { ep: number }): void {
+  private onEaten(from: string, d: { ep: number; v: number; a: number; gain: number; first: boolean }): void {
     const g = this.game;
     if (!g || !d || d.ep !== this.match.ep || from !== this.hostId()) return;
-    if (typeof d.v !== 'string' || typeof d.a !== 'string' || typeof d.gain !== 'number' || !Number.isFinite(d.gain)) return;
-    g.applyEaten({ v: d.v, a: d.a, gain: Math.max(0, d.gain), first: !!d.first });
+    const v = this.idOf(d.v);
+    const a = this.idOf(d.a);
+    if (!v || !a || typeof d.gain !== 'number' || !Number.isFinite(d.gain)) return;
+    const e: EatenEvent = { v, a, gain: Math.max(0, d.gain), first: !!d.first };
+    g.applyEaten(e);
   }
 
   private endGame(): void {

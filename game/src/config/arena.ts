@@ -48,6 +48,12 @@ export const arenaConfig = {
   /** AI rivals ignore prey worth less than this share of their own mass (no endless chases). */
   botPreyMinShare: 0.04,
   botHuntGiveUp: 6,
+  /**
+   * Catch-up: a machine behind the leader gains up to this much extra from objects
+   * (scaled by how far behind it is), and eating the current leader pays a bounty.
+   */
+  catchUpMax: 0.6,
+  leaderBounty: 0.25,
   /** Coins (local reward currency) by final rank 1..4, plus per kill. */
   coinsByRank: [100, 60, 35, 20],
   coinsPerKill: 15,

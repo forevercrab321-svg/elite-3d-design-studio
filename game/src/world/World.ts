@@ -412,7 +412,8 @@ export class World {
       const dz = o.z - cp.z;
       const d2 = dx * dx + dy * dy + dz * dz;
       const show = d2 < size * size * 260 * 260;
-      const lod = o.state === 'idle' && d2 > size * size * 9 * 9;
+      const far = o.def.objectClass >= 5 ? 7 : 9; // vehicles and up carry the heavy geometry: simplify sooner
+      const lod = o.state === 'idle' && d2 > size * size * far * far;
       if (show) visible++;
       for (const inst of o.instances) {
         inst.batch.mesh.setVisibleAt(inst.id, show);

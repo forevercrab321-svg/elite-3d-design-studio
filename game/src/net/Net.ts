@@ -134,10 +134,19 @@ export class LocalNet implements Net {
   }
   setPresence(patch: Record<string, Json | null>): void {
     this.presence = mergePresence(this.presence, patch);
+    const st = (this.stats.presence ??= { n: 0, max: 0 });
+    st.n++;
+    st.max = Math.max(st.max, JSON.stringify(this.presence).length);
     this.dirty = true;
     this.refresh();
   }
+  /** Dev/test stats: count and largest JSON payload per topic (the room caps payloads at 4 KiB). */
+  readonly stats: Record<string, { n: number; max: number }> = {};
+
   emit(topic: string, data: Json): void {
+    const st = (this.stats[topic] ??= { n: 0, max: 0 });
+    st.n++;
+    st.max = Math.max(st.max, JSON.stringify(data).length);
     this.post({ t: 'msg', topic, data });
     queueMicrotask(() => for_(this.handlers.get(topic), (fn) => fn({ from: this.id, isMe: true, data })));
   }

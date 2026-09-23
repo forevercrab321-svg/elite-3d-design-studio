@@ -197,11 +197,16 @@ export async function runArena(ctx: AppContext): Promise<void> {
   };
   let autopilot = false;
   // Autopilot: the local machine uses the AI rival's brain through the same intents path.
-  const botBrain = new ArenaBot(1234);
+  let botBrain = new ArenaBot(1234);
+  let brainFor: ArenaGame | null = null;
   const readInput = input.read.bind(input);
   input.read = () => {
     const g = game;
     if (!autopilot || !g?.local || !g.local.alive) return readInput();
+    if (brainFor !== g) {
+      brainFor = g;
+      botBrain = new ArenaBot(1234); // fresh brain per round (no targets from the last world)
+    }
     const i = botBrain.intents(g, g.local);
     const sy = Math.sin(g.rig.yaw);
     const cy = Math.cos(g.rig.yaw);

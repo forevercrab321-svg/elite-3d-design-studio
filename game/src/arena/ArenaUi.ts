@@ -15,6 +15,7 @@ const CSS = `
 #arena { position: fixed; inset: 0; pointer-events: none; font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif; color: #f2efe8; -webkit-font-smoothing: antialiased; z-index: 5; }
 #arena .hex { font-variant-numeric: tabular-nums; }
 #arena [hidden] { display: none !important; }
+#hud .hint { display: none; } /* story onboarding prompt: not used in the arena */
 #arena button { font: inherit; cursor: pointer; pointer-events: auto; }
 #arena button:focus-visible { outline: 2px solid #ffb347; outline-offset: 2px; }
 #arena .lobby { position: absolute; inset: 0; display: grid; grid-template-rows: auto 1fr auto; gap: 16px; padding: 22px max(16px, 3vw); pointer-events: auto;
@@ -82,6 +83,7 @@ const CSS = `
 #arena .combo { position: absolute; left: 290px; bottom: 30px; font-size: 22px; font-weight: 900; color: #ffd35a; text-shadow: 0 2px 8px rgba(0,0,0,.5); }
 #arena .map { position: absolute; right: 18px; bottom: 64px; width: 184px; height: 184px; border-radius: 14px; background: rgba(16,18,20,.55); backdrop-filter: blur(6px); }
 #arena .tag.edge { background: rgba(16,18,20,.75); }
+#arena .combo small { font-size: 12px; color: #8be07a; letter-spacing: .08em; }
 #arena .tag { position: absolute; transform: translate(-50%, -100%); font-size: 11px; font-weight: 800; letter-spacing: .06em; padding: 2px 7px; border-radius: 6px; background: rgba(16,18,20,.55); white-space: nowrap; }
 #arena .res { position: absolute; inset: 0; display: grid; place-items: center; padding-inline: 16px; background: rgba(12,13,15,.55); pointer-events: auto; }
 #arena .res .card { width: min(560px, 100%); padding: 26px; border-radius: 16px; background: rgba(20,21,23,.9); box-shadow: 0 30px 80px rgba(0,0,0,.5); }
@@ -94,7 +96,16 @@ const CSS = `
 #arena .res tr.me td { color: #ffb347; font-weight: 800; }
 #arena .res .earn { text-align: center; margin-top: 14px; font-size: 13px; }
 #arena .res .actions { justify-content: center; margin-top: 16px; }
-@media (max-width: 860px) { #arena .cols { grid-template-columns: 1fr; } #arena .board { width: 200px; } #arena .map { width: 128px; height: 128px; bottom: auto; top: 250px; } #arena .combo { left: 16px; bottom: 150px; } }
+body:has(#arena .lobby:not([hidden])) .ge-dash, body:has(#arena .res:not([hidden])) .ge-dash { display: none; }
+@media (pointer: coarse), (max-width: 700px) {
+  #arena .timer { top: auto; bottom: calc(14px + env(safe-area-inset-bottom)); } #arena .timer b { font-size: 22px; } #arena .timer span { font-size: 9px; letter-spacing: .12em; }
+  #arena .board { top: calc(8px + env(safe-area-inset-top)); right: 8px; width: 140px; padding: 6px 8px; } #arena .row { font-size: 11px; gap: 5px; padding: 2px 0; grid-template-columns: 10px 8px 1fr auto; } #arena .row .lv2 { display: none; }
+  #arena .map { width: 104px; height: 104px; top: calc(128px + env(safe-area-inset-top)); right: 8px; bottom: auto; }
+  #arena .feed { top: calc(152px + env(safe-area-inset-top)); left: 8px; right: auto; width: 190px; align-items: flex-start; } #arena .feed div { font-size: 10px; }
+  #arena .combo { left: 8px; bottom: auto; top: calc(124px + env(safe-area-inset-top)); font-size: 15px; }
+  #arena .center b { font-size: 64px; }
+}
+@media (max-width: 860px) { #arena .lobby { display: block; overflow-y: auto; } #arena .lobby > * { margin-bottom: 14px; } #arena .col { overflow: visible; } #arena .cols { grid-template-columns: 1fr; } }
 `;
 
 const STAT = (v: number, lo: number, hi: number) => Math.round(Math.max(0.08, Math.min(1, (v - lo) / (hi - lo))) * 100);
@@ -150,7 +161,7 @@ export class ArenaUi {
         <div class="col"><div class="h">选择车辆 VEHICLE</div><div class="vehs"></div></div>
       </div>
       <div class="foot">
-        <div class="rules">规则：比对手大 25% 就能把它整个吞掉（得到它 60% 的质量）。每人 3 条命，被吞后留 45% 质量重生。${A.roundSeconds / 60} 分钟结束，或只剩一人，或地标被拆完。金色箱子、连击、第一滴血、拆掉地标最后一块都有奖励；冲刺撞上吃不动的东西会被眩晕并掉质量。</div>
+        <div class="rules">规则：比对手大 25% 就能把它整个吞掉（得到它 60% 的质量）。每人 3 条命，被吞后留 45% 质量重生。${A.roundSeconds / 60} 分钟结束，或只剩一人，或地标被拆完。金色箱子、连击、第一滴血、吞掉第一名（悬赏）、拆掉地标最后一块都有奖励；落后的人吃东西有追赶加成；冲刺撞上吃不动的东西会被眩晕并掉质量。</div>
         <div class="actions">
           <button class="btn" data-a="join">${me ? '离开 · 观战' : '加入比赛'}</button>
           ${me && !host ? `<button class="btn" data-a="ready">${s.ready ? '取消准备' : '准备 READY'}</button>` : ''}
@@ -247,7 +258,7 @@ export class ArenaUi {
       const r = document.createElement('div');
       r.className = `row${a === g.local ? ' me' : ''}${a.eliminated ? ' out' : ''}`;
       r.innerHTML = `<span class="rk">${i + 1}</span><i style="background:#${SLOT_COLORS[a.slot % 4].toString(16).padStart(6, '0')}"></i><span class="nm"></span><span class="ms hex"></span><span class="lv2"></span>`;
-      (r.querySelector('.nm') as HTMLElement).textContent = a.name + (a === g.local ? '（你）' : '');
+      (r.querySelector('.nm') as HTMLElement).textContent = (i === 0 && !a.eliminated ? '👑 ' : '') + a.name + (a === g.local ? '（你）' : '');
       (r.querySelector('.ms') as HTMLElement).textContent = massText(a.mass);
       (r.querySelector('.lv2') as HTMLElement).textContent = `${'♥'.repeat(a.lives)}${'♡'.repeat(Math.max(0, A.lives - a.lives))} · 吞 ${a.kills} · ${a.vehicle.nameZh}${a.eliminated ? ' · 出局' : !a.alive ? ' · 重生中' : ''}`;
       board.appendChild(r);
@@ -262,7 +273,11 @@ export class ArenaUi {
     else if (!me) center.innerHTML = `<span>观战中 · 下一局可加入</span>`;
     else center.textContent = '';
     const combo = this.overlay.querySelector('.combo') as HTMLElement;
-    combo.textContent = me && me.combo >= 2 && g.time <= me.comboUntil ? `连击 ×${Math.min(A.comboMax, 1 + A.comboStep * (me.combo - 1)).toFixed(1)}` : '';
+    const cu = me && me.alive ? g.catchUp(me) : 1;
+    const parts: string[] = [];
+    if (me && me.combo >= 2 && g.time <= me.comboUntil) parts.push(`连击 ×${Math.min(A.comboMax, 1 + A.comboStep * (me.combo - 1)).toFixed(1)}`);
+    if (cu > 1.05) parts.push(`<small>追赶加成 +${Math.round((cu - 1) * 100)}%</small>`);
+    combo.innerHTML = parts.join('<br>');
     this.renderTags(g);
     if (performance.now() - this.mapAt > 90) {
       this.mapAt = performance.now();
