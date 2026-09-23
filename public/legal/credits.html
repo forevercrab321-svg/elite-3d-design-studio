@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#16181a" />
+<link rel="icon" type="image/png" sizes="32x32" href="../icons/favicon-32.png" />
+<style>
+  :root { color-scheme: dark; --bg: #16181a; --panel: #1e2124; --text: #e9e6e1; --muted: #a8a39b; --accent: #ffb347; --accent2: #e8781a; --line: #2e3236; }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 18px; margin-bottom: 8px; }
+  .brand { display: flex; align-items: center; gap: 10px; color: var(--accent); font-weight: 800; letter-spacing: .12em; text-transform: uppercase; font-size: 13px; text-decoration: none; }
+  .brand img { width: 28px; height: 28px; border-radius: 7px; }
+  h1 { font-size: 30px; line-height: 1.2; margin: 18px 0 4px; }
+  h2 { font-size: 20px; margin: 34px 0 6px; color: #fff; }
+  h3 { font-size: 16px; margin: 22px 0 4px; color: var(--accent); }
+  p, li { color: var(--text); }
+  ul { padding-left: 22px; }
+  li { margin: 4px 0; }
+  a { color: var(--accent); }
+  .meta { color: var(--muted); font-size: 14px; margin: 0; }
+  nav.lang { margin-top: 12px; font-size: 14px; }
+  nav.lang a { margin-right: 14px; }
+  .fill { background: rgba(255,179,71,.14); color: var(--accent); border: 1px dashed var(--accent2); border-radius: 4px; padding: 0 4px; font-weight: 600; white-space: nowrap; }
+  section.lang-block { border-top: 1px solid var(--line); margin-top: 40px; padding-top: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; margin: 10px 0; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; }
+  .note { background: var(--panel); border-left: 3px solid var(--accent2); padding: 10px 14px; border-radius: 4px; color: var(--muted); font-size: 14px; }
+  footer { margin-top: 48px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 14px; color: var(--muted); }
+  footer a { margin-right: 14px; }
+  @media (max-width: 520px) { h1 { font-size: 25px; } table, thead, tbody, tr, th, td { display: block; } thead { display: none; } td { border: 0; padding: 2px 0; } tr { border-bottom: 1px solid var(--line); padding: 8px 0; } td:first-child { font-weight: 700; color: #fff; } }
+</style>
+<title>Credits · GROW EVERYTHING</title>
+<meta name="description" content="Credits and third-party licences for GROW EVERYTHING. 制作名单与第三方许可。" />
+</head>
+<body>
+<div class="wrap">
+<header>
+  <a class="brand" href="../game/"><img src="../icons/icon-192.png" alt="" />Grow Everything</a>
+  <h1>Credits <span style="color:var(--muted);font-weight:600">· 制作名单与致谢</span></h1>
+  <nav class="lang"><a href="#en">English</a><a href="#zh">简体中文</a></nav>
+</header>
+
+<section id="en" lang="en">
+<h2>Game</h2>
+<p>GROW EVERYTHING — design, code, 3D models, city art, machines and sound by <span class="fill">[Studio / Operator name]</span>. All cities, landmarks and vehicles are original stylised procedural models made for the Game.</p>
+
+<h2>Third-party software and assets</h2>
+<table>
+  <thead><tr><th>Component</th><th>Author</th><th>Licence</th></tr></thead>
+  <tbody>
+    <tr><td><a href="https://threejs.org" rel="noopener">three.js</a></td><td>three.js authors</td><td>MIT License</td></tr>
+    <tr><td><a href="https://github.com/supabase/supabase-js" rel="noopener">Supabase JS client</a> (<code>@supabase/supabase-js</code>)</td><td>Supabase, Inc.</td><td>MIT License</td></tr>
+    <tr><td>HDRI “pedestrian_overpass” (<a href="https://polyhaven.com/a/pedestrian_overpass" rel="noopener">Poly Haven</a>), obtained via the three.js repository <code>examples/textures/equirectangular/</code>; used only as image-based lighting</td><td>Poly Haven (see the asset page for the photographer credit)</td><td>CC0 1.0 (public domain)</td></tr>
+    <tr><td>Fonts</td><td>—</td><td>The Game uses your device’s system fonts; no font files are bundled.</td></tr>
+  </tbody>
+</table>
+
+<h2>Music and sound</h2>
+<p>City themes and sound effects are generated procedurally in your browser with the Web Audio API. <span class="fill">[If recorded tracks are added:]</span> Additional music tracks were created with Suno under a paid subscription, which grants commercial usage rights for tracks generated during the subscription.</p>
+
+<h2>Thanks</h2>
+<p>Thanks to every playtester, and to the open-source community whose tools make browser games possible.</p>
+</section>
+
+<section id="zh" class="lang-block" lang="zh-CN">
+<h2>游戏制作</h2>
+<p>《GROW EVERYTHING》的策划、程序、3D 模型、城市美术、机器角色与音效由 <span class="fill">[工作室 / 运营者名称]</span> 制作。游戏中的城市、地标与车辆均为专为本游戏原创的风格化程序化模型。</p>
+
+<h2>第三方软件与素材</h2>
+<table>
+  <thead><tr><th>组件</th><th>作者</th><th>许可</th></tr></thead>
+  <tbody>
+    <tr><td><a href="https://threejs.org" rel="noopener">three.js</a></td><td>three.js 作者团队</td><td>MIT 许可证</td></tr>
+    <tr><td><a href="https://github.com/supabase/supabase-js" rel="noopener">Supabase JS 客户端</a>（<code>@supabase/supabase-js</code>）</td><td>Supabase, Inc.</td><td>MIT 许可证</td></tr>
+    <tr><td>HDRI 环境贴图 “pedestrian_overpass”（<a href="https://polyhaven.com/a/pedestrian_overpass" rel="noopener">Poly Haven</a>），取自 three.js 仓库 <code>examples/textures/equirectangular/</code>，仅用作基于图像的环境光照</td><td>Poly Haven（摄影师署名见素材页面）</td><td>CC0 1.0（公有领域）</td></tr>
+    <tr><td>字体</td><td>—</td><td>使用设备自带的系统字体，未打包任何字体文件。</td></tr>
+  </tbody>
+</table>
+
+<h2>音乐与音效</h2>
+<p>城市主题音乐与音效均通过 Web Audio API 在浏览器中程序化生成。<span class="fill">[如加入录制曲目：]</span>部分音乐由 Suno 在付费订阅期间生成，该订阅授予订阅期间所生成曲目的商业使用权。</p>
+
+<h2>致谢</h2>
+<p>感谢所有参与试玩的玩家，以及让浏览器游戏成为可能的开源社区。</p>
+</section>
+
+<footer>
+  <a href="../game/">Play · 开始游戏</a><a href="privacy.html">Privacy · 隐私政策</a><a href="terms.html">Terms · 用户协议</a>
+</footer>
+</div>
+</body>
+</html>
