@@ -59,12 +59,20 @@ export const SHANGHAI = makeCity({
     n: 70,
     h: [40, 130],
     heroes: [
-      { x: 250, z: -220, w: 34, h: 330, taper: 0.55 },
-      { x: 300, z: -150, w: 30, h: 250, taper: 0.5 },
-      { x: 210, z: -290, w: 28, h: 215, taper: 0.62 },
+      { x: 260, z: -40, w: 44, h: 330, taper: 0.55, kind: 'twist' },
+      { x: 300, z: 30, w: 40, h: 250, kind: 'opener' },
+      { x: 250, z: 70, w: 34, h: 215, kind: 'pagoda' },
+      { x: 330, z: -120, w: 30, h: 160, taper: 0.9 },
+      { x: 240, z: 160, w: 30, h: 140, taper: 0.9 },
     ],
   },
   centreLine: 'yellow',
   parkGround: 'sidewalk',
   treeCrown: 0.9,
+  waterfront: 'east',
+  // The Bund along the river: Customs House clock tower and the Peace Hotel face Zhongshan Road.
+  extras: [
+    { type: 'CUSTOMS_HOUSE', x: 75.4, z: -30, yaw: Math.PI / 2 },
+    { type: 'PEACE_HOTEL', x: 74.4, z: 30, yaw: Math.PI / 2 },
+  ],
 });

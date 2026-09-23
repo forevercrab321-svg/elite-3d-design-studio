@@ -16,7 +16,7 @@ export const BLACK_TEXEL: [number, number] = [0.0175, 0.15];
 export const LAMP_COLOURS: Partial<Record<Role, [number, number, number]>> = { headlight: [1, 0.95, 0.85], taillight: [0.85, 0.06, 0.04], signalAmber: [1, 0.55, 0.08] };
 
 /** Roles whose texture follows metre-scale box projection. */
-export const PROJECTED: ReadonlySet<Role> = new Set<Role>(['paint', 'cardboard', 'propBrick', 'corrugated', 'roofMetal', 'concreteProp', 'timber']);
+export const PROJECTED: ReadonlySet<Role> = new Set<Role>(['paint', 'cardboard', 'propBrick', 'corrugated', 'roofMetal', 'concreteProp', 'timber', 'stone']);
 
 export class Builder {
   private readonly parts = new Map<Role, THREE.BufferGeometry[]>();

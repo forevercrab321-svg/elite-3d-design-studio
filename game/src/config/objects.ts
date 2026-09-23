@@ -66,7 +66,17 @@ export type Shape =
   | 'eiffelDeck'
   | 'eiffelMid'
   | 'eiffelUpper'
-  | 'eiffelTop';
+  | 'eiffelTop'
+  | 'customsHouse'
+  | 'peaceHotel'
+  | 'flatiron'
+  | 'timesTower'
+  | 'subway'
+  | 'hydrant'
+  | 'arcPier'
+  | 'arcAttic'
+  | 'morris'
+  | 'metro';
 
 export type DestructionType = 'collect' | 'crush' | 'push' | 'break' | 'rip' | 'collapse';
 
@@ -171,6 +181,17 @@ export const OBJECT_TYPES = {
   EIFFEL_MID: { climax: true, topple: true, requiredPower: 9.5, label: 'Eiffel second stage', objectClass: 8, size: [12, 12, 12], shape: 'eiffelMid', colors: [0x6f5a44], rewardMass: 22000, destructionType: 'collapse' },
   EIFFEL_UPPER: { climax: true, topple: true, requiredPower: 8.5, label: 'Eiffel upper tower', objectClass: 8, size: [7.2, 30, 7.2], shape: 'eiffelUpper', colors: [0x6f5a44], rewardMass: 16000, destructionType: 'collapse' },
   EIFFEL_TOP: { climax: true, topple: true, requiredPower: 7, label: 'Eiffel summit', objectClass: 7, size: [3.2, 12, 3.2], shape: 'eiffelTop', colors: [0x6f5a44], rewardMass: 6000, destructionType: 'collapse' },
+  // Secondary landmarks (~1:2.5) and signature street objects.
+  CUSTOMS_HOUSE: { requiredPower: 9.5, label: 'Customs House', objectClass: 8, size: [24, 33, 16], shape: 'customsHouse', colors: [0xd9d0bd], rewardMass: 30000, destructionType: 'collapse' },
+  PEACE_HOTEL: { requiredPower: 9.5, label: 'Peace Hotel', objectClass: 8, size: [16, 35, 14], shape: 'peaceHotel', colors: [0xd9d0bd], rewardMass: 28000, destructionType: 'collapse' },
+  FLATIRON: { requiredPower: 9.5, label: 'Flatiron Building', objectClass: 8, size: [12, 29, 28], shape: 'flatiron', colors: [0xd9d0bd], rewardMass: 30000, destructionType: 'collapse' },
+  TIMES_TOWER: { requiredPower: 9.5, label: 'Times Square tower', objectClass: 8, size: [11, 40, 11], shape: 'timesTower', colors: [0x202328], rewardMass: 26000, destructionType: 'collapse' },
+  SUBWAY_ENTRANCE: { label: 'Subway entrance', objectClass: 4, size: [2.2, 2.1, 4.2], shape: 'subway', colors: [0x2f5f3a], rewardMass: 80, destructionType: 'rip' },
+  FIRE_HYDRANT: { label: 'Fire hydrant', objectClass: 2, size: [0.4, 0.75, 0.4], shape: 'hydrant', colors: [0xc62828, 0xf2c14e, 0xc62828], rewardMass: 3, destructionType: 'collect' },
+  ARC_PIER: { requiredPower: 9.5, label: 'Arc de Triomphe pier', objectClass: 8, size: [6, 13.5, 9], shape: 'arcPier', colors: [0xd9d0bd], rewardMass: 20000, destructionType: 'rip' },
+  ARC_ATTIC: { topple: true, requiredPower: 8, label: 'Arc de Triomphe attic', objectClass: 7, size: [18, 6.5, 9], shape: 'arcAttic', colors: [0xd9d0bd], rewardMass: 12000, destructionType: 'collapse' },
+  MORRIS_COLUMN: { label: 'Morris column', objectClass: 4, size: [1.3, 3.6, 1.3], shape: 'morris', colors: [0x2e4a32], rewardMass: 70, destructionType: 'crush' },
+  METRO_ENTRANCE: { label: 'Métro entrance', objectClass: 5, size: [3.2, 3.4, 5], shape: 'metro', colors: [0x2e4a32], rewardMass: 260, destructionType: 'rip' },
 } satisfies Record<string, ObjectType>;
 
 export type ObjectTypeId = keyof typeof OBJECT_TYPES;

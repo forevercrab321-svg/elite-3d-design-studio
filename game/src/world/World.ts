@@ -11,7 +11,7 @@ import { makeLod } from './lod';
 import type { CityDef } from './city';
 import type { Cluster } from './scrapCity';
 
-const SHADOW_ROLES: ReadonlySet<Role> = new Set<Role>(['paint', 'carPaint', 'plastic', 'glossyPlastic', 'cardboard', 'corrugated', 'roofMetal', 'concreteProp', 'wood', 'timber', 'tread', 'rubber', 'steel', 'propBrick']);
+const SHADOW_ROLES: ReadonlySet<Role> = new Set<Role>(['paint', 'carPaint', 'plastic', 'glossyPlastic', 'cardboard', 'corrugated', 'roofMetal', 'concreteProp', 'wood', 'timber', 'tread', 'rubber', 'steel', 'propBrick', 'stone', 'copper']);
 
 export type ObjectState = 'idle' | 'pulled' | 'absorbed';
 
@@ -227,6 +227,8 @@ export class World {
 
   /** Solid to the player: idle and either too big or still anchored. */
   isSolid(o: WorldObject, power: number): boolean {
+    // Held up in the air (roof bays, landmark decks, arch attics): machines pass underneath.
+    if (!o.falling && o.y > this.city.groundHeight(o.x, o.z) + 2.5) return false;
     return o.state === 'idle' && (o.anchored || power < o.requiredPower);
   }
 

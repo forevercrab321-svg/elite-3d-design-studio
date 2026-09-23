@@ -48,12 +48,26 @@ export interface CityStyle {
   /** Static perimeter facades (arch materials) and their height range. */
   perimeter: { materials: StaticBlock['material'][]; h: [number, number] };
   /** Far skyline: count, height range, plus optional hero silhouettes. */
-  skyline: { n: number; h: [number, number]; heroes?: { x: number; z: number; w: number; h: number; taper?: number }[] };
+  skyline: { n: number; h: [number, number]; heroes?: Hero[] };
   /** Centre-line paint (NY / Shanghai yellow, Paris white). */
   centreLine: 'yellow' | 'white';
   /** Park cell ground: gravel (Paris) or paving. */
   parkGround: 'gravel' | 'sidewalk';
   treeCrown: number;
+  /** Hand-placed secondary landmarks and signature objects, placed before the procedural fill. */
+  extras?: Placement[];
+  /** A river along one edge instead of perimeter facades (Shanghai: the Huangpu, Pudong beyond). */
+  waterfront?: 'east';
+}
+
+/** Distant signature towers, shaped by kind (all far enough to read as silhouettes through haze). */
+export interface Hero {
+  x: number;
+  z: number;
+  w: number;
+  h: number;
+  taper?: number;
+  kind?: 'box' | 'twist' | 'opener' | 'pagoda' | 'obelisk' | 'arch';
 }
 
 export const HALF = 96;
@@ -128,6 +142,13 @@ export function makeCity(style: CityStyle): CityDef {
   };
   // Landmark footprint is reserved.
   taken.push({ x0: -16, x1: 16, z0: -16, z1: 16 });
+  for (const p of style.extras ?? []) {
+    placements.push(p);
+    if ((p.y ?? 0) > 0.5) continue;
+    const [w, , d] = OBJECT_TYPES[p.type].size;
+    const rot = Math.abs(Math.sin(p.yaw ?? 0)) > 0.7;
+    taken.push({ x0: p.x - (rot ? d : w) / 2, x1: p.x + (rot ? d : w) / 2, z0: p.z - (rot ? w : d) / 2, z1: p.z + (rot ? w : d) / 2 });
+  }
 
   // ── Cells: 4 × 4 blocks. Pick a park and a construction site among the outer cells. ──
   const cells: { r: Rect; ix: number; iz: number }[] = [];
@@ -326,6 +347,11 @@ export function makeCity(style: CityStyle): CityDef {
   const faces: { block: StaticBlock; cx: number; cz: number; ry: number; len: number }[] = [];
   const prand = createSeededRandom(style.seed ^ 0x77);
   for (const [nx, nz] of [[0, -1], [0, 1], [-1, 0], [1, 0]] as const) {
+    if (style.waterfront === 'east' && nx === 1) {
+      // Embankment wall along the river (the district edge is a promenade).
+      perimeter.push({ name: 'Wall_Embankment', x: HALF + 1.2, z: 0, w: 1.2, d: HALF * 2 + 44, h: 1.1, material: 'concrete' });
+      continue;
+    }
     // Facades along one side, facing into the district.
     for (let a = -HALF - 22; a < HALF + 22; ) {
       const len = 16 + prand() * 14;
@@ -383,8 +409,9 @@ function buildDistrict(lib: MaterialLibrary, style: CityStyle, perimeter: Static
   const WALL: Record<StaticBlock['material'], ArchKey> = { brick: 'brick', darkBrick: 'darkBrick', plaster: 'plaster', concrete: 'concrete', steel: 'steelDark' };
 
   // Ground: city ground under everything, asphalt road bed, raised cells and plaza.
-  batch.add('gravel', box(700, 0.02, 700), 0, -0.03, 0);
-  batch.add('asphalt', box(HALF * 2 + 40, 0.02, HALF * 2 + 40), 0, -0.01, 0);
+  const east = style.waterfront === 'east' ? HALF + 2 : 350;
+  batch.add('gravel', box(350 + east, 0.02, 700), (east - 350) / 2, -0.03, 0);
+  batch.add('asphalt', box(Math.min(east, HALF + 20) + HALF + 20, 0.02, HALF * 2 + 40), (Math.min(east, HALF + 20) - HALF - 20) / 2, -0.01, 0);
   CELLS.forEach(([x0, x1], ix) =>
     CELLS.forEach(([z0, z1], iz) => {
       const w = x1 - x0;
@@ -498,6 +525,17 @@ function buildDistrict(lib: MaterialLibrary, style: CityStyle, perimeter: Static
   }
   faces.forEach((f, i) => facade(batch, { block: f.block, cx: f.cx, cz: f.cz, ry: f.ry, len: f.len, ground: i % 3 === 2 ? 'service' : 'shop', seed: style.seed + i, lite: true }));
 
+  if (style.waterfront === 'east') {
+    // The river: 110 m of water between the embankment and the far bank, balustrade on top of the wall.
+    batch.add('water', box(130, 0.02, 700), HALF + 67, -1.6, 0);
+    batch.add('stone', box(1.6, 1.6, 700), HALF + 2.0, -0.8, 0); // granite quay wall down to the water
+    batch.add('stone', box(1.6, 1.6, 700), HALF + 132, -0.8, 0);
+    batch.add('gravel', box(300, 0.02, 700), HALF + 283, -0.03, 0); // Pudong ground
+    batch.add('stone', box(0.5, 0.3, HALF * 2 + 44), HALF + 1.2, 1.25, 0);
+    for (let z = -HALF - 20; z <= HALF + 20; z += 2.4) batch.add('stone', box(0.35, 0.9, 0.35), HALF + 1.2, 1.55, z);
+    batch.add('stone', box(0.6, 0.18, HALF * 2 + 44), HALF + 1.2, 2.05, 0);
+    batch.add('concrete', box(40, 2, 700), HALF + 132, 0.4, 0); // far bank
+  }
   // Far skyline and hero silhouettes, fogged into depth.
   const srand = createSeededRandom(style.seed ^ 0x5151);
   for (let i = 0; i < style.skyline.n; i++) {
@@ -506,17 +544,115 @@ function buildDistrict(lib: MaterialLibrary, style: CityStyle, perimeter: Static
     const w = 14 + srand() * 22;
     const d = 14 + srand() * 18;
     const h = style.skyline.h[0] + srand() * (style.skyline.h[1] - style.skyline.h[0]);
+    if (style.waterfront === 'east' && Math.cos(a) * r > HALF - 24 && Math.cos(a) * r < HALF + 150) continue;
     batch.add(srand() < 0.6 ? 'skylineWindows' : 'concrete', box(w, h, d), Math.cos(a) * r, h / 2, Math.sin(a) * r);
   }
   const heroes: THREE.BufferGeometry[] = [];
-  for (const hero of style.skyline.heroes ?? []) {
-    const t = hero.taper ?? 0.7;
-    const g = new THREE.CylinderGeometry((hero.w / 2) * t, hero.w / 2, hero.h, 4, 1).rotateY(Math.PI / 4);
-    g.translate(hero.x, hero.h / 2, hero.z);
-    heroes.push(g);
-  }
+  for (const hero of style.skyline.heroes ?? []) heroes.push(heroGeometry(hero));
   if (heroes.length) batch.add('skylineWindows', mergeGeometries(heroes)!, 0, 0, 0);
 
   const cast = new Set<ArchKey>(['brick', 'darkBrick', 'plaster', 'concrete', 'steelDark', 'awning']);
   return { meshes: batch.build(lib, cast), occluders };
+}
+
+/** Signature skyline silhouettes: simple solids that still read as the real towers at distance. */
+function heroGeometry(hero: Hero): THREE.BufferGeometry {
+  const { x, z, w, h } = hero;
+  const t = hero.taper ?? 0.7;
+  let g: THREE.BufferGeometry;
+  switch (hero.kind ?? 'box') {
+    case 'twist': {
+      // Shanghai Tower: rounded triangle plan, tapering and twisting ~120° to the top.
+      const seg = 24;
+      g = new THREE.CylinderGeometry((w / 2) * t, w / 2, h, 18, seg);
+      const p = g.getAttribute('position');
+      const v = new THREE.Vector3();
+      for (let i = 0; i < p.count; i++) {
+        v.fromBufferAttribute(p, i);
+        const k = (v.y + h / 2) / h;
+        const a = k * (Math.PI * 2) / 3;
+        const ang = Math.atan2(v.z, v.x);
+        const lobe = 1 + 0.12 * Math.cos(3 * (ang - a)); // three soft corners
+        const c = Math.cos(a);
+        const sn = Math.sin(a);
+        const nx = v.x * lobe;
+        const nz = v.z * lobe;
+        p.setXYZ(i, nx * c - nz * sn, v.y, nx * sn + nz * c);
+      }
+      g.computeVertexNormals();
+      break;
+    }
+    case 'opener': {
+      // Shanghai World Financial Center: square base sweeping to a blade, trapezoid hole at the top.
+      const shape = new THREE.Shape();
+      shape.moveTo(-w / 2, 0);
+      shape.lineTo(w / 2, 0);
+      shape.lineTo(w * 0.3, h);
+      shape.lineTo(-w * 0.3, h);
+      shape.closePath();
+      const hole = new THREE.Path();
+      hole.moveTo(-w * 0.2, h - w * 0.55);
+      hole.lineTo(w * 0.2, h - w * 0.55);
+      hole.lineTo(w * 0.26, h - w * 0.12);
+      hole.lineTo(-w * 0.26, h - w * 0.12);
+      hole.closePath();
+      shape.holes.push(hole);
+      g = new THREE.ExtrudeGeometry(shape, { depth: w * 0.6, bevelEnabled: false });
+      g.translate(0, -h / 2, -w * 0.3);
+      break;
+    }
+    case 'pagoda': {
+      // Jin Mao: stacked setbacks accelerating toward a spire.
+      const parts: THREE.BufferGeometry[] = [];
+      let y = 0;
+      let ww = w;
+      for (let i = 0; i < 12 && y < h * 0.85; i++) {
+        const hh = h * 0.18 * Math.pow(0.82, i);
+        parts.push(new THREE.BoxGeometry(ww, hh, ww).translate(0, y + hh / 2 - h / 2, 0));
+        y += hh;
+        ww *= 0.9;
+      }
+      parts.push(new THREE.CylinderGeometry(0.3, ww * 0.3, h - y, 8).translate(0, y + (h - y) / 2 - h / 2, 0));
+      g = mergeGeometries(parts.map((q) => q.toNonIndexed()))!;
+      break;
+    }
+    case 'obelisk': {
+      // One World Trade Center: square base, chamfered into an octagon and a square rotated 45° at the top.
+      g = new THREE.CylinderGeometry((w / 2) * 0.5, (w / 2) * Math.SQRT2, h * 0.86, 4, 8).rotateY(Math.PI / 4);
+      const p = g.getAttribute('position');
+      for (let i = 0; i < p.count; i++) {
+        const k = (p.getY(i) + h * 0.43) / (h * 0.86);
+        const a = k * (Math.PI / 4);
+        const px = p.getX(i);
+        const pz = p.getZ(i);
+        p.setXYZ(i, px * Math.cos(a) - pz * Math.sin(a), p.getY(i) - h * 0.07, px * Math.sin(a) + pz * Math.cos(a));
+      }
+      g.computeVertexNormals();
+      g = mergeGeometries([g.toNonIndexed(), new THREE.CylinderGeometry(0.4, 0.8, h * 0.14, 6).translate(0, h * 0.43, 0).toNonIndexed()])!;
+      break;
+    }
+    case 'arch': {
+      // Grande Arche: an open hollow cube.
+      const shape = new THREE.Shape();
+      shape.moveTo(-w / 2, 0);
+      shape.lineTo(w / 2, 0);
+      shape.lineTo(w / 2, h);
+      shape.lineTo(-w / 2, h);
+      shape.closePath();
+      const hole = new THREE.Path();
+      hole.moveTo(-w * 0.34, h * 0.12);
+      hole.lineTo(w * 0.34, h * 0.12);
+      hole.lineTo(w * 0.34, h * 0.82);
+      hole.lineTo(-w * 0.34, h * 0.82);
+      hole.closePath();
+      shape.holes.push(hole);
+      g = new THREE.ExtrudeGeometry(shape, { depth: w * 0.8, bevelEnabled: false });
+      g.translate(0, -h / 2, -w * 0.4);
+      break;
+    }
+    default:
+      g = new THREE.CylinderGeometry((w / 2) * t, w / 2, h, 4, 1).rotateY(Math.PI / 4);
+  }
+  g.translate(x, h / 2, z);
+  return g.index ? g.toNonIndexed() : g;
 }

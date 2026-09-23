@@ -80,6 +80,8 @@ const CSS = `
 #arena .center b { display: block; font-size: 96px; font-weight: 900; line-height: 1; }
 #arena .center span { font-size: 15px; font-weight: 800; letter-spacing: .24em; }
 #arena .combo { position: absolute; left: 290px; bottom: 30px; font-size: 22px; font-weight: 900; color: #ffd35a; text-shadow: 0 2px 8px rgba(0,0,0,.5); }
+#arena .map { position: absolute; right: 18px; bottom: 64px; width: 184px; height: 184px; border-radius: 14px; background: rgba(16,18,20,.55); backdrop-filter: blur(6px); }
+#arena .tag.edge { background: rgba(16,18,20,.75); }
 #arena .tag { position: absolute; transform: translate(-50%, -100%); font-size: 11px; font-weight: 800; letter-spacing: .06em; padding: 2px 7px; border-radius: 6px; background: rgba(16,18,20,.55); white-space: nowrap; }
 #arena .res { position: absolute; inset: 0; display: grid; place-items: center; padding-inline: 16px; background: rgba(12,13,15,.55); pointer-events: auto; }
 #arena .res .card { width: min(560px, 100%); padding: 26px; border-radius: 16px; background: rgba(20,21,23,.9); box-shadow: 0 30px 80px rgba(0,0,0,.5); }
@@ -92,7 +94,7 @@ const CSS = `
 #arena .res tr.me td { color: #ffb347; font-weight: 800; }
 #arena .res .earn { text-align: center; margin-top: 14px; font-size: 13px; }
 #arena .res .actions { justify-content: center; margin-top: 16px; }
-@media (max-width: 860px) { #arena .cols { grid-template-columns: 1fr; } #arena .board { width: 200px; } #arena .combo { left: 16px; bottom: 150px; } }
+@media (max-width: 860px) { #arena .cols { grid-template-columns: 1fr; } #arena .board { width: 200px; } #arena .map { width: 128px; height: 128px; bottom: auto; top: 250px; } #arena .combo { left: 16px; bottom: 150px; } }
 `;
 
 const STAT = (v: number, lo: number, hi: number) => Math.round(Math.max(0.08, Math.min(1, (v - lo) / (hi - lo))) * 100);
@@ -104,6 +106,7 @@ export class ArenaUi {
   private readonly results: HTMLElement;
   private readonly tags = new Map<string, HTMLElement>();
   private lastFeedAt = 0;
+  private mapAt = 0;
   onStory: (() => void) | null = null;
 
   constructor(
@@ -229,7 +232,7 @@ export class ArenaUi {
     if (s.match.ph === 'lobby') return;
     if (!this.overlay.dataset.built) {
       this.overlay.dataset.built = '1';
-      this.overlay.innerHTML = `<div class="timer"><b class="hex">5:00</b><span></span></div><div class="board"></div><div class="feed"></div><div class="center"></div><div class="combo"></div><div class="tags"></div>`;
+      this.overlay.innerHTML = `<div class="timer"><b class="hex">5:00</b><span></span></div><div class="board"></div><div class="feed"></div><div class="center"></div><div class="combo"></div><div class="tags"></div><canvas class="map" width="368" height="368" aria-label="小地图 minimap"></canvas>`;
       g.onFeed = (text, tone) => this.feed(text, tone);
     }
     const left = Math.max(0, A.roundSeconds - g.matchTime);
@@ -261,6 +264,77 @@ export class ArenaUi {
     const combo = this.overlay.querySelector('.combo') as HTMLElement;
     combo.textContent = me && me.combo >= 2 && g.time <= me.comboUntil ? `连击 ×${Math.min(A.comboMax, 1 + A.comboStep * (me.combo - 1)).toFixed(1)}` : '';
     this.renderTags(g);
+    if (performance.now() - this.mapAt > 90) {
+      this.mapAt = performance.now();
+      this.renderMap(g);
+    }
+  }
+
+  /** North-up minimap: standing structures, landmark parts, golden crates and every machine. */
+  private renderMap(g: ArenaGame): void {
+    const cv = this.overlay.querySelector('canvas.map') as HTMLCanvasElement | null;
+    const ctx = cv?.getContext('2d');
+    if (!cv || !ctx) return;
+    const b = g.city.bounds;
+    const W = cv.width;
+    const pad = 14;
+    const k = (W - pad * 2) / Math.max(b.maxX - b.minX, b.maxZ - b.minZ);
+    const mx = (x: number) => pad + (x - b.minX) * k;
+    const mz = (z: number) => pad + (z - b.minZ) * k;
+    ctx.clearRect(0, 0, W, W);
+    ctx.fillStyle = 'rgba(255,255,255,.05)';
+    ctx.fillRect(pad, pad, (b.maxX - b.minX) * k, (b.maxZ - b.minZ) * k);
+    const me = g.local;
+    for (const o of g.world.objects) {
+      if (o.state === 'absorbed') continue;
+      const cls = o.def.objectClass;
+      if (o.def.bonus) {
+        ctx.fillStyle = '#ffd35a';
+        ctx.beginPath();
+        ctx.arc(mx(o.x), mz(o.z), 3, 0, Math.PI * 2);
+        ctx.fill();
+        continue;
+      }
+      if (cls < 6 && !o.def.climax) continue;
+      const edible = me && g.world.isEligible(o, me.power);
+      ctx.fillStyle = o.def.climax ? (edible ? '#ffb347' : 'rgba(255,179,71,.55)') : edible ? 'rgba(140,224,122,.55)' : cls >= 7 ? 'rgba(210,214,220,.34)' : 'rgba(210,214,220,.18)';
+      ctx.save();
+      ctx.translate(mx(o.x), mz(o.z));
+      ctx.rotate(-o.yaw);
+      const [w, , d] = o.def.size;
+      ctx.fillRect((-w / 2) * k, (-d / 2) * k, Math.max(2, w * k), Math.max(2, d * k));
+      ctx.restore();
+    }
+    for (const a of g.actors) {
+      if (!a.alive) continue;
+      const x = mx(a.x);
+      const z = mz(a.z);
+      const r = Math.max(4, (a.diameter / 2) * k);
+      ctx.fillStyle = `#${SLOT_COLORS[a.slot % 4].toString(16).padStart(6, '0')}`;
+      ctx.beginPath();
+      ctx.arc(x, z, r, 0, Math.PI * 2);
+      ctx.fill();
+      if (me && me.alive && a !== me) {
+        const threat = g.canEat(a, me);
+        const prey = g.canEat(me, a);
+        if (threat || prey) {
+          ctx.strokeStyle = threat ? '#ff4d4d' : '#8be07a';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(x, z, r + 4, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
+      if (a === me) {
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(x, z, r + 2, 0, Math.PI * 2);
+        ctx.moveTo(x, z);
+        ctx.lineTo(x - Math.sin(a.heading) * (r + 12), z - Math.cos(a.heading) * (r + 12));
+        ctx.stroke();
+      }
+    }
   }
 
   private renderTags(g: ArenaGame): void {
@@ -276,13 +350,32 @@ export class ArenaUi {
         this.tags.set(a.id, tag);
       }
       v.set(a.x, a.diameter * 1.25 + 0.3, a.z).project(g.camera);
-      const visible = a.alive && a !== g.local && v.z < 1 && Math.abs(v.x) < 1.1 && Math.abs(v.y) < 1.1;
-      tag.hidden = !visible;
-      if (!visible) continue;
+      const show = a.alive && a !== g.local;
+      tag.hidden = !show;
+      if (!show) continue;
       const danger = g.local && g.local.alive ? (g.canEat(a, g.local) ? ' ⚠' : g.canEat(g.local, a) ? ' ✓' : '') : '';
-      tag.textContent = `${a.name} · ${massText(a.mass)}${danger}`;
-      tag.style.left = `${((v.x + 1) / 2) * innerWidth}px`;
-      tag.style.top = `${((1 - v.y) / 2) * innerHeight}px`;
+      const onScreen = v.z < 1 && Math.abs(v.x) < 1 && Math.abs(v.y) < 1;
+      if (onScreen) {
+        tag.classList.remove('edge');
+        tag.style.transform = '';
+        tag.textContent = `${a.name} · ${massText(a.mass)}${danger}`;
+        tag.style.left = `${((v.x + 1) / 2) * innerWidth}px`;
+        tag.style.top = `${((1 - v.y) / 2) * innerHeight}px`;
+      } else {
+        // Off screen: pin to the edge, pointing the way.
+        let ex = v.z > 1 ? -v.x : v.x;
+        let ey = v.z > 1 ? -v.y : v.y;
+        const m = Math.max(Math.abs(ex), Math.abs(ey)) || 1;
+        ex = (ex / m) * 0.9;
+        ey = (ey / m) * 0.84;
+        const arrow = Math.abs(ex) > Math.abs(ey) ? (ex > 0 ? '▶' : '◀') : ey > 0 ? '▲' : '▼';
+        const dist = g.local ? Math.round(Math.hypot(a.x - g.local.x, a.z - g.local.z)) : 0;
+        tag.classList.add('edge');
+        tag.textContent = `${arrow} ${a.name}${danger} · ${dist} m`;
+        tag.style.left = `${((ex + 1) / 2) * innerWidth}px`;
+        tag.style.top = `${((1 - ey) / 2) * innerHeight + 12}px`;
+        tag.style.transform = ex < -0.6 ? 'translate(0, -50%)' : ex > 0.6 ? 'translate(-100%, -50%)' : 'translate(-50%, -50%)';
+      }
     }
   }
 

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { signTexture, type TextureKit } from './textures';
+import { createSignAtlas } from './signs';
 import { interiorMapping, weathering } from './surfaceShaders';
 
 /**
@@ -28,6 +29,9 @@ export type Role =
   | 'glass' // automotive glass, untinted
   | 'clearGlass' // see-through glazing (vending fronts)
   | 'sign' // lettered signage (warehouse)
+  | 'citySign' // city signage atlas (neon, shop boards, billboards), self-lit
+  | 'copper' // verdigris copper roofs and domes (Peace Hotel, Paris kiosks)
+  | 'stone' // pale dressed limestone / granite for monuments (untinted)
   | 'headlight'
   | 'taillight'
   | 'signalAmber'
@@ -44,6 +48,12 @@ function tex(set: { map: THREE.Texture; normalMap: THREE.Texture; roughnessMap: 
   return { map: set.map, normalMap: set.normalMap, roughnessMap: set.roughnessMap, normalScale: new THREE.Vector2(normalScale, normalScale) };
 }
 
+/** City signage: the atlas both colours and lights the sign (neon halos bloom). */
+function citySignMaterial(): THREE.MeshStandardMaterial {
+  const atlas = createSignAtlas();
+  return new THREE.MeshStandardMaterial({ map: atlas, emissiveMap: atlas, emissive: 0xffffff, emissiveIntensity: 0.85, roughness: 0.45, metalness: 0 });
+}
+
 /** Vehicle lamps in one draw call: vertex colour drives both base and emissive colour. */
 function lampsMaterial(): THREE.MeshStandardMaterial {
   const m = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, emissive: 0xffffff, emissiveIntensity: 0.9, roughness: 0.25 });
@@ -57,7 +67,7 @@ function lampsMaterial(): THREE.MeshStandardMaterial {
 export class MaterialLibrary {
   readonly roles: Record<Role, THREE.Material>;
   /** Architecture + ground. */
-  readonly arch: Record<'brick' | 'darkBrick' | 'plaster' | 'concrete' | 'asphalt' | 'sidewalk' | 'curb' | 'windowGlass' | 'windowFrame' | 'steelDark' | 'roofing' | 'awning' | 'shopGlass' | 'puddle' | 'paintLine' | 'lampGlow' | 'skylineWindows' | 'hazard' | 'craneYellow' | 'gravel' | 'metalLight' | 'metals', THREE.Material>;
+  readonly arch: Record<'brick' | 'darkBrick' | 'plaster' | 'concrete' | 'asphalt' | 'sidewalk' | 'curb' | 'windowGlass' | 'windowFrame' | 'steelDark' | 'roofing' | 'awning' | 'shopGlass' | 'puddle' | 'paintLine' | 'lampGlow' | 'skylineWindows' | 'hazard' | 'craneYellow' | 'gravel' | 'metalLight' | 'metals' | 'water' | 'stone', THREE.Material>;
 
   constructor(readonly kit: TextureKit) {
     const std = (p: THREE.MeshStandardMaterialParameters) => new THREE.MeshStandardMaterial(p);
@@ -82,6 +92,9 @@ export class MaterialLibrary {
       glass: phy({ color: 0x1b2328, roughness: 0.05, metalness: 0.2, clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 1.6 }),
       clearGlass: phy({ color: 0xcfd8de, roughness: 0.04, metalness: 0, transparent: true, opacity: 0.22, clearcoat: 1, envMapIntensity: 1.5, depthWrite: false }),
       sign: std({ map: signTexture('SCRAP CITY RECYCLING', '#e9e4d8', '#8a2f1f', 2048, 200, 'bold 150px system-ui, sans-serif'), roughness: 0.55, metalness: 0.05 }),
+      citySign: citySignMaterial(),
+      copper: std({ color: 0x5f9e8a, roughness: 0.62, metalness: 0.35, envMapIntensity: 0.9 }),
+      stone: std({ color: 0xd9d0bd, ...tex(kit.concrete, 0.7), roughness: 0.85, metalness: 0 }),
       lamps: lampsMaterial(),
       headlight: std({ color: 0xf4f1e8, emissive: 0xfff2d6, emissiveIntensity: 0.6, roughness: 0.2 }),
       taillight: std({ color: 0x5a0d0d, emissive: 0xc41a14, emissiveIntensity: 0.8, roughness: 0.25 }),
@@ -117,6 +130,8 @@ export class MaterialLibrary {
       metals: std({ color: 0xffffff, vertexColors: true, roughness: 0.5, metalness: 0.7, envMapIntensity: 0.9 }),
       gravel: std({ color: 0x9a9184, ...tex(kit.concrete, 0.5), roughness: 1, metalness: 0 }),
       craneYellow: std({ color: 0xd8a01c, roughness: 0.5, metalness: 0.35, envMapIntensity: 0.9 }),
+      water: phy({ color: 0x2c4650, roughness: 0.12, metalness: 0.05, clearcoat: 1, clearcoatRoughness: 0.08, envMapIntensity: 1.3, normalMap: kit.asphalt.normalMap, normalScale: new THREE.Vector2(0.25, 0.25) }),
+      stone: std({ color: 0xd9d0bd, ...tex(kit.concrete, 0.7), vertexColors: true, roughness: 0.85, metalness: 0 }),
     };
     for (const [name, m] of Object.entries(this.arch)) m.name = `MAT_ARCH_${name}`;
 
@@ -125,7 +140,7 @@ export class MaterialLibrary {
     weathering(this.arch.metals, 'wall', 0.6);
     weathering(this.arch.skylineWindows, 'wall', 0.5);
     for (const k of ['asphalt', 'sidewalk', 'gravel', 'roofing'] as const) weathering(this.arch[k], 'ground');
-    for (const r of ['paint', 'concreteProp', 'roofMetal'] as const) weathering(this.roles[r], 'prop', 0.8);
+    for (const r of ['paint', 'concreteProp', 'roofMetal', 'stone'] as const) weathering(this.roles[r], 'prop', 0.8);
     weathering(this.roles.corrugated, 'prop', 0.35); // containers: grime blotches read as camouflage on dark paint
     interiorMapping(this.arch.windowGlass as THREE.MeshPhysicalMaterial, { width: 3.2, depth: 4.2, height: 3.0, floorBelowCentre: 1.75, litChance: 0.3, shop: false });
     interiorMapping(this.arch.shopGlass as THREE.MeshPhysicalMaterial, { width: 3.6, depth: 6, height: 3.8, floorBelowCentre: 1.9, litChance: 1, shop: true });

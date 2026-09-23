@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { Role } from '../art/materials';
 import type { ObjectType, Shape } from '../config/objects';
 import { Builder, box, cyl, lathe, rbox, strut, v3, wheel, type PropParts } from './propKit';
+import { SIGNS_NY, SIGNS_PARIS, SIGNS_SHANGHAI, signQuad } from '../art/signs';
 
 /**
  * World-city kit (arena levels): street objects that give each city its identity, the
@@ -109,21 +110,23 @@ interface BuildingStyle {
   cornice?: boolean;
   /** Vertical pier strips between windows (Art Deco / modern). */
   piers?: boolean;
+  /** Signage atlas cells: shop boards over the ground floor, projecting blades, rooftop billboard. */
+  signs?: { fascia?: number[]; blade?: number[]; roof?: number[]; seed?: number };
 }
 
 const STYLES = {
   // Shanghai shikumen lane house: grey brick, stone gate with pediment, black-tile gable roof.
-  bShikumen: { wall: 'propBrick', groundH: 3.8, floorH: 3.2, floors: 1, bay: 2.6, win: [1.2, 1.5], roof: 'pitched', gate: true, cornice: true },
+  bShikumen: { wall: 'propBrick', groundH: 3.8, floorH: 3.2, floors: 1, bay: 2.6, win: [1.2, 1.5], roof: 'pitched', gate: true, cornice: true, signs: { blade: SIGNS_SHANGHAI.neonV, seed: 1 } },
   // Shanghai mid-rise: tiled podium shops, glass bands, neon, rooftop plant.
-  bShMid: { wall: 'concreteProp', groundH: 4.5, floorH: 3.2, floors: 5, bay: 3.0, win: [2.2, 1.7], roof: 'flat', shopfront: true, neon: true, piers: true },
+  bShMid: { wall: 'concreteProp', groundH: 4.5, floorH: 3.2, floors: 5, bay: 3.0, win: [2.2, 1.7], roof: 'flat', shopfront: true, neon: true, piers: true, signs: { fascia: [...SIGNS_SHANGHAI.neonH, ...SIGNS_SHANGHAI.fascia], blade: SIGNS_SHANGHAI.neonV, roof: SIGNS_SHANGHAI.neonH, seed: 2 } },
   // New York brownstone row house: stoop, bracketed cornice.
   bBrownstone: { wall: 'propBrick', groundH: 3.6, floorH: 3.3, floors: 3, bay: 2.4, win: [1.0, 1.8], roof: 'flat', stoop: true, cornice: true },
   // New York pre-war loft: fire escapes, water tower.
-  bNyLoft: { wall: 'propBrick', groundH: 4.6, floorH: 3.4, floors: 7, bay: 2.9, win: [1.5, 2.0], roof: 'flat', shopfront: true, fireEscape: true, waterTower: true, cornice: true },
+  bNyLoft: { wall: 'propBrick', groundH: 4.6, floorH: 3.4, floors: 7, bay: 2.9, win: [1.5, 2.0], roof: 'flat', shopfront: true, fireEscape: true, waterTower: true, cornice: true, signs: { fascia: SIGNS_NY.fascia, blade: SIGNS_NY.neonV, roof: SIGNS_NY.billboard, seed: 3 } },
   // Paris Haussmann block: cream stone, balconies on the 2nd and 5th floors, zinc mansard.
-  bHaussmann: { wall: 'concreteProp', groundH: 4.4, floorH: 3.1, floors: 5, bay: 2.6, win: [1.2, 2.2], roof: 'mansard', shopfront: true, balconies: [1, 4], cornice: true },
+  bHaussmann: { wall: 'concreteProp', groundH: 4.4, floorH: 3.1, floors: 5, bay: 2.6, win: [1.2, 2.2], roof: 'mansard', shopfront: true, balconies: [1, 4], cornice: true, signs: { fascia: SIGNS_PARIS.fascia, blade: [...SIGNS_PARIS.neonV, ...SIGNS_PARIS.neon], seed: 4 } },
   // Paris corner café house: three floors and a mansard.
-  bParisCafe: { wall: 'concreteProp', groundH: 4.0, floorH: 3.0, floors: 2, bay: 2.5, win: [1.1, 2.0], roof: 'mansard', shopfront: true, balconies: [1], cornice: true },
+  bParisCafe: { wall: 'concreteProp', groundH: 4.0, floorH: 3.0, floors: 2, bay: 2.5, win: [1.1, 2.0], roof: 'mansard', shopfront: true, balconies: [1], cornice: true, signs: { fascia: SIGNS_PARIS.fascia, seed: 5 } },
 } satisfies Record<string, BuildingStyle>;
 
 type BuildingShape = keyof typeof STYLES;
@@ -146,6 +149,11 @@ function building(type: ObjectType, st: BuildingStyle): PropParts {
     const put = (role: Role, g: THREE.BufferGeometry, u: number, y: number, out: number) => {
       const [x, z] = f.at(u, out);
       b.add(role, g, x, y, z, 0, f.ry, 0);
+    };
+    // Planes face +Z; face frames point +Z into the wall, so signs turn half a turn to face out.
+    const putSign = (g: THREE.BufferGeometry, u: number, y: number, out: number, turn = Math.PI) => {
+      const [x, z] = f.at(u, out);
+      b.add('citySign', g, x, y, z, 0, f.ry + turn, 0);
     };
     const bays = Math.max(1, Math.floor((f.len - 1.2) / st.bay));
     const start = -((bays - 1) * st.bay) / 2;
@@ -174,7 +182,9 @@ function building(type: ObjectType, st: BuildingStyle): PropParts {
       if (f.front && st.shopfront) {
         const sw = st.bay - 0.35;
         put('glass', box(sw, st.groundH - 1.4, 0.06), u, 0.5 + (st.groundH - 1.4) / 2, 0.0);
-        put('darkTrim', box(sw + 0.1, 0.45, 0.1), u, st.groundH - 0.6, 0.05); // fascia
+        put('darkTrim', box(sw + 0.1, 0.72, 0.1), u, st.groundH - 0.6, 0.05); // fascia board
+        const fc = st.signs?.fascia;
+        if (fc?.length) putSign(signQuad(fc[(i + (st.signs?.seed ?? 0) * 3) % fc.length], sw - 0.1, 0.62), u, st.groundH - 0.6, 0.11);
         put('wood', box(sw, 0.04, 1.1), u, st.groundH - 0.95, 0.55); // awning
       } else if (!(f.front && (st.gate || st.stoop) && i === Math.floor(bays / 2))) {
         put('glass', box(ww, Math.min(wh, st.groundH - 1.6), 0.06), u, 1.2 + Math.min(wh, st.groundH - 1.6) / 2, 0.0);
@@ -201,6 +211,26 @@ function building(type: ObjectType, st: BuildingStyle): PropParts {
         put('darkTrim', box(f.len * 0.5, 0.9, 0.03), -f.len * 0.2, y + 0.45, 1.2);
         put('darkTrim', box(0.5, 0.05, st.floorH * 1.2), -f.len * 0.2 + (k % 2 ? 1 : -1) * f.len * 0.12, y + st.floorH / 2, 0.6);
       }
+    }
+    if (f.front && st.signs?.blade?.length) {
+      const bl = st.signs.blade;
+      const bh = Math.min(5.5, eave - st.groundH - 1.2);
+      const cell = bl[(st.signs.seed ?? 0) % bl.length];
+      const u = f.len / 2 - 0.9;
+      const y = st.groundH + 0.6 + bh / 2;
+      put('darkTrim', box(0.12, bh + 0.2, 1.1), u, y, 0.62); // blade box
+      for (const t of [Math.PI / 2, -Math.PI / 2]) putSign(signQuad(cell, 1.0, bh), u + (t > 0 ? 0.065 : -0.065), y, 0.62, t);
+      put('steel', box(0.06, 0.06, 1.2), u, y + bh / 2 + 0.05, 0.6); // brackets
+      put('steel', box(0.06, 0.06, 1.2), u, y - bh / 2 - 0.05, 0.6);
+    }
+    if (f.front && st.signs?.roof?.length && st.roof === 'flat') {
+      const rc = st.signs.roof;
+      const bw = Math.min(f.len * 0.7, 12);
+      const bh = bw * 0.5;
+      const y = eave + 1.2 + bh / 2;
+      putSign(signQuad(rc[(st.signs.seed ?? 0) % rc.length], bw, bh), 0, y, -1.2);
+      put('darkTrim', box(bw + 0.2, bh + 0.2, 0.2), 0, y, -1.35); // back panel
+      for (const s2 of [-1, 1]) put('steel', box(0.18, bh + 1.2, 0.18), s2 * bw * 0.35, eave + (bh + 1.2) / 2, -1.5); // legs
     }
     if (st.neon && !f.front && f.ry > 0) put('screen', box(0.9, Math.min(8, eave - st.groundH - 1), 0.2), -f.len / 2 + 1.2, st.groundH + (Math.min(8, eave - st.groundH - 1)) / 2 + 0.5, 0.5);
   }

@@ -45,17 +45,26 @@ export const NEW_YORK = makeCity({
   blocks: ['B_NY_LOFT'],
   cars: ['TAXI_NY', 'TAXI_NY', 'TAXI_NY', 'CAR_COMPACT', 'VAN'],
   bigVehicles: ['BUS_NY', 'DELIVERY_TRUCK'],
-  furniture: ['FOOD_CART', 'TRASH_CAN', 'TRASH_CAN', 'BICYCLE', 'UTILITY_BOX', 'BENCH', 'VENDING_MACHINE'],
+  furniture: ['FOOD_CART', 'TRASH_CAN', 'FIRE_HYDRANT', 'FIRE_HYDRANT', 'BICYCLE', 'UTILITY_BOX', 'BENCH', 'VENDING_MACHINE'],
   perimeter: { materials: ['brick', 'darkBrick', 'concrete'], h: [30, 70] },
   skyline: {
     n: 110,
     h: [50, 170],
     heroes: [
-      { x: -80, z: -320, w: 36, h: 280, taper: 0.45 },
+      { x: -80, z: -330, w: 40, h: 300, kind: 'obelisk' },
       { x: 180, z: 230, w: 24, h: 220, taper: 0.8 },
+      { x: 230, z: -180, w: 22, h: 260, taper: 0.95 },
     ],
   },
   centreLine: 'yellow',
   parkGround: 'sidewalk',
   treeCrown: 1.0,
+  extras: [
+    { type: 'FLATIRON', x: 34, z: -32, yaw: 0 },
+    { type: 'TIMES_TOWER', x: -36, z: 36, yaw: Math.PI / 4 },
+    { type: 'SUBWAY_ENTRANCE', x: 12.6, z: 70, yaw: 0 },
+    { type: 'SUBWAY_ENTRANCE', x: -12.6, z: -70, yaw: Math.PI },
+    { type: 'SUBWAY_ENTRANCE', x: 70, z: 12.6, yaw: Math.PI / 2 },
+    { type: 'SUBWAY_ENTRANCE', x: -70, z: -12.6, yaw: -Math.PI / 2 },
+  ],
 });

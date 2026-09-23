@@ -49,18 +49,27 @@ export const PARIS = makeCity({
   blocks: ['B_HAUSSMANN', 'B_HAUSSMANN'],
   cars: ['CAR_COMPACT', 'CAR_COMPACT', 'CAR_COMPACT', 'TAXI_PA', 'VAN', 'SCOOTER'],
   bigVehicles: ['BUS_PA', 'DELIVERY_TRUCK'],
-  furniture: ['KIOSK', 'CAFE_TABLE', 'CAFE_TABLE', 'CHAIR', 'BICYCLE', 'BENCH', 'TRASH_CAN', 'SCOOTER'],
+  furniture: ['KIOSK', 'CAFE_TABLE', 'CAFE_TABLE', 'CHAIR', 'BICYCLE', 'BENCH', 'MORRIS_COLUMN', 'SCOOTER'],
   perimeter: { materials: ['plaster', 'plaster', 'concrete'], h: [20, 26] },
   skyline: {
     n: 60,
     h: [18, 30],
     heroes: [
       { x: -210, z: 260, w: 32, h: 140, taper: 0.95 },
-      { x: 320, z: -200, w: 30, h: 170, taper: 0.9 },
-      { x: 350, z: -150, w: 26, h: 130, taper: 0.9 },
+      { x: 330, z: -170, w: 56, h: 56, kind: 'arch' },
+      { x: 370, z: -230, w: 30, h: 170, taper: 0.9 },
+      { x: 390, z: -120, w: 26, h: 130, taper: 0.9 },
     ],
   },
   centreLine: 'white',
   parkGround: 'gravel',
   treeCrown: 1.3,
+  // The Arc de Triomphe straddles the west boulevard (drive through the arch); Métro entrances.
+  extras: [
+    { type: 'ARC_PIER', x: -76, z: -6, yaw: Math.PI / 2, tag: 'arcA' },
+    { type: 'ARC_PIER', x: -76, z: 6, yaw: Math.PI / 2, tag: 'arcB' },
+    { type: 'ARC_ATTIC', x: -76, z: 0, y: 13.5, yaw: Math.PI / 2, supports: ['arcA', 'arcB'] },
+    { type: 'METRO_ENTRANCE', x: 12.6, z: 62, yaw: 0 },
+    { type: 'METRO_ENTRANCE', x: -12.6, z: -62, yaw: Math.PI },
+  ],
 });
