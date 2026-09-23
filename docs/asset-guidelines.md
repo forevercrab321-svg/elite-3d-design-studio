@@ -25,6 +25,20 @@ Every asset is a **game asset**: scale, collision, destruction, instancing and w
 4. Swap it into `game/src/world/shapes.ts` (greybox → GLB loader) and keep the footprint.
 5. Test in the game: run `npm run playtest` and review the screenshots. A generated asset is never assumed correct.
 
-## Greybox inventory (Phase 1)
+## Procedural production kit (Phase 5, current)
 
-Built procedurally in `game/src/world/shapes.ts`: scrap, can, bottle, brick, small and large cardboard box, trash bag, traffic cone, chair, café table, trash can, bicycle, dumpster, vending machine, compact car, delivery truck, warehouse. Static architecture (buildings, walls, doors, AC units, crane) is in `scrapCity.ts → STATIC_BLOCKS`.
+Gameplay objects are built in `game/src/world/props.ts`. Each type is authored at its `OBJECT_TYPES.size` with the pivot at the ground centre and forward = −Z, then split into **material roles** (`game/src/art/materials.ts`). One `InstancedMesh` renders each (type, role) pair.
+
+| Rule | Why |
+| --- | --- |
+| Paint-like roles (`paint`, `carPaint`, `plastic`, `glossyPlastic`, `cardboard`, `propBrick`, `glassTint`, `aluminium`, `fabric`, `corrugated`) take per-instance colour | Colour variants plus the locked/absorbable read. Glass, rubber and lamps are never tinted |
+| `darkTrim` and `rubber` fold into `tread` with UVs pinned to a flat lug texel; `chrome` folds into `steel`; head, tail and indicator lamps fold into `lamps` (vertex-coloured emissive) | Draw calls. Each role costs one call per render pass (main, shadow, GTAO) |
+| Details sit **on the bevel skin**: extruded bodies grow ~0.9 × bevel beyond their profile | Lights, grilles and panel lines placed on the profile end up buried (this was found and fixed in review) |
+| Textured roles get metre-scale box-projected UVs automatically (`art/uv.ts`) | True-scale brick courses, corrugation and cardboard fibre on any size |
+| Small debris (classes 0–1) is budgeted to tens–hundreds of triangles and casts no shadow map | Hundreds of instances. GTAO grounds them |
+
+Triangles per instance: scrap ~120, brick 12, can ~100, bottle ~160, cardboard ~70, trash bag ~490, cone ~500, chair ~430, trash can ~940, bicycle ~3.4k, dumpster ~1.3k, vending ~1.4k, compact car ~5k, delivery truck ~4.5k, warehouse ~2.1k.
+
+Static architecture (`game/src/world/architecture.ts`) merges everything per material. Untextured metals share one vertex-coloured material (colour × baked ground AO). Facades are authored per visible face: window reveals, sills, lintels, frames, storefronts, awnings, cornices, downpipes, AC units and service doors.
+
+When `TRIPO_API_KEY` is available, the planned upgrade is Tripo hero models for the collector tiers, the car family and the warehouse. They would be validated against these footprints and part names and swapped into `props.ts` (see the pipeline above).

@@ -26,7 +26,8 @@ History: on 2026-09-22 the four game-only skills (director, gameplay, game UI, a
 | --- | --- | --- |
 | Design brief, core-loop contract, level plan, feel | `threejs-gameplay-systems` (`game-feel.md`, `physics-engine-selection.md`) | Brief is in `docs/game-design.md`. Physics ladder: custom collision now, Rapier in Phase 4 |
 | Bot playtest, screenshots, release checks | `threejs-qa-release` (`playtest-bot.md`) | Implemented as `tools/playtest.mjs` + `game/src/debug/bot.ts` |
-| Art pass, materials, lighting, scorecard | `threejs-aaa-graphics-builder` | Phase 5 |
+| Art pass, materials, lighting, scorecard | `threejs-aaa-graphics-builder` | Used 2026-09-23 (all four references read). Scorecard and metrics are in `docs/art-direction.md` |
+| Canvas pixel metrics + render budget | `threejs-qa-release/scripts/inspect-threejs-canvas.mjs` | Wrapped by `tools/inspect-game.mjs` (pre-warms the page; the inspector's 10 s readiness window is shorter than first-frame shader compile on the cloud CPU renderer). `@playwright/test@1.56.1` + `pngjs` added as dev deps for it |
 | HUD polish | `threejs-game-ui-designer` | Phase 6 |
 | Hero assets (collector tiers, vehicles, warehouse) | `threejs-3d-generator` + `threejs-image-generator` | Needs `TRIPO_API_KEY` / `GEMINI_API_KEY`; output validated per `docs/asset-guidelines.md` |
 | Size-scaled SFX and layered music | `threejs-audio-generator` | Needs `ELEVENLABS_API_KEY`; Phase 6 |

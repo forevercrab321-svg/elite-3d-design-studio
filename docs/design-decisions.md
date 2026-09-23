@@ -17,6 +17,9 @@ Single place for settled decisions (CLAUDE.md §19–20). Update on every approv
 | Tier unlocks | T2 at class 2, T3 at class 5 (vehicles), T4 at class 7, T5 at class 9 | INFERRED from §42 example | Config |
 | Player identity | Grey metal plus safety-orange paint and amber intake glow | INFERRED (§27) | Phase 5 art pass |
 | World orientation | Alley faces downtown (−Z); warehouse and crane in the spawn sight line | REQUIRED (§21–22 promises) | — |
+| Art pass (2026-09-23) | "更加真实高端的3D": procedural PBR kit, authored props/architecture/player, sky env + GTAO + bloom; no external generation (no API keys) | REQUIRED (Creative Director) → INFERRED implementation | Yes: props/architecture are data-driven; GLB swap path documented |
+| Quality tiers | high (GTAO+bloom), medium (bloom), low (none); touch devices default to medium | INFERRED | Yes |
+| Sidewalk height | Raised 0.12 m visually, collision unchanged | INFERRED (realism) | Yes |
 
 ## Locked elements
 

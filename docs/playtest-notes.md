@@ -44,3 +44,33 @@ All 16 assertions pass on each seed: spawn, move, collect, mass, ≥3× growth, 
 | No audio (§45–46) | Medium | Phase 6. Gameplay already has the event points (absorb, class unlock, tier up, bump, dash) |
 | Toast and banner screenshots in the test harness can show stale or half-faded text, because DOM animations run on wall-clock time while the harness compresses game time | Low (harness artifact, not a game bug) | Accept, or drive HUD animations from game time |
 | No FPS evidence (software renderer in the cloud) | Medium | Measure on a real GPU |
+
+## 2026-09-23 — Phase 5 procedural art pass (regression check)
+
+Goal: raise model and world quality without touching gameplay. All footprints, masses, classes and layout coordinates are unchanged. Sidewalks are now raised 0.12 m **visually only**; collision stays 2D.
+
+| Seed | Tier 2 | Class 3 | Class 4 absorbed | Stuck | All assertions |
+| --- | --- | --- | --- | --- | --- |
+| 1337 | 7.8 s | 18.2 s | 29.8 s | 0 | PASS (17/17) |
+| 7 | 8.4 s | 19.4 s | 34.5 s | 0 | PASS |
+| 2026 | 7.6 s | 20.4 s | 35.3 s | 0 | PASS |
+
+The pacing numbers are identical to the pre-art-pass build, which confirms gameplay is untouched.
+
+Harness changes:
+- The live keyboard smoke test now holds W for 90 **game** frames instead of 2 s of wall time. It runs the low tier in an 800×450 viewport, because the CPU rasteriser drops below 1 fps at high and under-simulates wall-time input.
+- Budget assertions moved from "draw calls ≤ 80" (greybox) to the skill's desktop budget (≤ 300 calls, ≤ 750k triangles), measured on the high tier at the 90 s state.
+
+Visual review loop: 3 rounds of `npm run art:review`. Defects found by looking, not by any script:
+- Headlights, taillights and the collector's rear details were buried inside extrusion bevels.
+- Tread texture wrapped onto tyre sidewalls.
+- Rims were hidden behind a dark disc.
+- Vending glass was opaque.
+- Trash bags had faceted normals.
+- The alley drain was a bright white strip, and a solid black gully plate read as a board.
+- Plaster and worn-paint textures looked like camouflage; concrete pores read as foam.
+- Corrugated moiré.
+- Roofs were textured as walls.
+- The street ran out into empty ground.
+
+All are fixed.

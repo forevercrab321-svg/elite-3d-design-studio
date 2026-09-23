@@ -27,7 +27,12 @@ game/
     world/                    scrapCity.ts (layout data), World.ts (instancing, colliders), shapes.ts
     ui/Hud.ts                 DOM HUD
     debug/bot.ts              playtest agent
+    art/                      textures.ts (procedural PBR kit), materials.ts (roles), uv.ts, environment.ts (sky + env map), postfx.ts (render tiers)
+    world/props.ts            production prop models by material role
+    world/architecture.ts     static city: facades, ground, furniture, crane, skyline
 tools/playtest.mjs            headless bot run + real keyboard smoke test + screenshots
+tools/art-review.mjs          fixed-camera art review shots → renders/review/game/art/
+tools/inspect-game.mjs        threejs-qa-release canvas inspector (pixel metrics + render budget) on the game
 ```
 
 ## Key rules
@@ -44,9 +49,36 @@ tools/playtest.mjs            headless bot run + real keyboard smoke test + scre
 | --- | --- |
 | `npm run game` | Play it: http://127.0.0.1:5190/game/ |
 | `npm run playtest` | Bot run + keyboard smoke test + milestone screenshots → `renders/review/game/`; exits non-zero on failure |
+| `npm run art:review` | Nine fixed review cameras → `renders/review/game/art/*.png` + per-view renderer counts |
+| `npm run inspect:game` | Canvas inspector: colour entropy, edge density, contrast, render-budget rows |
 | `npm run typecheck` / `npm run build` | TS check / production build (studio + game) |
 
-## Performance (current)
+## Render pipeline
+
+`?quality=high|medium|low` (default: high on desktop, medium on touch):
+
+| Tier | Pipeline | Textures |
+| --- | --- | --- |
+| high | MSAA 4× render target → GTAO (radius follows player size) → bloom (threshold 0.92, authored emissives only) → OutputPass | 512² |
+| medium | MSAA 4× → bloom → OutputPass | 512² |
+| low | Direct render, native antialias | 256² |
+
+- Shadows: one PCF directional shadow map (2048²) following the player; the extent grows with size.
+- `renderer.info.autoReset = false`, so counts include every pass of a frame.
+- The environment map is baked once from the sky dome (PMREM).
+
+### Measured (2026-09-23, high tier, 1600×900)
+
+| View | Draw calls | Triangles | Geometries | Textures |
+| --- | --- | --- | --- | --- |
+| Spawn (gameplay camera) | 262 | 632k | 92 | 60 |
+| Worst measured: 60 s bot run, T2 player in the lot | 286 | 636k | — | — |
+| Desktop budget | ≤ 300 | ≤ 750k | ≤ 300 | ≤ 60 |
+| Mobile (medium tier, iPhone 13 viewport) | 136 / ≤ 150 ✔ | 316k / ≤ 300k ✘ | 92 ✔ | 54 / ≤ 40 ✘ |
+
+Draw calls were cut from ~400 to under 300 by merging player parts per material, per-axle wheel groups, folding trim/lamp/chrome roles and merging untextured arch metals. Startup in the cloud CPU renderer is ~13 s, dominated by first-frame shader compilation (31 programs); on a real GPU this should be ~1 s, which is **not yet measured**.
+
+## Performance (earlier notes)
 
 58 draw calls and about 28k triangles in the start area (shadow pass included). In the cloud session, measured FPS comes from SwiftShader (a CPU renderer), so it **is not performance evidence**; FPS must be measured on real hardware. Phase 7 items:
 - Per-instance frustum culling (instanced meshes currently span the map).

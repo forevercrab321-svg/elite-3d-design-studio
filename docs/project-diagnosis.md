@@ -21,7 +21,7 @@ The repository is `forevercrab321-svg/elite-3d-design-studio` (renamed from `cin
 | Other DCC tools | None committed. Blender, Rhino and others are adopted per project when a brief requires them |
 | Installed skills | `studio-3d-design` (model work) + `threejs-game-skills` (9, all auto-invocable since the game started). See `docs/skill-integration.md` |
 | External generation keys | TRIPO / GEMINI / ELEVENLABS all MISSING in the cloud session (optional) |
-| Game | `game/`: 60 s prototype (Scrap City alley/street), bot playtest `npm run playtest` passes on 3 seeds. See `docs/technical-architecture.md` |
+| Game | `game/`: 60 s prototype with Phase 5 procedural art pass (PBR kit, authored props/architecture/player, GTAO + bloom). `npm run playtest` passes on 3 seeds; `npm run art:review` / `npm run inspect:game` for visuals. Scorecard average 2.0 (VFX and UI still below premium) |
 | Studio scene content | Ground datum + scale references only |
 
 ## Next step
