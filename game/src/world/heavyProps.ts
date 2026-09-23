@@ -160,6 +160,17 @@ function hoarding(type: ObjectType): PropParts {
   return b.build();
 }
 
+/** Arena bonus: a riveted golden crate with glowing seams (reads as "reward" from far away). */
+function goldCrate(type: ObjectType): PropParts {
+  const [W, H, D] = type.size;
+  const b = new Builder();
+  b.add('paint', rbox(W, H, D, 0.03), 0, H / 2, 0);
+  for (const y of [0.06, H - 0.06]) b.add('signalAmber', box(W + 0.01, 0.025, D + 0.01), 0, y, 0);
+  for (const s of [-1, 1]) b.add('signalAmber', box(0.025, H - 0.1, D + 0.012), s * W * 0.25, H / 2, 0);
+  b.add('steel', box(W * 0.4, 0.02, D * 0.4), 0, H + 0.01, 0);
+  return b.build();
+}
+
 // ── Class 5 ──────────────────────────────────────────────────────────────────
 function van(type: ObjectType): PropParts {
   const [W, H, L] = type.size; // 2.0 × 2.45 × 5.3 panel van, front = −Z
@@ -638,4 +649,5 @@ export const HEAVY_BUILDERS = {
   whRoof,
   whRoofEnd,
   whSign,
+  goldCrate,
 } satisfies Partial<Record<Shape, Factory>>;

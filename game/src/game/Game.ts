@@ -9,9 +9,10 @@ import { CameraRig } from '../systems/CameraRig';
 import { Effects } from '../systems/Effects';
 import { classForPower, diameterForMass, massForDiameter, progressToNextClass, tierForClass } from '../systems/growth';
 import { Hud } from '../ui/Hud';
-import { SPAWN, groundHeight } from '../world/scrapCity';
+import type { CityDef } from '../world/city';
+import { SCRAP_CITY } from '../world/cities/scrap';
 import type { MaterialLibrary } from '../art/materials';
-import { FOG_COLOR, SUN_COLOR, SUN_DIRECTION, createSkyDome } from '../art/environment';
+import { createSkyDome } from '../art/environment';
 import { World, type WorldObject } from '../world/World';
 import { LAYER_NO_AO, skipAO } from '../art/layers';
 
@@ -72,7 +73,7 @@ export class Game {
   readonly rig: CameraRig;
   readonly hud = new Hud();
   effects: Effects;
-  readonly sun = new THREE.DirectionalLight(SUN_COLOR, 3.4);
+  readonly sun: THREE.DirectionalLight;
   readonly sky: THREE.Mesh;
   player!: PlayerState;
   metrics!: Metrics;
@@ -89,21 +90,28 @@ export class Game {
   /** Presentation hooks (audio lives outside the simulation). */
   onEvent: ((e: GameEvent) => void) | null = null;
 
-  constructor(private readonly input: Input, seed: number, lib: MaterialLibrary) {
+  constructor(
+    private readonly input: Input,
+    seed: number,
+    lib: MaterialLibrary,
+    readonly city: CityDef = SCRAP_CITY,
+  ) {
     this.seed = seed;
-    this.world = new World(lib);
+    const pal = city.palette;
+    this.sun = new THREE.DirectionalLight(pal.sunColor, pal.sunIntensity);
+    this.world = new World(lib, city);
     this.model = new PlayerModel(lib);
-    this.scene.fog = new THREE.Fog(FOG_COLOR, 80, 520); // aerial perspective: distance hazes toward the warm horizon
+    this.scene.fog = new THREE.Fog(pal.fog, pal.fogNear, pal.fogFar); // aerial perspective: distance hazes toward the warm horizon
     this.camera.layers.enable(LAYER_NO_AO);
     this.sun.shadow.camera.layers.enable(LAYER_NO_AO);
-    this.sky = createSkyDome();
+    this.sky = createSkyDome(900, pal);
     skipAO(this.sky);
     skipAO(this.model.root); // the machine is ~40 meshes at tier 4: its sun shadow grounds it, GTAO would triple its calls
     this.scene.add(this.sky, this.world.root, this.model.root);
 
     // The sky-baked environment map carries most ambient light; the hemisphere adds bounce.
     // Warm ground bounce keeps shaded streets from going navy under the blue sky dome.
-    const sky = new THREE.HemisphereLight(0xc7cfd8, 0x7a6450, 0.8);
+    const sky = new THREE.HemisphereLight(pal.hemiSky, pal.hemiGround, pal.hemiIntensity);
     sky.name = 'LIGHT_Sky';
     this.scene.add(sky);
     // Late afternoon: low warm sun from the south-west, long readable shadows (design §28).
@@ -140,9 +148,9 @@ export class Game {
     this.scene.add(this.effects.root);
     const d = diameterForMass(growthConfig.startMass);
     this.player = {
-      x: SPAWN.x,
-      z: SPAWN.z,
-      heading: SPAWN.heading,
+      x: this.city.spawn.x,
+      z: this.city.spawn.z,
+      heading: this.city.spawn.heading,
       speed: 0,
       turnVelocity: 0,
       mass: growthConfig.startMass,
@@ -162,7 +170,7 @@ export class Game {
     this.world.applyEligibility(d);
     this.model.setTier(1, false);
     this.rig.pitch = 1;
-    this.model.update(1, d, 0, this.player.heading, this.player.x, this.player.z, 0, groundHeight(this.player.x, this.player.z));
+    this.model.update(1, d, 0, this.player.heading, this.player.x, this.player.z, 0, this.city.groundHeight(this.player.x, this.player.z));
     this.rig.snap(this.player.x, this.player.z, this.player.heading, d);
     this.updateSun();
     this.hud.setHint(0);
@@ -188,7 +196,7 @@ export class Game {
     const p = this.player;
     p.diameter += (p.targetDiameter - p.diameter) * (1 - Math.exp(-growthConfig.visualGrowthRate * dt));
     const top = this.topSpeed();
-    this.model.update(dt, p.diameter, p.speed, p.heading, p.x, p.z, p.turnVelocity * Math.min(1, p.speed / top), groundHeight(p.x, p.z));
+    this.model.update(dt, p.diameter, p.speed, p.heading, p.x, p.z, p.turnVelocity * Math.min(1, p.speed / top), this.city.groundHeight(p.x, p.z));
     const fx = -Math.sin(p.heading);
     const fz = -Math.cos(p.heading);
     this.effects.update(dt, 0, p.x + fx * p.diameter * 0.35, p.diameter * 0.35, p.z + fz * p.diameter * 0.35);
@@ -490,13 +498,13 @@ export class Game {
     const sx = Math.round(fx / texel) * texel;
     const sz = Math.round(fz / texel) * texel;
     this.sun.target.position.set(sx, 0, sz);
-    this.sun.position.set(sx + SUN_DIRECTION.x * 150, SUN_DIRECTION.y * 150, sz + SUN_DIRECTION.z * 150);
+    this.sun.position.set(sx + this.city.palette.sunDirection.x * 150, this.city.palette.sunDirection.y * 150, sz + this.city.palette.sunDirection.z * 150);
     if (Math.abs(extent - this.shadowExtent) > this.shadowExtent * 0.05) {
       this.shadowExtent = extent;
       // Fit the window to the receivers' light-space footprint: a caster shadows the view iff
       // its light-space xy falls inside it. At a 20° sun the ground region spans only
       // ±extent·sin(elevation) vertically, plus facades/roofs rising up to ~16 m.
-      const sinEl = SUN_DIRECTION.y;
+      const sinEl = this.city.palette.sunDirection.y;
       const cam = this.sun.shadow.camera;
       cam.left = -extent;
       cam.right = extent;
@@ -512,8 +520,8 @@ export class Game {
     let best: WorldObject | null = null;
     let bestD = Infinity;
     for (const o of this.world.objects) {
-      if (!this.world.isEligible(o, this.player.power) || o.z > SPAWN.z) continue;
-      const d = Math.hypot(o.x - SPAWN.x, o.z - SPAWN.z);
+      if (!this.world.isEligible(o, this.player.power) || o.z > this.city.spawn.z) continue;
+      const d = Math.hypot(o.x - this.city.spawn.x, o.z - this.city.spawn.z);
       if (d > 0.8 && d < bestD) {
         bestD = d;
         best = o;

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { MaterialLibrary } from '../art/materials';
+import { VEHICLES, type VehicleLook } from '../config/vehicles';
 
 /**
  * AUTONOMOUS SCRAP COLLECTOR — production procedural model, authored at unit scale
@@ -27,9 +28,13 @@ export class PlayerModel {
   private t = 0;
   private readonly glow: THREE.MeshStandardMaterial;
 
-  constructor(lib: MaterialLibrary) {
+  constructor(
+    lib: MaterialLibrary,
+    readonly look: VehicleLook = 'collector',
+  ) {
     const R = lib.roles;
-    const shell = new THREE.MeshPhysicalMaterial({ name: 'MAT_Player_Shell', color: 0xe8781a, roughness: 0.34, metalness: 0.1, clearcoat: 1, clearcoatRoughness: 0.12, envMapIntensity: 1.1 });
+    const vdef = VEHICLES[look];
+    const shell = new THREE.MeshPhysicalMaterial({ name: 'MAT_Player_Shell', color: vdef.shell, roughness: 0.34, metalness: 0.1, clearcoat: 1, clearcoatRoughness: 0.12, envMapIntensity: 1.1 });
     const gunmetal = new THREE.MeshStandardMaterial({ name: 'MAT_Player_Gunmetal', color: 0x3a3f44, roughness: 0.42, metalness: 0.85, envMapIntensity: 1.1 });
     // Hazard chevrons scaled for a ~0.5 m lip: clone the kit texture with its own repeat.
     const hz = lib.kit.hazard;
@@ -161,6 +166,27 @@ export class PlayerModel {
     t1.add(axle('Axle_Front', 0.21, 0.13, 0.38, 0.21, -0.12));
     t1.add(mesh('Castor_Fork', new THREE.BoxGeometry(0.05, 0.1, 0.06), M.gunmetal, 0, 0.12, 0.3));
     t1.add(mesh('Castor_Wheel', new THREE.CylinderGeometry(0.065, 0.065, 0.05, 14).rotateZ(Math.PI / 2), M.rubber, 0, 0.065, 0.32));
+
+    // ── Machine type bolt-ons (arena vehicle choice) ─────────────────────────
+    if (look === 'dozer') {
+      // Full-width push blade with a hazard edge and push arms.
+      t1.add(mesh('Dozer_Blade', extrudeSide([[-0.1, 0.02], [0.03, 0.02], [0.02, 0.36], [-0.08, 0.3]], 0.96, 0.02), M.gunmetal, 0, 0, -0.56));
+      t1.add(mesh('Dozer_BladeEdge', rbox(0.98, 0.05, 0.05, 0.01), M.hazard, 0, 0.36, -0.6));
+      for (const s of [-1, 1]) t1.add(mesh('Dozer_PushArm', new THREE.BoxGeometry(0.05, 0.06, 0.34), M.gunmetal, s * 0.36, 0.14, -0.36));
+    } else if (look === 'racer') {
+      // Rear wing on uprights and low side skirts.
+      t1.add(mesh('Racer_Wing', rbox(0.66, 0.025, 0.14, 0.008), M.shell, 0, 0.86, 0.36, 0.12));
+      for (const s of [-1, 1]) {
+        t1.add(mesh('Racer_WingPost', new THREE.BoxGeometry(0.025, 0.2, 0.05), M.dark, s * 0.24, 0.76, 0.37));
+        t1.add(mesh('Racer_Skirt', rbox(0.03, 0.06, 0.6, 0.01), M.hazard, s * 0.33, 0.2, 0));
+      }
+    } else if (look === 'magnet') {
+      // Electromagnet dish on a pivot post.
+      t1.add(mesh('Magnet_Post', new THREE.CylinderGeometry(0.035, 0.045, 0.2, 10), M.gunmetal, 0, 0.8, 0.02));
+      t1.add(mesh('Magnet_Dish', new THREE.CylinderGeometry(0.26, 0.2, 0.06, 24), M.gunmetal, 0, 0.92, 0.02));
+      t1.add(mesh('Magnet_Coil', new THREE.TorusGeometry(0.21, 0.025, 8, 28).rotateX(Math.PI / 2), M.chrome, 0, 0.955, 0.02));
+      t1.add(mesh('Magnet_Core', new THREE.CylinderGeometry(0.12, 0.12, 0.02, 20), M.glow, 0, 0.96, 0.02));
+    }
 
     // ── Tier 2: intake chassis — hopper, flared fenders, rear drive, dozer scoop ──
     const t2 = this.part(2);

@@ -82,6 +82,11 @@ export class RenderPipeline {
     else this.renderer.render(this.scene, this.camera);
   }
 
+  /** Release the composer's render targets (switching scenes). */
+  dispose(): void {
+    this.composer?.dispose();
+  }
+
   /** Drop ambient occlusion (adaptive quality fallback on slow GPUs). */
   disableAO(): void {
     if (this.gtao) this.gtao.enabled = false;

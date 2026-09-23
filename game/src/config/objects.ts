@@ -42,7 +42,8 @@ export type Shape =
   | 'whEnd'
   | 'whRoof'
   | 'whRoofEnd'
-  | 'whSign';
+  | 'whSign'
+  | 'goldCrate';
 
 export type DestructionType = 'collect' | 'crush' | 'push' | 'break' | 'rip' | 'collapse';
 
@@ -59,9 +60,12 @@ export interface ObjectType {
   requiredPower?: number;
   /** Part of the climax structure: absorbing every such object wins the run. */
   climax?: boolean;
+  /** Arena bonus pickup: worth a share of the collector's current mass (see arenaConfig). */
+  bonus?: boolean;
 }
 
 export const OBJECT_TYPES = {
+  GOLD_CRATE: { bonus: true, label: 'Golden crate', objectClass: 1, size: [0.5, 0.42, 0.5], shape: 'goldCrate', colors: [0xf2c14e], rewardMass: 3, destructionType: 'collect' },
   SCRAP: { label: 'Metal scrap', objectClass: 0, size: [0.09, 0.04, 0.07], shape: 'scrap', colors: [0x8d8f91, 0x9a8a74, 0x6f7a80, 0xa0673f], rewardMass: 0.14, destructionType: 'collect' },
   CAN: { label: 'Can', objectClass: 1, size: [0.066, 0.12, 0.066], shape: 'cylinder', colors: [0xb8402f, 0x3f6fa8, 0xc9b458, 0x5c8a4f], rewardMass: 0.28, destructionType: 'collect' },
   BOTTLE: { label: 'Bottle', objectClass: 1, size: [0.075, 0.26, 0.075], shape: 'bottle', colors: [0x2f6b4a, 0x6b4a2f, 0x9fb7bd], rewardMass: 0.36, destructionType: 'collect' },

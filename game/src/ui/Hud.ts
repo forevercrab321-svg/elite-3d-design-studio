@@ -205,6 +205,15 @@ export class Hud {
     );
   }
 
+  /** Arena mode: the story objective card is replaced by the arena scoreboard. */
+  hideObjective(): void {
+    (this.el.querySelector('.obj') as HTMLElement).style.display = 'none';
+  }
+
+  dispose(): void {
+    this.el.remove();
+  }
+
   hideEnd(): void {
     this.endAnim?.cancel();
     this.endAnim = null;

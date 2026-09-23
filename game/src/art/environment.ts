@@ -8,26 +8,60 @@ import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
  */
 export const SUN_DIRECTION = new THREE.Vector3(-0.6, 0.34, 0.72).normalize(); // south-west, ~20° up
 export const SUN_COLOR = new THREE.Color(0xffc98f);
-
-const SKY = {
-  top: new THREE.Color(0x3d6aa6),
-  mid: new THREE.Color(0x8fb2d6),
-  horizon: new THREE.Color(0xf4cf9f),
-  ground: new THREE.Color(0x5d554b),
-  sun: new THREE.Color(0xfff0d6),
-};
-
 export const FOG_COLOR = new THREE.Color(0xd8c4a8);
 
-export function createSkyDome(radius = 900): THREE.Mesh {
+/**
+ * A city's light: sun, sky gradient, haze and ambient. Every city defines one; Scrap City's
+ * golden hour below is the reference the realism pass was tuned on.
+ */
+export interface Palette {
+  sunDirection: THREE.Vector3;
+  sunColor: THREE.Color;
+  sunIntensity: number;
+  sky: { top: THREE.Color; mid: THREE.Color; horizon: THREE.Color; ground: THREE.Color; sun: THREE.Color };
+  /** Cloud deck coverage bias: −0.15 clear … +0.2 overcast. */
+  clouds: number;
+  fog: THREE.Color;
+  fogNear: number;
+  fogFar: number;
+  hemiSky: THREE.Color;
+  hemiGround: THREE.Color;
+  hemiIntensity: number;
+  envIntensity: number;
+}
+
+export const GOLDEN_HOUR: Palette = {
+  sunDirection: SUN_DIRECTION,
+  sunColor: SUN_COLOR,
+  sunIntensity: 3.4,
+  sky: {
+    top: new THREE.Color(0x3d6aa6),
+    mid: new THREE.Color(0x8fb2d6),
+    horizon: new THREE.Color(0xf4cf9f),
+    ground: new THREE.Color(0x5d554b),
+    sun: new THREE.Color(0xfff0d6),
+  },
+  clouds: 0,
+  fog: FOG_COLOR,
+  fogNear: 80,
+  fogFar: 520,
+  hemiSky: new THREE.Color(0xc7cfd8),
+  hemiGround: new THREE.Color(0x7a6450),
+  hemiIntensity: 0.8,
+  envIntensity: 1.1,
+};
+
+export function createSkyDome(radius = 900, palette: Palette = GOLDEN_HOUR): THREE.Mesh {
+  const SKY = palette.sky;
   const uniforms = {
     uTop: { value: SKY.top },
     uMid: { value: SKY.mid },
     uHorizon: { value: SKY.horizon },
     uGround: { value: SKY.ground },
     uSun: { value: SKY.sun },
-    uSunDir: { value: SUN_DIRECTION },
+    uSunDir: { value: palette.sunDirection },
     uTime: { value: 0 },
+    uClouds: { value: palette.clouds },
   };
   const mat = new THREE.ShaderMaterial({
     name: 'MAT_SkyDome',
@@ -45,6 +79,7 @@ export function createSkyDome(radius = 900): THREE.Mesh {
     fragmentShader: /* glsl */ `
       uniform vec3 uTop, uMid, uHorizon, uGround, uSun, uSunDir;
       uniform float uTime;
+      uniform float uClouds;
       varying vec3 vDir;
       float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
       float noise(vec2 p) {
@@ -72,7 +107,7 @@ export function createSkyDome(radius = 900): THREE.Mesh {
         if (h > 0.02) {
           vec2 uv = d.xz / (h + 0.08) * 0.9 + vec2(uTime * 0.004, uTime * 0.0015);
           float c = fbm(uv * 1.1);
-          float cover = smoothstep(0.52, 0.78, c + fbm(uv * 0.35 + 3.0) * 0.35 - 0.12);
+          float cover = smoothstep(0.52, 0.78, c + fbm(uv * 0.35 + 3.0) * 0.35 - 0.12 + uClouds);
           float thick = smoothstep(0.55, 0.95, c);
           vec3 lit = mix(vec3(1.0, 0.86, 0.7), vec3(1.0, 0.95, 0.9), h) * (1.0 + pow(s, 6.0) * 1.2);
           vec3 shade = mix(uMid, vec3(0.62, 0.6, 0.64), 0.5);
@@ -94,9 +129,9 @@ export function createSkyDome(radius = 900): THREE.Mesh {
 }
 
 /** Fallback when the HDRI cannot load: environment baked from the procedural sky. */
-export function bakeSkyEnvironment(renderer: THREE.WebGLRenderer): THREE.Texture {
+export function bakeSkyEnvironment(renderer: THREE.WebGLRenderer, palette: Palette = GOLDEN_HOUR): THREE.Texture {
   const envScene = new THREE.Scene();
-  envScene.add(createSkyDome(50));
+  envScene.add(createSkyDome(50, palette));
   const ground = new THREE.Mesh(new THREE.CircleGeometry(49, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x3e3b37 }));
   ground.position.y = -0.5;
   envScene.add(ground);
@@ -110,7 +145,7 @@ export function bakeSkyEnvironment(renderer: THREE.WebGLRenderer): THREE.Texture
  * Load the photographed HDRI and prefilter it for PBR. The equirect's sun sits at azimuth
  * atan2(z, x) = +51°; `rotationY` turns it onto SUN_DIRECTION.
  */
-export async function loadHdriEnvironment(renderer: THREE.WebGLRenderer, url: string): Promise<{ texture: THREE.Texture; rotationY: number }> {
+export async function loadHdriEnvironment(renderer: THREE.WebGLRenderer, url: string): Promise<{ texture: THREE.Texture; rotationFor: (sun: THREE.Vector3) => number; rotationY: number }> {
   const hdr = await new HDRLoader().setDataType(THREE.HalfFloatType).loadAsync(url);
   hdr.mapping = THREE.EquirectangularReflectionMapping;
   const pmrem = new THREE.PMREMGenerator(renderer);
@@ -118,6 +153,6 @@ export async function loadHdriEnvironment(renderer: THREE.WebGLRenderer, url: st
   pmrem.dispose();
   hdr.dispose();
   const hdriSunAz = THREE.MathUtils.degToRad(51.1);
-  const sceneSunAz = Math.atan2(SUN_DIRECTION.z, SUN_DIRECTION.x);
-  return { texture: env, rotationY: hdriSunAz - sceneSunAz };
+  const rotationFor = (sun: THREE.Vector3) => hdriSunAz - Math.atan2(sun.z, sun.x);
+  return { texture: env, rotationFor, rotationY: rotationFor(SUN_DIRECTION) };
 }

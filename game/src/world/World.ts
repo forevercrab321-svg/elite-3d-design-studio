@@ -4,12 +4,12 @@ import { OBJECT_TYPES, type ObjectType, type ObjectTypeId } from '../config/obje
 import { circleVsObb, obbRadius, type Contact, type Obb } from '../core/collision';
 import { createSeededRandom } from '../core/rng';
 import { TINTED, type MaterialLibrary, type Role } from '../art/materials';
-import { buildCity } from './architecture';
 import { skipAO } from '../art/layers';
 import { buildDressing, type Dressing } from './dressing';
 import { buildPropParts, type PropParts } from './props';
 import { makeLod } from './lod';
-import { CLUSTERS, PLACEMENTS, STATIC_BLOCKS, WORLD_BOUNDS, groundHeight } from './scrapCity';
+import type { CityDef } from './city';
+import type { Cluster } from './scrapCity';
 
 const SHADOW_ROLES: ReadonlySet<Role> = new Set<Role>(['paint', 'carPaint', 'plastic', 'glossyPlastic', 'cardboard', 'corrugated', 'roofMetal', 'concreteProp', 'wood', 'timber', 'tread', 'rubber', 'steel', 'propBrick']);
 
@@ -55,6 +55,10 @@ export interface WorldObject {
   /** Falling after its supports were removed (vy integrates gravity until it lands). */
   falling: boolean;
   matrix: THREE.Matrix4;
+  /** Arena: the machine this object is being pulled into (proposed, then granted by the host). */
+  owner?: string;
+  /** Arena: when this client last proposed it (for re-claims). */
+  claimAt?: number;
 }
 
 /**
@@ -94,13 +98,16 @@ export class World {
   /** Instances drawn last frame (after culling), for diagnostics. */
   visibleInstances = 0;
 
-  constructor(private readonly lib: MaterialLibrary) {
-    this.root.name = 'SCRAP_CITY';
-    const city = buildCity(lib);
-    for (const m of city.meshes) this.root.add(m);
-    this.occluders = city.occluders;
-    for (const b of STATIC_BLOCKS) if (b.collide !== false && (b.y ?? 0) < 0.5) this.staticColliders.push({ cx: b.x, cz: b.z, hx: b.w / 2, hz: b.d / 2, yaw: 0 });
-    this.dressing = buildDressing();
+  constructor(
+    private readonly lib: MaterialLibrary,
+    readonly city: CityDef,
+  ) {
+    this.root.name = `CITY_${city.id.toUpperCase()}`;
+    const built = city.build(lib);
+    for (const m of built.meshes) this.root.add(m);
+    this.occluders = built.occluders;
+    for (const b of city.staticBlocks) if (b.collide !== false && (b.y ?? 0) < 0.5) this.staticColliders.push({ cx: b.x, cz: b.z, hx: b.w / 2, hz: b.d / 2, yaw: 0 });
+    this.dressing = buildDressing(city.dressing);
     for (const m of this.dressing.meshes) {
       if (m.name !== 'DRESS_TreeTrunks') skipAO(m);
       this.root.add(m);
@@ -111,7 +118,7 @@ export class World {
   }
 
   /** (Re)spawn every gameplay object deterministically from the layout data. */
-  spawnObjects(seed: number): void {
+  spawnObjects(seed: number, extraClusters: Cluster[] = []): void {
     for (const rb of this.roleBatches.values()) {
       rb.mesh.removeFromParent();
       rb.mesh.dispose();
@@ -122,12 +129,12 @@ export class World {
 
     const pending: { typeId: ObjectTypeId; x: number; z: number; yaw: number; y?: number; tag?: string; supports?: string[] }[] = [];
     const occupied: { x: number; z: number; r: number }[] = [];
-    for (const p of PLACEMENTS) {
+    for (const p of this.city.placements) {
       pending.push({ typeId: p.type, x: p.x, z: p.z, yaw: p.yaw ?? 0, y: p.y, tag: p.tag, supports: p.supports });
       // Hand placements may overlap on purpose (stacks, the warehouse kit); scatter still avoids their footprints.
       occupied.push({ x: p.x, z: p.z, r: Math.min(footprintRadius(OBJECT_TYPES[p.type]), 4) });
     }
-    for (const c of CLUSTERS) {
+    for (const c of [...this.city.clusters, ...extraClusters]) {
       const def = OBJECT_TYPES[c.type];
       const r = footprintRadius(def);
       let placed = 0;
@@ -151,7 +158,7 @@ export class World {
     for (const p of pending) {
       const def = OBJECT_TYPES[p.typeId] as ObjectType;
       const [w, , d] = def.size;
-      const baseY = p.y ?? groundHeight(p.x, p.z);
+      const baseY = p.y ?? this.city.groundHeight(p.x, p.z);
       const obj: WorldObject = {
         id: this.objects.length,
         typeId: p.typeId,
@@ -220,7 +227,7 @@ export class World {
       if (spans || o.supports.every((s) => s.state === 'absorbed')) {
         o.falling = true;
         o.vy = 0;
-        o.baseY = groundHeight(o.x, o.z);
+        o.baseY = this.city.groundHeight(o.x, o.z);
         released.push(o);
       }
     }
@@ -389,13 +396,13 @@ export class World {
         }
       }
     }
-    x = Math.max(WORLD_BOUNDS.minX + r, Math.min(WORLD_BOUNDS.maxX - r, x));
-    z = Math.max(WORLD_BOUNDS.minZ + r, Math.min(WORLD_BOUNDS.maxZ - r, z));
+    x = Math.max(this.city.bounds.minX + r, Math.min(this.city.bounds.maxX - r, x));
+    z = Math.max(this.city.bounds.minZ + r, Math.min(this.city.bounds.maxZ - r, z));
     return { x, z, hit };
   }
 
   private isFree(x: number, z: number, r: number, occupied: { x: number; z: number; r: number }[]): boolean {
-    if (x < WORLD_BOUNDS.minX + r || x > WORLD_BOUNDS.maxX - r || z < WORLD_BOUNDS.minZ + r || z > WORLD_BOUNDS.maxZ - r) return false;
+    if (x < this.city.bounds.minX + r || x > this.city.bounds.maxX - r || z < this.city.bounds.minZ + r || z > this.city.bounds.maxZ - r) return false;
     for (const b of this.staticColliders) if (circleVsObb(x, z, r + 0.05, b, this.contact)) return false;
     for (const o of occupied) if (Math.hypot(o.x - x, o.z - z) < (o.r + r) * 0.85) return false;
     return true;

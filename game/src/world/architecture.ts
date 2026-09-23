@@ -106,10 +106,8 @@ interface Face {
 
 const WALL: Record<StaticBlock['material'], ArchKey> = { brick: 'brick', darkBrick: 'darkBrick', plaster: 'plaster', concrete: 'concrete', steel: 'steelDark' };
 
-export interface CityBuild {
-  meshes: THREE.Object3D[];
-  occluders: THREE.Object3D[];
-}
+export type { CityBuild } from './city';
+import type { CityBuild } from './city';
 
 export function buildCity(lib: MaterialLibrary): CityBuild {
   const batch = new Batch();

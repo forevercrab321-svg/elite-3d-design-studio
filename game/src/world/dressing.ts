@@ -4,6 +4,15 @@ import type { Obb } from '../core/collision';
 import { createSeededRandom } from '../core/rng';
 import { CURB_HEIGHT } from './scrapCity';
 
+/** What a city asks the dressing pass for: street trees (with the ground height at each) and, for Scrap City, the alley weeds and decals. */
+export interface DressingSpec {
+  trees: { x: number; z: number; y: number }[];
+  scrapAlley?: boolean;
+  /** Canopy radius multiplier (plane trees in Paris are broad; Shanghai street trees narrower). */
+  crown?: number;
+  seed?: number;
+}
+
 /**
  * Set dressing that makes the city read as lived-in: street trees (leaf-card canopies with
  * outward normals and wind sway), weeds along wall bases and kerbs, and a decal atlas
@@ -185,23 +194,18 @@ const atlasCell = (i: number, sub = 1) => {
 };
 
 // ── Build ────────────────────────────────────────────────────────────────────
-export function buildDressing(): Dressing {
-  const rand = createSeededRandom(8080);
+export function buildDressing(spec: DressingSpec): Dressing {
+  const rand = createSeededRandom(spec.seed ?? 8080);
   const meshes: THREE.Object3D[] = [];
   const colliders: Obb[] = [];
 
   // Street trees: sidewalk south (between lamp posts) and the parking-lot perimeter.
-  const trees: [number, number][] = [
-    [-30, -11.2], [-18, -11.2], [-6, -11.2], [6, -11.2], [18, -11.2], [30, -11.2],
-    [-30, -38.5], [-20, -38.5], [-10, -38.5], [10, -38.5], [20, -38.5], [30, -38.5],
-    [-34, -18], [-34, -28], [34, -18], [34, -28],
-  ];
+  const trees: [number, number, number][] = spec.trees.map((t) => [t.x, t.z, t.y]);
   const trunkParts: THREE.BufferGeometry[] = [];
   const leafParts: THREE.BufferGeometry[] = [];
   const pitParts: THREE.BufferGeometry[] = [];
   const up = new THREE.Vector3(0, 1, 0);
-  for (const [tx, tz] of trees) {
-    const base = tz > -12.1 && tz < -9.4 ? CURB_HEIGHT : 0;
+  for (const [tx, tz, base] of trees) {
     const h = 2.6 + rand() * 0.8;
     const trunk = new THREE.CylinderGeometry(0.1, 0.17, h, 8).translate(tx, base + h / 2, tz);
     trunkParts.push(trunk);
@@ -209,7 +213,7 @@ export function buildDressing(): Dressing {
     colliders.push({ cx: tx, cz: tz, hx: 0.2, hz: 0.2, yaw: 0 });
     // Branches into the crown.
     const crown = new THREE.Vector3(tx + (rand() - 0.5) * 0.4, base + h + 1.6 + rand() * 0.6, tz + (rand() - 0.5) * 0.4);
-    const radius = 1.9 + rand() * 0.6;
+    const radius = (1.9 + rand() * 0.6) * (spec.crown ?? 1);
     for (let b = 0; b < 5; b++) {
       const a = (b / 5) * Math.PI * 2 + rand();
       const from = new THREE.Vector3(tx, base + h * (0.8 + rand() * 0.2), tz);
@@ -256,13 +260,13 @@ export function buildDressing(): Dressing {
   const woodParts = [
     ...trunkParts.map((g) => paint(g, 0x4a3c30)),
     ...pitParts.map((g) => paint(g, 0x3b2f25)),
-    paint(new THREE.CylinderGeometry(0.035, 0.035, 3.1, 8).translate(4.3, CURB_HEIGHT + 1.55, -2.34), 0x6a6f74), // sign pole
+    ...(spec.scrapAlley ? [paint(new THREE.CylinderGeometry(0.035, 0.035, 3.1, 8).translate(4.3, CURB_HEIGHT + 1.55, -2.34), 0x6a6f74)] : []), // sign pole
   ];
   const bark = new THREE.MeshStandardMaterial({ name: 'MAT_TreeBarkSoil', vertexColors: true, roughness: 0.92 });
   const trunkMesh = new THREE.Mesh(mergeGeometries(woodParts)!, bark);
   trunkMesh.name = 'DRESS_TreeTrunks';
   trunkMesh.castShadow = trunkMesh.receiveShadow = true;
-  colliders.push({ cx: 4.3, cz: -2.34, hx: 0.06, hz: 0.06, yaw: 0 });
+  if (spec.scrapAlley) colliders.push({ cx: 4.3, cz: -2.34, hx: 0.06, hz: 0.06, yaw: 0 });
 
   const leafUniforms = { uTime: { value: 0 }, uFadeNear: { value: 0 } };
   const leaves = new THREE.MeshStandardMaterial({
@@ -315,16 +319,18 @@ export function buildDressing(): Dressing {
       grassParts.push(q);
     }
   };
+  if (spec.scrapAlley) {
   for (let z = 1; z < 35.5; z += 0.9) {
-    if (rand() < 0.55) tuft(-3.42 + rand() * 0.12, 0, z + rand() * 0.6, 0.6 + rand() * 0.8);
-    if (rand() < 0.55) tuft(3.42 - rand() * 0.12, 0, z + rand() * 0.6, 0.6 + rand() * 0.8);
+      if (rand() < 0.55) tuft(-3.42 + rand() * 0.12, 0, z + rand() * 0.6, 0.6 + rand() * 0.8);
+      if (rand() < 0.55) tuft(3.42 - rand() * 0.12, 0, z + rand() * 0.6, 0.6 + rand() * 0.8);
+    }
+    for (let x = -44; x < 44; x += 1.3) {
+      if (rand() < 0.3) tuft(x, 0, -9.5 + 0.12, 0.5 + rand() * 0.6);
+      if (rand() < 0.3) tuft(x, 0, -2.5 - 0.12, 0.5 + rand() * 0.6);
+      if (rand() < 0.5) tuft(x, 0, -40.2 + rand() * 0.5, 0.7 + rand() * 1.0);
+    }
   }
-  for (let x = -44; x < 44; x += 1.3) {
-    if (rand() < 0.3) tuft(x, 0, -9.5 + 0.12, 0.5 + rand() * 0.6);
-    if (rand() < 0.3) tuft(x, 0, -2.5 - 0.12, 0.5 + rand() * 0.6);
-    if (rand() < 0.5) tuft(x, 0, -40.2 + rand() * 0.5, 0.7 + rand() * 1.0);
-  }
-  for (const [tx, tz] of trees) for (let k = 0; k < 5; k++) tuft(tx + (rand() - 0.5) * 1.0, tz > -12.1 && tz < -9.4 ? CURB_HEIGHT + 0.03 : 0.03, tz + (rand() - 0.5) * 1.0, 0.5 + rand() * 0.6);
+  for (const [tx, tz, ty] of trees) for (let k = 0; k < 5; k++) tuft(tx + (rand() - 0.5) * 1.0, ty + 0.03, tz + (rand() - 0.5) * 1.0, 0.5 + rand() * 0.6);
   const grass = new THREE.MeshStandardMaterial({ name: 'MAT_Weeds', map: atlas, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.9, envMapIntensity: 0.5 });
   const grassMesh = new THREE.Mesh(mergeGeometries(grassParts)!, grass);
   grassMesh.name = 'DRESS_Weeds';
@@ -348,23 +354,25 @@ export function buildDressing(): Dressing {
     q.translate(x, y, z);
     decalParts.push(q);
   };
-  // Alley west wall (x = −3.5, facing +x) and east wall (x = +3.5, facing −x).
-  for (const [z, cellIndex, s] of [[29, 0, 0.9], [29.8, 1, 0.9], [20.5, 2, 0.8], [5, 3, 0.9], [5.9, 0, 0.9]] as const) wallDecal(cellIndex, -3.5, 1.6, z, 1, 0.62 * s, 0.85 * s);
-  for (const [z, cellIndex, s] of [[26.5, 4, 2.6], [12, 5, 3.0], [3.5, 6, 2.4]] as const) wallDecal(cellIndex, 3.5, 1.2, z, -1, s, s * 0.6);
-  for (const [z, cellIndex, s] of [[31, 7, 2.8], [18, 4, 2.2]] as const) wallDecal(cellIndex, -3.5, 1.1, z, 1, s, s * 0.6);
-  for (let z = 2; z < 35; z += 3.1) {
-    if (rand() < 0.6) wallDecal(8 + Math.floor(rand() * 3), -3.5, 0.9 + rand() * 0.6, z, 1, 2.2, 1.8);
-    if (rand() < 0.6) wallDecal(8 + Math.floor(rand() * 3), 3.5, 0.9 + rand() * 0.6, z, -1, 2.2, 1.8);
+  if (spec.scrapAlley) {
+    // Alley west wall (x = −3.5, facing +x) and east wall (x = +3.5, facing −x).
+    for (const [z, cellIndex, s] of [[29, 0, 0.9], [29.8, 1, 0.9], [20.5, 2, 0.8], [5, 3, 0.9], [5.9, 0, 0.9]] as const) wallDecal(cellIndex, -3.5, 1.6, z, 1, 0.62 * s, 0.85 * s);
+    for (const [z, cellIndex, s] of [[26.5, 4, 2.6], [12, 5, 3.0], [3.5, 6, 2.4]] as const) wallDecal(cellIndex, 3.5, 1.2, z, -1, s, s * 0.6);
+    for (const [z, cellIndex, s] of [[31, 7, 2.8], [18, 4, 2.2]] as const) wallDecal(cellIndex, -3.5, 1.1, z, 1, s, s * 0.6);
+    for (let z = 2; z < 35; z += 3.1) {
+      if (rand() < 0.6) wallDecal(8 + Math.floor(rand() * 3), -3.5, 0.9 + rand() * 0.6, z, 1, 2.2, 1.8);
+      if (rand() < 0.6) wallDecal(8 + Math.floor(rand() * 3), 3.5, 0.9 + rand() * 0.6, z, -1, 2.2, 1.8);
+    }
+    wallDecal(12, -3.5, 2.6, 33.2, 1, 0.9, 0.4); // NO PARKING
+    wallDecal(13, 3.5, 2.7, 16.9, -1, 1.0, 0.45); // LOADING ZONE
+    for (let k = 0; k < 26; k++) groundDecal(8 + Math.floor(rand() * 3), (rand() - 0.5) * 6, 0.016, 2 + rand() * 33, 1.2 + rand() * 1.8); // alley grime
+    for (let k = 0; k < 18; k++) groundDecal(8 + Math.floor(rand() * 2), (rand() - 0.5) * 50, 0.016, -24 - rand() * 12, 1.5 + rand() * 1.5); // lot oil
+    for (let k = 0; k < 8; k++) groundDecal(11, (rand() - 0.5) * 80, 0.016, -9.2 + rand() * 0.4, 1.0); // damp/moss along the south kerb
+    // Street name sign on a pole at the alley mouth corner.
+    const [u0, v0, u1, v1] = atlasCell(14);
+    decalParts.push(quad(0.9, 0.4, u0, v0, u1, v1).rotateY(Math.PI).translate(4.3, CURB_HEIGHT + 2.9, -2.35));
+    decalParts.push(quad(0.9, 0.4, u0, v0, u1, v1).translate(4.3, CURB_HEIGHT + 2.9, -2.33));
   }
-  wallDecal(12, -3.5, 2.6, 33.2, 1, 0.9, 0.4); // NO PARKING
-  wallDecal(13, 3.5, 2.7, 16.9, -1, 1.0, 0.45); // LOADING ZONE
-  for (let k = 0; k < 26; k++) groundDecal(8 + Math.floor(rand() * 3), (rand() - 0.5) * 6, 0.016, 2 + rand() * 33, 1.2 + rand() * 1.8); // alley grime
-  for (let k = 0; k < 18; k++) groundDecal(8 + Math.floor(rand() * 2), (rand() - 0.5) * 50, 0.016, -24 - rand() * 12, 1.5 + rand() * 1.5); // lot oil
-  for (let k = 0; k < 8; k++) groundDecal(11, (rand() - 0.5) * 80, 0.016, -9.2 + rand() * 0.4, 1.0); // damp/moss along the south kerb
-  // Street name sign on a pole at the alley mouth corner.
-  const [u0, v0, u1, v1] = atlasCell(14);
-  decalParts.push(quad(0.9, 0.4, u0, v0, u1, v1).rotateY(Math.PI).translate(4.3, CURB_HEIGHT + 2.9, -2.35));
-  decalParts.push(quad(0.9, 0.4, u0, v0, u1, v1).translate(4.3, CURB_HEIGHT + 2.9, -2.33));
   const decals = new THREE.MeshStandardMaterial({
     name: 'MAT_Decals',
     map: atlas,
@@ -375,11 +383,13 @@ export function buildDressing(): Dressing {
     polygonOffsetFactor: -2,
     polygonOffsetUnits: -2,
   });
-  const decalMesh = new THREE.Mesh(mergeGeometries(decalParts)!, decals);
-  decalMesh.name = 'DRESS_Decals';
-  decalMesh.receiveShadow = true;
-  decalMesh.renderOrder = 2;
-  meshes.push(decalMesh);
+  if (decalParts.length) {
+    const decalMesh = new THREE.Mesh(mergeGeometries(decalParts)!, decals);
+    decalMesh.name = 'DRESS_Decals';
+    decalMesh.receiveShadow = true;
+    decalMesh.renderOrder = 2;
+    meshes.push(decalMesh);
+  }
 
   return {
     meshes,
