@@ -89,6 +89,13 @@ export async function runArena(ctx: AppContext): Promise<void> {
     nickname,
   );
   const ui = new ArenaUi(session, modeLabel);
+  ui.onEmote = (id) => game?.emote(id);
+  addEventListener('keydown', (e) => {
+    if (!game || e.repeat) return;
+    const m = /^Digit([1-6])$/.exec(e.code);
+    if (m) game.emote(Number(m[1]));
+    else if (e.code === 'KeyH') game.emote(6);
+  });
   ui.onStory = () => {
     location.hash = 'story';
     location.reload();

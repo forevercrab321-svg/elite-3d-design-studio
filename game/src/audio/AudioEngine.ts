@@ -192,6 +192,106 @@ export class AudioEngine {
         this.rumble(4, 1.2);
         this.chime([0, -5, -12], 0.4);
         break;
+      case 'boing':
+        this.boing();
+        break;
+      case 'burp':
+        this.burp();
+        break;
+      case 'pop':
+        this.popSound();
+        break;
+      case 'horn':
+        this.horn();
+        break;
+    }
+  }
+
+  /** Cartoon spring: a sine that wobbles down in pitch. */
+  private boing(): void {
+    const ctx = this.ctx!;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(520, t);
+    osc.frequency.exponentialRampToValueAtTime(160, t + 0.45);
+    const lfo = ctx.createOscillator();
+    const depth = ctx.createGain();
+    lfo.frequency.value = 22;
+    depth.gain.value = 60;
+    lfo.connect(depth).connect(osc.frequency);
+    const g = ctx.createGain();
+    osc.connect(g).connect(this.sfx);
+    this.env(g, t, 0.28, 0.005, 0.45);
+    osc.start(t);
+    lfo.start(t);
+    osc.stop(t + 0.5);
+    lfo.stop(t + 0.5);
+  }
+
+  /** A satisfied burp: low buzzy saw with a rattling amplitude and falling pitch. */
+  private burp(): void {
+    const ctx = this.ctx!;
+    const t = ctx.currentTime + 0.25;
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(95, t);
+    osc.frequency.linearRampToValueAtTime(70, t + 0.55);
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.value = 420;
+    f.Q.value = 1.2;
+    const g = ctx.createGain();
+    const lfo = ctx.createOscillator();
+    const depth = ctx.createGain();
+    lfo.frequency.value = 31;
+    depth.gain.value = 0.18;
+    lfo.connect(depth).connect(g.gain);
+    osc.connect(f).connect(g).connect(this.sfx);
+    this.env(g, t, 0.35, 0.03, 0.55);
+    osc.start(t);
+    lfo.start(t);
+    osc.stop(t + 0.65);
+    lfo.stop(t + 0.65);
+  }
+
+  /** Bubble-gum pop. */
+  private popSound(): void {
+    const ctx = this.ctx!;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(900, t);
+    osc.frequency.exponentialRampToValueAtTime(180, t + 0.08);
+    const g = ctx.createGain();
+    osc.connect(g).connect(this.sfx);
+    this.env(g, t, 0.4, 0.002, 0.1);
+    osc.start(t);
+    osc.stop(t + 0.15);
+    const v = this.noiseVoice('bandpass', 2500, 1.5, 0.08);
+    this.env(v.gain, t, 0.15, 0.002, 0.06);
+  }
+
+  /** Clown horn: two detuned squares, "honk-honk". */
+  private horn(): void {
+    const ctx = this.ctx!;
+    for (const k of [0, 0.22]) {
+      const t = ctx.currentTime + k;
+      const g = ctx.createGain();
+      const f = ctx.createBiquadFilter();
+      f.type = 'lowpass';
+      f.frequency.value = 1800;
+      for (const hz of [370, 466]) {
+        const o = ctx.createOscillator();
+        o.type = 'square';
+        o.frequency.setValueAtTime(hz, t);
+        o.frequency.linearRampToValueAtTime(hz * 0.94, t + 0.16);
+        o.connect(f);
+        o.start(t);
+        o.stop(t + 0.2);
+      }
+      f.connect(g).connect(this.sfx);
+      this.env(g, t, 0.12, 0.01, 0.17);
     }
   }
 

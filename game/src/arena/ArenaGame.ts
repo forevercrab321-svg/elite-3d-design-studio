@@ -19,6 +19,7 @@ import { World, type WorldObject } from '../world/World';
 import type { Cluster } from '../world/scrapCity';
 import type { ObjectTypeId } from '../config/objects';
 import { ArenaBot } from './ArenaBot';
+import { EMOTES, GooglyEyes, HORN, killQuip } from './comedy';
 import type { GameEvent } from '../game/Game';
 
 /**
@@ -72,6 +73,13 @@ export interface Actor {
   speedUntil: number;
   magnetUntil: number;
   bubble: THREE.Mesh;
+  /** Comedy: googly eyes, a speech/emote bubble, the last emote sent, bump cooldown. */
+  eyes: GooglyEyes;
+  jolt: number;
+  say: string;
+  sayUntil: number;
+  emote: number;
+  emoteSeq: number;
   ringMat: THREE.MeshBasicMaterial;
   stunUntil: number;
   kills: number;
@@ -107,7 +115,7 @@ export interface Standing {
 }
 
 /** Compact wire form of one machine's state (presence). */
-export type WireState = [x: number, z: number, heading: number, diameter: number, speed: number, mass: number, lives: number, flags: number, kills: number, deaths: number, objects: number, tier: number];
+export type WireState = [x: number, z: number, heading: number, diameter: number, speed: number, mass: number, lives: number, flags: number, kills: number, deaths: number, objects: number, tier: number, emote: number, emoteSeq: number];
 
 const PULL_HOLD_RECLAIM = 1.5;
 
@@ -266,6 +274,12 @@ export class ArenaGame {
       magnetUntil: 0,
       bubble,
       ringMat,
+      eyes: new GooglyEyes(model.root),
+      jolt: 0,
+      say: '',
+      sayUntil: 0,
+      emote: 0,
+      emoteSeq: 0,
       stunUntil: 0,
       kills: 0,
       deaths: 0,
@@ -329,6 +343,7 @@ export class ArenaGame {
       this.proposeEats(a);
       if (this.time > a.comboUntil) a.combo = 0;
     }
+    this.bumpActors();
     this.updatePulls(dt);
     const landed = this.world.updateFalling(dt);
     for (const o of landed) {
@@ -346,6 +361,10 @@ export class ArenaGame {
       const blink = this.matchTime < a.invulnerableUntil && Math.floor(this.time * 8) % 2 === 0;
       a.model.root.visible = a.alive && !blink;
       a.model.update(dt, a.diameter, a.speed, a.heading, a.x, a.z, a.turnVelocity * Math.min(1, Math.abs(a.speed) / top), this.city.groundHeight(a.x, a.z));
+      a.eyes.place(a.tier);
+      a.eyes.update(dt, a.speed, a.heading, a.diameter, a.jolt);
+      a.jolt = Math.max(0, a.jolt - dt * 3);
+      if (this.matchTime < a.stunUntil) this.sayFor(a, '💫', 0.2);
       a.ring.visible = a.alive;
       a.ring.position.set(a.x, this.city.groundHeight(a.x, a.z) + 0.03, a.z);
       const magnet = this.matchTime < a.magnetUntil;
@@ -436,6 +455,7 @@ export class ArenaGame {
         const lost = Math.max(0, (a.mass - growthConfig.startMass) * A.crashMassLoss);
         this.setMass(a, a.mass - lost);
         a.speed *= -0.3;
+        a.jolt = 1;
         this.effects.sparks(a.x, a.diameter * 0.5, a.z, 14, 3 + a.diameter);
         if (a.kind === 'local') {
           this.effects.addTrauma(0.35);
@@ -678,6 +698,59 @@ export class ArenaGame {
     if (this.local) this.world.applyEligibility(this.local.power);
   }
 
+  /** Show a bubble over a machine for `secs` (everyone renders their own). */
+  sayFor(a: Actor, text: string, secs: number): void {
+    a.say = text;
+    a.sayUntil = this.time + secs;
+  }
+
+  /** Local player emote / horn (keys 1–6, H, or the touch buttons). */
+  emote(id: number): void {
+    const me = this.local;
+    if (!me || !me.alive || id <= 0 || id >= EMOTES.length) return;
+    me.emote = id;
+    me.emoteSeq++;
+    this.sayFor(me, EMOTES[id], 2.2);
+    this.onEvent?.({ kind: id === HORN ? 'horn' : 'pop' });
+  }
+
+  /** Machines that cannot eat each other bounce apart like bumper cars ("boing"). */
+  private bumpActors(): void {
+    for (let i = 0; i < this.actors.length; i++) {
+      const a = this.actors[i];
+      if (!a.alive) continue;
+      for (let j = i + 1; j < this.actors.length; j++) {
+        const b = this.actors[j];
+        if (!b.alive || this.canEat(a, b) || this.canEat(b, a)) continue;
+        const dx = b.x - a.x;
+        const dz = b.z - a.z;
+        const d = Math.hypot(dx, dz) || 0.001;
+        const reach = (a.diameter + b.diameter) * 0.45;
+        if (d >= reach) continue;
+        const nx = dx / d;
+        const nz = dz / d;
+        const push = reach - d;
+        const wa = a.owned ? (b.owned ? 0.5 : 1) : 0;
+        const wb = b.owned ? (a.owned ? 0.5 : 1) : 0;
+        a.x -= nx * push * wa;
+        a.z -= nz * push * wa;
+        b.x += nx * push * wb;
+        b.z += nz * push * wb;
+        if (this.time - Math.max(a.sayUntil - 0.6, b.sayUntil - 0.6) > 0.8 && Math.abs(a.speed) + Math.abs(b.speed) > 1) {
+          if (a.owned) a.speed *= -0.35;
+          if (b.owned) b.speed *= -0.35;
+          a.jolt = b.jolt = 1;
+          if (a === this.local || b === this.local) {
+            this.onEvent?.({ kind: 'boing' });
+            this.effects.addTrauma(0.15);
+          }
+          this.sayFor(a, '嘣!', 0.6);
+          this.sayFor(b, '嘣!', 0.6);
+        }
+      }
+    }
+  }
+
   /** Object-gain multiplier for a machine behind the leader (1 for the leader). */
   catchUp(a: Actor): number {
     let lead = 0;
@@ -727,6 +800,20 @@ export class ArenaGame {
       a.model.pulseIntake(6);
     }
     if (!this.firstBloodDone) this.firstBloodDone = true;
+    // Comedy: the victim pops like a balloon, the winner burps.
+    this.effects.burst(v.x, v.diameter * 0.6, v.z, new THREE.Color().setHSL(Math.random(), 0.9, 0.6), 30, Math.max(0.05, v.diameter * 0.1), 4 + v.diameter * 3);
+    this.sayFor(a, '嗝~ 😋', 1.8);
+    a.jolt = 1;
+    if (a.kind === 'bot' && a.owned) {
+      a.emote = 1;
+      a.emoteSeq++;
+    }
+    const focus = this.cameraTarget();
+    const near = !!focus && Math.hypot(focus.x - a.x, focus.z - a.z) < 30 + focus.diameter * 6;
+    if (near || a === this.local || v === this.local) {
+      this.onEvent?.({ kind: 'pop' });
+      this.onEvent?.({ kind: 'burp' });
+    }
     const you = this.local;
     if (you && v === you) {
       this.effects.addTrauma(0.7);
@@ -737,7 +824,7 @@ export class ArenaGame {
       this.hud.showBanner(`吞掉 ${v.name}！`, `+${Math.round(e.gain).toLocaleString('en-US')} KG${e.first ? ' · 第一滴血 FIRST BLOOD' : ''}`, 2.2);
       this.onEvent?.({ kind: 'win' });
     }
-    this.onFeed?.(`${a.name} 吞掉了 ${v.name}${e.first ? ' · 第一滴血' : ''}${v.lives <= 0 ? ' · 出局' : ''}`, 'kill');
+    this.onFeed?.(`${killQuip(this.city.id, a.name, v.name, Math.random())}${e.first ? ' · 第一滴血' : ''}${v.lives <= 0 ? ' · 出局' : ''}`, 'kill');
   }
 
   private respawn(a: Actor): void {
@@ -789,7 +876,7 @@ export class ArenaGame {
     const r = (v: number, k = 100) => Math.round(v * k) / k;
     const t = this.matchTime;
     const flags = (a.alive ? 1 : 0) | (a.eliminated ? 2 : 0) | (t < a.invulnerableUntil ? 4 : 0) | (t < a.shieldUntil ? 8 : 0) | (t < a.speedUntil ? 16 : 0) | (t < a.magnetUntil ? 32 : 0);
-    return [r(a.x), r(a.z), r(a.heading, 1000), r(a.targetDiameter, 1000), r(a.speed), r(a.mass, 10), a.lives, flags, a.kills, a.deaths, a.objects, a.tier];
+    return [r(a.x), r(a.z), r(a.heading, 1000), r(a.targetDiameter, 1000), r(a.speed), r(a.mass, 10), a.lives, flags | (t < a.stunUntil ? 64 : 0), a.kills, a.deaths, a.objects, a.tier, a.emote, a.emoteSeq];
   }
 
   applyWire(id: string, s: WireState): void {
@@ -805,6 +892,16 @@ export class ArenaGame {
     if (s[7] & 8) a.shieldUntil = Math.max(a.shieldUntil, this.matchTime + 0.3);
     if (s[7] & 16) a.speedUntil = Math.max(a.speedUntil, this.matchTime + 0.3);
     if (s[7] & 32) a.magnetUntil = Math.max(a.magnetUntil, this.matchTime + 0.3);
+    if (s[7] & 64) this.sayFor(a, '💫', 0.3);
+    if (s.length >= 14 && s[13] !== a.emoteSeq) {
+      a.emoteSeq = s[13];
+      const id = Math.floor(s[12]);
+      if (id > 0 && id < EMOTES.length) {
+        this.sayFor(a, EMOTES[id], 2.2);
+        const focus = this.cameraTarget();
+        if (id === HORN && focus && Math.hypot(focus.x - a.x, focus.z - a.z) < 60 + focus.diameter * 6) this.onEvent?.({ kind: 'horn' });
+      }
+    }
     a.kills = s[8];
     a.deaths = s[9];
     a.objects = s[10];

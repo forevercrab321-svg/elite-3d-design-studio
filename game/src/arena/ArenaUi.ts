@@ -3,6 +3,7 @@ import { arenaConfig as A } from '../config/arena';
 import { SLOT_COLORS, VEHICLES, VEHICLE_ORDER, type VehicleLook } from '../config/vehicles';
 import { CITIES } from '../world/cities';
 import type { ArenaGame, Standing } from './ArenaGame';
+import { awards } from './comedy';
 import type { ArenaSession } from './ArenaSession';
 import { progress } from './progress';
 
@@ -85,6 +86,13 @@ const CSS = `
 #arena .tag.edge { background: rgba(16,18,20,.75); }
 #arena .combo small { font-size: 12px; color: #8be07a; letter-spacing: .08em; }
 #arena .combo small.pw { color: #9fd8ff; }
+#arena .tag .say { display: block; font-size: 26px; line-height: 1.1; text-align: center; margin: -34px 0 4px; filter: drop-shadow(0 2px 4px rgba(0,0,0,.5)); }
+#arena .tag.me { background: none; border: 0 !important; }
+#arena .emotes { position: absolute; left: 50%; bottom: 74px; transform: translateX(-50%); display: flex; gap: 6px; pointer-events: auto; }
+#arena .emotes button { border: 0; border-radius: 10px; background: rgba(16,18,20,.55); font-size: 20px; width: 40px; height: 40px; }
+@media (pointer: coarse) { #arena .emotes { left: auto; right: 118px; transform: none; bottom: calc(26px + env(safe-area-inset-bottom)); flex-direction: column; } #arena .emotes button { width: 48px; height: 48px; font-size: 24px; } }
+#arena .res .awards { margin-top: 12px; display: grid; gap: 4px; font-size: 13px; text-align: center; }
+#arena .res .awards b { color: #ffb347; }
 #arena .tag { position: absolute; transform: translate(-50%, -100%); font-size: 11px; font-weight: 800; letter-spacing: .06em; padding: 2px 7px; border-radius: 6px; background: rgba(16,18,20,.55); white-space: nowrap; }
 #arena .res { position: absolute; inset: 0; display: grid; place-items: center; padding-inline: 16px; background: rgba(12,13,15,.55); pointer-events: auto; }
 #arena .res .card { width: min(560px, 100%); padding: 26px; border-radius: 16px; background: rgba(20,21,23,.9); box-shadow: 0 30px 80px rgba(0,0,0,.5); }
@@ -120,6 +128,7 @@ export class ArenaUi {
   private lastFeedAt = 0;
   private mapAt = 0;
   onStory: (() => void) | null = null;
+  onEmote: ((id: number) => void) | null = null;
 
   constructor(
     private readonly session: ArenaSession,
@@ -244,7 +253,8 @@ export class ArenaUi {
     if (s.match.ph === 'lobby') return;
     if (!this.overlay.dataset.built) {
       this.overlay.dataset.built = '1';
-      this.overlay.innerHTML = `<div class="timer"><b class="hex">5:00</b><span></span></div><div class="board"></div><div class="feed"></div><div class="center"></div><div class="combo"></div><div class="tags"></div><canvas class="map" width="368" height="368" aria-label="小地图 minimap"></canvas>`;
+      this.overlay.innerHTML = `<div class="timer"><b class="hex">5:00</b><span></span></div><div class="board"></div><div class="feed"></div><div class="center"></div><div class="combo"></div><div class="tags"></div><canvas class="map" width="368" height="368" aria-label="小地图 minimap"></canvas><div class="emotes" aria-label="表情 emotes"><button data-e="1" title="1">😂</button><button data-e="3" title="3">👋</button><button data-e="4" title="4">🐷</button><button data-e="6" title="H">📯</button></div>`;
+      this.overlay.querySelectorAll<HTMLButtonElement>('.emotes button').forEach((b) => (b.onclick = () => this.onEmote?.(Number(b.dataset.e))));
       g.onFeed = (text, tone) => this.feed(text, tone);
     }
     const left = Math.max(0, A.roundSeconds - g.matchTime);
@@ -370,7 +380,8 @@ export class ArenaUi {
         this.tags.set(a.id, tag);
       }
       v.set(a.x, a.diameter * 1.25 + 0.3, a.z).project(g.camera);
-      const show = a.alive && a !== g.local;
+      const saying = g.time < a.sayUntil && !!a.say;
+      const show = a.alive && (a !== g.local || saying);
       tag.hidden = !show;
       if (!show) continue;
       const danger = g.local && g.local.alive ? (g.canEat(a, g.local) ? ' ⚠' : g.canEat(g.local, a) ? ' ✓' : '') : '';
@@ -378,7 +389,14 @@ export class ArenaUi {
       if (onScreen) {
         tag.classList.remove('edge');
         tag.style.transform = '';
-        tag.textContent = `${a.name} · ${massText(a.mass)}${danger}`;
+        tag.textContent = a === g.local ? '' : `${a.name} · ${massText(a.mass)}${danger}`;
+        tag.classList.toggle('me', a === g.local);
+        if (saying) {
+          const b = document.createElement('span');
+          b.className = 'say';
+          b.textContent = a.say;
+          tag.prepend(b);
+        }
         tag.style.left = `${((v.x + 1) / 2) * innerWidth}px`;
         tag.style.top = `${((1 - v.y) / 2) * innerHeight}px`;
       } else {
@@ -420,7 +438,7 @@ export class ArenaUi {
     this.results.hidden = false;
     this.results.innerHTML = `<div class="card"><h2>👑 冠军 CHAMPION</h2><div class="who"></div>
       <table><thead><tr><th>#</th><th>玩家</th><th>质量</th><th>吞噬</th><th>被吞</th><th>物件</th></tr></thead><tbody></tbody></table>
-      <div class="earn"></div><div class="actions">${this.session.isHost() ? '<button class="btn primary" data-a="again">再来一局 REMATCH</button><button class="btn" data-a="lobby">返回大厅</button>' : '<span class="chip">等待房主：再来一局或返回大厅…</span>'}</div></div>`;
+      <div class="awards"></div><div class="earn"></div><div class="actions">${this.session.isHost() ? '<button class="btn primary" data-a="again">再来一局 REMATCH</button><button class="btn" data-a="lobby">返回大厅</button>' : '<span class="chip">等待房主：再来一局或返回大厅…</span>'}</div></div>`;
     (this.results.querySelector('.who') as HTMLElement).textContent = champ ? `${champ.name} · ${massText(champ.mass)}` : '';
     const tb = this.results.querySelector('tbody') as HTMLElement;
     for (const s of standings) {
@@ -432,6 +450,12 @@ export class ArenaUi {
         tr.appendChild(td);
       }
       tb.appendChild(tr);
+    }
+    const aw = this.results.querySelector('.awards') as HTMLElement;
+    for (const x of awards(standings)) {
+      const d = document.createElement('div');
+      d.append(Object.assign(document.createElement('b'), { textContent: x.name }), ` · ${x.title}`);
+      aw.appendChild(d);
     }
     (this.results.querySelector('.earn') as HTMLElement).innerHTML = localId && standings.some((s) => s.id === localId) ? `获得 <span class="coins">◎ ${earned.coins}</span> 金币${earned.unlocked ? ` · 解锁新关卡：<b>${earned.unlocked}</b>` : ''}` : '观战中';
     const b = this.results.querySelector('[data-a="lobby"]') as HTMLButtonElement | null;
