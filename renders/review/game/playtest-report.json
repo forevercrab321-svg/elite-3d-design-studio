@@ -1,15 +1,15 @@
 {
   "seed": 1337,
-  "date": "2026-09-23T18:15:57.505Z",
+  "date": "2026-09-23T18:55:57.273Z",
   "bot": {
-    "seconds": 202.5,
+    "seconds": 182.5,
     "final": {
-      "mass": 180237.56,
-      "diameter": 11.561756664338638,
+      "mass": 170467.56,
+      "diameter": 11.349025798566698,
       "cls": 7,
       "tier": 4,
-      "remaining": 24,
-      "eligibleRemaining": 24
+      "remaining": 27,
+      "eligibleRemaining": 27
     },
     "metrics": {
       "firstMoveAt": 0.016666666666666666,
@@ -20,13 +20,13 @@
         "4": 26.94999999999975,
         "5": 66.54999999999751,
         "6": 96.88333333332912,
-        "7": 153.5833333333477
+        "7": 145.5166666666746
       },
       "tierAt": {
         "1": 0,
         "2": 8.11666666666665,
         "3": 66.54999999999751,
-        "4": 153.5833333333477
+        "4": 145.5166666666746
       },
       "firstAbsorbOfClassAt": {
         "0": 0.6833333333333338,
@@ -35,14 +35,14 @@
         "3": 20.233333333333466,
         "4": 27.399999999999725,
         "5": 67.88333333333077,
-        "6": 101.59999999999552,
-        "7": 163.9666666666893
+        "6": 101.64999999999552,
+        "7": 155.71666666668273
       },
-      "objectsCollected": 483,
-      "bumps": 12,
-      "stuckEvents": 10,
+      "objectsCollected": 480,
+      "bumps": 14,
+      "stuckEvents": 8,
       "resets": 0,
-      "climaxAt": 200.95000000005206,
+      "climaxAt": 180.63333333336922,
       "climaxPartsTotal": 19,
       "climaxPartsLeft": 0
     },
@@ -233,54 +233,46 @@
       },
       {
         "t": 115.5,
-        "mass": 16531.6,
-        "diameter": 5.21,
+        "mass": 25143.8,
+        "diameter": 5.93,
         "cls": 6,
         "tier": 3,
-        "collected": 325
+        "collected": 351
       },
       {
         "t": 120.5,
-        "mass": 18441.6,
-        "diameter": 5.31,
+        "mass": 43927.8,
+        "diameter": 7.22,
         "cls": 6,
         "tier": 3,
-        "collected": 329
+        "collected": 374
       },
       {
         "t": 125.5,
-        "mass": 29627.8,
-        "diameter": 6.3,
+        "mass": 47147.8,
+        "diameter": 7.39,
         "cls": 6,
         "tier": 3,
-        "collected": 361
+        "collected": 379
       },
       {
         "t": 130.5,
-        "mass": 46607.8,
-        "diameter": 7.36,
-        "cls": 6,
-        "tier": 3,
-        "collected": 377
-      },
-      {
-        "t": 135.5,
-        "mass": 48847.8,
-        "diameter": 7.48,
-        "cls": 6,
-        "tier": 3,
-        "collected": 380
-      },
-      {
-        "t": 140.5,
         "mass": 51417.8,
-        "diameter": 7.61,
+        "diameter": 7.58,
         "cls": 6,
         "tier": 3,
         "collected": 383
       },
       {
-        "t": 145.5,
+        "t": 135.5,
+        "mass": 55317.8,
+        "diameter": 7.79,
+        "cls": 6,
+        "tier": 3,
+        "collected": 386
+      },
+      {
+        "t": 140.5,
         "mass": 55317.8,
         "diameter": 7.8,
         "cls": 6,
@@ -288,23 +280,23 @@
         "collected": 386
       },
       {
-        "t": 150.5,
-        "mass": 56417.8,
-        "diameter": 7.85,
+        "t": 145.5,
+        "mass": 59225.5,
+        "diameter": 7.98,
         "cls": 6,
         "tier": 3,
-        "collected": 387
+        "collected": 400
+      },
+      {
+        "t": 150.5,
+        "mass": 68901.6,
+        "diameter": 8.39,
+        "cls": 7,
+        "tier": 4,
+        "collected": 444
       },
       {
         "t": 155.5,
-        "mass": 63436.2,
-        "diameter": 8.16,
-        "cls": 7,
-        "tier": 4,
-        "collected": 419
-      },
-      {
-        "t": 160.5,
         "mass": 70180.4,
         "diameter": 8.44,
         "cls": 7,
@@ -312,68 +304,44 @@
         "collected": 451
       },
       {
+        "t": 160.5,
+        "mass": 84582.6,
+        "diameter": 8.98,
+        "cls": 7,
+        "tier": 4,
+        "collected": 456
+      },
+      {
         "t": 165.5,
-        "mass": 77382.6,
-        "diameter": 8.72,
-        "cls": 7,
-        "tier": 4,
-        "collected": 454
-      },
-      {
-        "t": 170.5,
-        "mass": 80982.6,
-        "diameter": 8.86,
-        "cls": 7,
-        "tier": 4,
-        "collected": 455
-      },
-      {
-        "t": 175.5,
-        "mass": 80982.6,
-        "diameter": 8.86,
-        "cls": 7,
-        "tier": 4,
-        "collected": 455
-      },
-      {
-        "t": 180.5,
-        "mass": 94982.6,
-        "diameter": 9.34,
+        "mass": 89667.6,
+        "diameter": 9.1,
         "cls": 7,
         "tier": 4,
         "collected": 458
       },
       {
-        "t": 185.5,
-        "mass": 99482.6,
-        "diameter": 9.47,
+        "t": 170.5,
+        "mass": 104167.6,
+        "diameter": 9.63,
         "cls": 7,
         "tier": 4,
-        "collected": 459
+        "collected": 461
       },
       {
-        "t": 190.5,
-        "mass": 114567.6,
-        "diameter": 9.93,
-        "cls": 7,
-        "tier": 4,
-        "collected": 463
-      },
-      {
-        "t": 195.5,
-        "mass": 130767.6,
-        "diameter": 10.39,
+        "t": 175.5,
+        "mass": 137967.6,
+        "diameter": 10.54,
         "cls": 7,
         "tier": 4,
         "collected": 468
       },
       {
-        "t": 200.5,
-        "mass": 173967.6,
-        "diameter": 11.38,
+        "t": 180.5,
+        "mass": 167467.6,
+        "diameter": 11.24,
         "cls": 7,
         "tier": 4,
-        "collected": 480
+        "collected": 479
       }
     ],
     "shots": [
@@ -395,13 +363,13 @@
       "mediumObjects": 20.06666666666681,
       "clearlyLargerObject": 27.399999999999725,
       "vehicles": 67.88333333333077,
-      "structures": 163.9666666666893,
-      "warehouseClimax": 200.95000000005206
+      "structures": 155.71666666668273,
+      "warehouseClimax": 180.63333333336922
     }
   },
   "smoke": {
-    "moved": 6.683326892587985,
-    "collectedDuringSmoke": 12,
+    "moved": 5.873776308432724,
+    "collectedDuringSmoke": 10,
     "afterRestart": {
       "mass": 5,
       "x": 0,
@@ -409,10 +377,10 @@
       "resets": 1
     },
     "perf": {
-      "fps": 10.820381664371373,
+      "fps": 11.999261583902594,
       "drawCalls": 114,
       "calls": 114,
-      "triangles": 383051,
+      "triangles": 381635,
       "geometries": 75,
       "textures": 125,
       "programs": 40,
@@ -429,16 +397,16 @@
     },
     "perfHigh": {
       "fps": 0,
-      "drawCalls": 204,
-      "calls": 204,
-      "triangles": 303815,
+      "drawCalls": 184,
+      "calls": 184,
+      "triangles": 284325,
       "geometries": 109,
       "textures": 144,
       "programs": 59,
       "instancedMeshes": 33,
-      "visibleInstances": 21,
+      "visibleInstances": 24,
       "batchDataTextures": 84,
-      "sceneMeshes": 105,
+      "sceneMeshes": 102,
       "playerMeshes": 45,
       "shadowCasters": 75,
       "postPasses": 2,
@@ -450,7 +418,7 @@
       "fps": 0,
       "drawCalls": 188,
       "calls": 188,
-      "triangles": 543493,
+      "triangles": 540661,
       "geometries": 76,
       "textures": 144,
       "programs": 59,
@@ -486,12 +454,12 @@
     {
       "name": "gain mass",
       "pass": true,
-      "detail": "5 → 180237.6 kg"
+      "detail": "5 → 170467.6 kg"
     },
     {
       "name": "visibly grow (≥3× diameter)",
       "pass": true,
-      "detail": "0.35 → 11.56 m (33.0×)"
+      "detail": "0.35 → 11.35 m (32.4×)"
     },
     {
       "name": "unlock larger objects (class ≥ 2)",
@@ -531,12 +499,12 @@
     {
       "name": "pacing structures {\"min\":105.9,\"max\":211.8}",
       "pass": true,
-      "detail": "163.9666666666893 s"
+      "detail": "155.71666666668273 s"
     },
     {
       "name": "pacing warehouseClimax {\"min\":176.5,\"max\":282.4}",
       "pass": true,
-      "detail": "200.95000000005206 s"
+      "detail": "180.63333333336922 s"
     },
     {
       "name": "tier 4 reached (Industrial Recycler)",
@@ -546,17 +514,17 @@
     {
       "name": "warehouse destroyed (win condition)",
       "pass": true,
-      "detail": "climaxAt 200.95000000005206 s, parts left 0"
+      "detail": "climaxAt 180.63333333336922 s, parts left 0"
     },
     {
       "name": "stuck events ≤ 15 over the full run",
       "pass": true,
-      "detail": "10"
+      "detail": "8"
     },
     {
       "name": "keyboard W moves the player",
       "pass": true,
-      "detail": "6.68 m over 110 game frames"
+      "detail": "5.87 m over 94 game frames"
     },
     {
       "name": "R restarts the run",
@@ -571,17 +539,17 @@
     {
       "name": "triangles ≤ 750k (high tier, spawn)",
       "pass": true,
-      "detail": "543493 tris"
+      "detail": "540661 tris"
     },
     {
       "name": "draw calls ≤ 300 (high tier, end of run)",
       "pass": true,
-      "detail": "204 calls"
+      "detail": "184 calls"
     },
     {
       "name": "triangles ≤ 750k (high tier, end of run)",
       "pass": true,
-      "detail": "303815 tris"
+      "detail": "284325 tris"
     },
     {
       "name": "no page or console errors",
