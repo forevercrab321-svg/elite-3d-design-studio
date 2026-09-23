@@ -27,7 +27,11 @@ export type GameEvent =
   | { kind: 'bump'; size: number }
   | { kind: 'collapse'; size: number }
   | { kind: 'dash' }
-  | { kind: 'win' };
+  | { kind: 'win' }
+  // Arena: countdown beeps, being eaten, a landmark coming down.
+  | { kind: 'beep'; high: boolean }
+  | { kind: 'eaten' }
+  | { kind: 'landmark' };
 
 /** Seconds of on-the-spot destruction before a large object is pulled in. */
 const BREAK_PHASE: Record<string, number> = { collect: 0, crush: 0.32, break: 0.22, rip: 0.45, collapse: 0.35, push: 0 };

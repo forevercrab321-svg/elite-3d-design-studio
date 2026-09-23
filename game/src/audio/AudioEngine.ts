@@ -132,7 +132,49 @@ export class AudioEngine {
         this.chime([0, 4, 7, 12, 16, 19], 0.5);
         this.rumble(2.5, 1);
         break;
+      case 'beep':
+        this.beep(e.high ? 1320 : 660, e.high ? 0.5 : 0.18);
+        break;
+      case 'eaten':
+        this.sweep(420, 70, 0.9);
+        this.rumble(1.2, 0.8);
+        break;
+      case 'landmark':
+        this.rumble(4, 1.2);
+        this.chime([0, -5, -12], 0.4);
+        break;
     }
+  }
+
+  private beep(freq: number, dur: number): void {
+    const ctx = this.ctx!;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(freq, t);
+    const g = ctx.createGain();
+    osc.connect(g).connect(this.sfx);
+    this.env(g, t, 0.08, 0.004, dur);
+    osc.start(t);
+    osc.stop(t + dur + 0.05);
+  }
+
+  /** Falling pitch: the "you got eaten" drop. */
+  private sweep(from: number, to: number, dur: number): void {
+    const ctx = this.ctx!;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(from, t);
+    osc.frequency.exponentialRampToValueAtTime(to, t + dur);
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = 900;
+    const g = ctx.createGain();
+    osc.connect(f).connect(g).connect(this.sfx);
+    this.env(g, t, 0.12, 0.01, dur);
+    osc.start(t);
+    osc.stop(t + dur + 0.05);
   }
 
   private env(g: GainNode, t: number, peak: number, attack: number, decay: number): void {

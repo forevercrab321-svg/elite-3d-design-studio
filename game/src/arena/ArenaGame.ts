@@ -148,6 +148,7 @@ export class ArenaGame {
   /** Set when this client's machine recycles the last landmark part. */
   landmarkBy: string | null = null;
   firstBloodDone = false;
+  private goBeeped = false;
   private readonly contact: Contact = { nx: 0, nz: 0, depth: 0 };
   private shadowExtent = 0;
   private readonly rand: () => number;
@@ -278,7 +279,15 @@ export class ArenaGame {
     this.frame++;
     this.time += dt;
     const intents = this.input.read();
-    if (this.phase === 'countdown') this.countdown = Math.max(0, this.countdown - dt);
+    if (this.phase === 'countdown') {
+      const before = Math.ceil(this.countdown);
+      this.countdown = Math.max(0, this.countdown - dt);
+      if (Math.ceil(this.countdown) !== before && this.countdown > 0) this.onEvent?.({ kind: 'beep', high: false });
+    }
+    if (this.phase === 'playing' && !this.goBeeped) {
+      this.goBeeped = true;
+      this.onEvent?.({ kind: 'beep', high: true });
+    }
     const playing = this.phase === 'playing';
     if (playing) this.matchTime += dt;
 
@@ -537,7 +546,10 @@ export class ArenaGame {
       if (fell.some((r) => r.def.climax)) this.onFeed?.(`${a.name} 撬倒了${this.city.climaxNameZh}的支柱 · 塔身正在倒塌！`, 'kill');
       const left = this.climaxLeft();
       if (left === 0) this.onFeed?.(`${a.name} 拆掉了${this.city.climaxNameZh}的最后一块！`, 'bonus');
-      if (fell.length) this.effects.addTrauma(0.6);
+      if (fell.length) {
+        this.effects.addTrauma(0.6);
+        this.onEvent?.({ kind: 'landmark' });
+      }
     }
     a.model.pulseIntake(big ? 4 : 1.2);
     if (!a.owned) return; // the owner's client adds the mass; presence brings it here
@@ -684,7 +696,7 @@ export class ArenaGame {
     if (you && v === you) {
       this.effects.addTrauma(0.7);
       this.hud.showBanner(v.lives <= 0 ? '出局 ELIMINATED' : '你被吞掉了', v.lives <= 0 ? `被 ${a.name} 吞掉 · 观战中` : `被 ${a.name} 吞掉 · 还剩 ${v.lives} 条命`, 2.6);
-      this.onEvent?.({ kind: 'collapse', size: 8 });
+      this.onEvent?.({ kind: 'eaten' });
     } else if (you && a === you) {
       this.effects.addTrauma(0.5);
       this.hud.showBanner(`吞掉 ${v.name}！`, `+${Math.round(e.gain).toLocaleString('en-US')} KG${e.first ? ' · 第一滴血 FIRST BLOOD' : ''}`, 2.2);

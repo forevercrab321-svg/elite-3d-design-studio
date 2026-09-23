@@ -58,6 +58,8 @@ export interface CityStyle {
   extras?: Placement[];
   /** A river along one edge instead of perimeter facades (Shanghai: the Huangpu, Pudong beyond). */
   waterfront?: 'east';
+  /** Strings of red lanterns across the side streets (Shanghai). */
+  lanterns?: boolean;
 }
 
 /** Distant signature towers, shaped by kind (all far enough to read as silhouettes through haze). */
@@ -505,6 +507,57 @@ function buildDistrict(lib: MaterialLibrary, style: CityStyle, perimeter: Static
       }
     }
   }
+  // Traffic signals on every junction corner: pole, mast arm over the carriageway, three-aspect head.
+  for (const [cx, cz] of [[-56, -56], [0, -56], [56, -56], [-56, 0], [56, 0], [-56, 56], [0, 56], [56, 56]] as const) {
+    const wx = cx === 0 ? BLVD : STREET; // width of the road running along Z through this junction
+    const wz = cz === 0 ? BLVD : STREET;
+    for (const sx of [-1, 1]) {
+      for (const sz of [-1, 1]) {
+        const px = cx + sx * (wx / 2 + 0.9);
+        const pz = cz + sz * (wz / 2 + 0.9);
+        batch.add('steelDark', new THREE.CylinderGeometry(0.09, 0.12, 5.6, 8), px, CURB + 2.8, pz);
+        const arm = wx / 2 - 0.5;
+        batch.add('steelDark', box(arm, 0.1, 0.1), px - sx * arm / 2, CURB + 5.4, pz);
+        // Head over the lane, facing traffic arriving along Z (toward −sz), green for them.
+        const hx = px - sx * (arm - 0.3);
+        const face = -sz;
+        batch.add('steelDark', box(0.36, 1.0, 0.3), hx, CURB + 4.9, pz);
+        batch.add('steelDark', new THREE.CylinderGeometry(0.11, 0.11, 0.04, 12).rotateX(Math.PI / 2), hx, CURB + 5.22, pz + face * 0.16);
+        batch.add('signalGreen', new THREE.CylinderGeometry(0.11, 0.11, 0.04, 12).rotateX(Math.PI / 2), hx, CURB + 4.58, pz + face * 0.16);
+        // Pole-mounted head for the cross traffic (along X): red.
+        batch.add('steelDark', box(0.3, 0.9, 0.3), px, CURB + 3.1, pz - sz * 0.25);
+        batch.add('signalRed', new THREE.CylinderGeometry(0.1, 0.1, 0.04, 12).rotateZ(Math.PI / 2), px - sx * 0.16, CURB + 3.4, pz - sz * 0.25);
+        batch.add('steelDark', new THREE.CylinderGeometry(0.1, 0.1, 0.04, 12).rotateZ(Math.PI / 2), px - sx * 0.16, CURB + 2.85, pz - sz * 0.25);
+      }
+    }
+  }
+  if (style.lanterns) {
+    // Red lantern strings across the side streets, sagging between the kerbs.
+    const lrand = createSeededRandom(style.seed ^ 0x1a17);
+    for (const [c, w] of ROADS) {
+      if (w === BLVD) continue;
+      for (const axis of ['x', 'z'] as const) {
+        for (let a = -HALF + 10; a < HALF - 10; a += 9 + lrand() * 5) {
+          if (ROADS.some(([cc, ww]) => Math.abs(a - cc) < ww / 2 + 4)) continue;
+          const y0 = 6.4 + lrand() * 0.6;
+          const pts: THREE.Vector3[] = [];
+          const n = 7;
+          for (let i = 0; i <= n; i++) {
+            const t = i / n;
+            const across = c - w / 2 - 1 + (w + 2) * t;
+            const y = y0 - 1.1 * 4 * t * (1 - t);
+            pts.push(axis === 'x' ? new THREE.Vector3(a, y, across) : new THREE.Vector3(across, y, a));
+          }
+          batch.add('steelDark', new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 16, 0.015, 4), 0, 0, 0);
+          for (let i = 1; i < n; i++) {
+            const p = pts[i];
+            batch.add('lantern', new THREE.SphereGeometry(0.26, 10, 8).scale(1, 1.25, 1), p.x, p.y - 0.45, p.z);
+            batch.add('steelDark', new THREE.CylinderGeometry(0.12, 0.12, 0.06, 8), p.x, p.y - 0.1, p.z);
+          }
+        }
+      }
+    }
+  }
   // Plaza lamp standards.
   for (let i = 0; i < 8; i++) {
     const a = (i / 8) * Math.PI * 2;
@@ -551,7 +604,7 @@ function buildDistrict(lib: MaterialLibrary, style: CityStyle, perimeter: Static
   for (const hero of style.skyline.heroes ?? []) heroes.push(heroGeometry(hero));
   if (heroes.length) batch.add('skylineWindows', mergeGeometries(heroes)!, 0, 0, 0);
 
-  const cast = new Set<ArchKey>(['brick', 'darkBrick', 'plaster', 'concrete', 'steelDark', 'awning']);
+  const cast = new Set<ArchKey>(['brick', 'darkBrick', 'plaster', 'concrete', 'steelDark', 'awning', 'stone']);
   return { meshes: batch.build(lib, cast), occluders };
 }
 

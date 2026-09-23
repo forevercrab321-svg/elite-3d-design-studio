@@ -70,6 +70,7 @@ export const SHANGHAI = makeCity({
   parkGround: 'sidewalk',
   treeCrown: 0.9,
   waterfront: 'east',
+  lanterns: true,
   // The Bund along the river: Customs House clock tower and the Peace Hotel face Zhongshan Road.
   extras: [
     { type: 'CUSTOMS_HOUSE', x: 75.4, z: -30, yaw: Math.PI / 2 },

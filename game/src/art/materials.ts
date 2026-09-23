@@ -67,7 +67,7 @@ function lampsMaterial(): THREE.MeshStandardMaterial {
 export class MaterialLibrary {
   readonly roles: Record<Role, THREE.Material>;
   /** Architecture + ground. */
-  readonly arch: Record<'brick' | 'darkBrick' | 'plaster' | 'concrete' | 'asphalt' | 'sidewalk' | 'curb' | 'windowGlass' | 'windowFrame' | 'steelDark' | 'roofing' | 'awning' | 'shopGlass' | 'puddle' | 'paintLine' | 'lampGlow' | 'skylineWindows' | 'hazard' | 'craneYellow' | 'gravel' | 'metalLight' | 'metals' | 'water' | 'stone', THREE.Material>;
+  readonly arch: Record<'brick' | 'darkBrick' | 'plaster' | 'concrete' | 'asphalt' | 'sidewalk' | 'curb' | 'windowGlass' | 'windowFrame' | 'steelDark' | 'roofing' | 'awning' | 'shopGlass' | 'puddle' | 'paintLine' | 'lampGlow' | 'skylineWindows' | 'hazard' | 'craneYellow' | 'gravel' | 'metalLight' | 'metals' | 'water' | 'stone' | 'signalRed' | 'signalGreen' | 'lantern', THREE.Material>;
 
   constructor(readonly kit: TextureKit) {
     const std = (p: THREE.MeshStandardMaterialParameters) => new THREE.MeshStandardMaterial(p);
@@ -132,6 +132,9 @@ export class MaterialLibrary {
       craneYellow: std({ color: 0xd8a01c, roughness: 0.5, metalness: 0.35, envMapIntensity: 0.9 }),
       water: phy({ color: 0x2c4650, roughness: 0.12, metalness: 0.05, clearcoat: 1, clearcoatRoughness: 0.08, envMapIntensity: 1.3, normalMap: kit.asphalt.normalMap, normalScale: new THREE.Vector2(0.25, 0.25) }),
       stone: std({ color: 0xd9d0bd, ...tex(kit.concrete, 0.7), vertexColors: true, roughness: 0.85, metalness: 0 }),
+      signalRed: std({ color: 0x3a0404, emissive: 0xff2a1a, emissiveIntensity: 2.4, roughness: 0.3 }),
+      signalGreen: std({ color: 0x033a14, emissive: 0x19ff7a, emissiveIntensity: 2.0, roughness: 0.3 }),
+      lantern: std({ color: 0x8a0f0a, emissive: 0xff3a14, emissiveIntensity: 1.6, roughness: 0.6 }),
     };
     for (const [name, m] of Object.entries(this.arch)) m.name = `MAT_ARCH_${name}`;
 
