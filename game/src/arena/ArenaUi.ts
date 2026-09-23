@@ -414,7 +414,7 @@ export class ArenaUi {
     this.results.hidden = false;
     this.results.innerHTML = `<div class="card"><h2>👑 冠军 CHAMPION</h2><div class="who"></div>
       <table><thead><tr><th>#</th><th>玩家</th><th>质量</th><th>吞噬</th><th>被吞</th><th>物件</th></tr></thead><tbody></tbody></table>
-      <div class="earn"></div><div class="actions">${this.session.isHost() ? '<button class="btn primary" data-a="lobby">返回大厅</button>' : '<span class="chip">即将返回大厅…</span>'}</div></div>`;
+      <div class="earn"></div><div class="actions">${this.session.isHost() ? '<button class="btn primary" data-a="again">再来一局 REMATCH</button><button class="btn" data-a="lobby">返回大厅</button>' : '<span class="chip">等待房主：再来一局或返回大厅…</span>'}</div></div>`;
     (this.results.querySelector('.who') as HTMLElement).textContent = champ ? `${champ.name} · ${massText(champ.mass)}` : '';
     const tb = this.results.querySelector('tbody') as HTMLElement;
     for (const s of standings) {
@@ -430,6 +430,8 @@ export class ArenaUi {
     (this.results.querySelector('.earn') as HTMLElement).innerHTML = localId && standings.some((s) => s.id === localId) ? `获得 <span class="coins">◎ ${earned.coins}</span> 金币${earned.unlocked ? ` · 解锁新关卡：<b>${earned.unlocked}</b>` : ''}` : '观战中';
     const b = this.results.querySelector('[data-a="lobby"]') as HTMLButtonElement | null;
     if (b) b.onclick = () => this.session.toLobby();
+    const again = this.results.querySelector('[data-a="again"]') as HTMLButtonElement | null;
+    if (again) again.onclick = () => this.session.rematch();
   }
 
   hideResults(): void {

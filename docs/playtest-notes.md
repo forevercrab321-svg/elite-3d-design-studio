@@ -151,3 +151,12 @@ Network (2 tabs, LocalNet): both tabs agree on every grant (168/168 … 441/441)
 Story regression: `npm run playtest` 24/24 PASS (tools now open `?mode=story`).
 
 Budgets (high tier, in match): Shanghai 1.09 M tris at spawn / 1.43 M at a large size; New York 1.35 / 1.68 M; Paris 0.93 / 1.26 M; draw calls 182–319. The large-size view slightly exceeds the 1.5 M target in New York. Parked cabs (7.5 k tris each) are the main cost, and LOD covers distance.
+
+## 2026-09-23 — Arena polish pass (identity, HUD, touch, network)
+
+- **Network, 4 tabs (LocalNet):** Alice, Bob and Cara plus one AI in New York; Dave joins 30 s in as a spectator. He sees the same absorbed set as the host (304 = 304) through the beacon bitset. After 60 s all four tabs agree within one object (285–286 absorbed). The three players agree exactly on grants (287); the spectator only saw grants after joining. The largest payload was 745 B (`match` with the bitset), well under the 4 KiB room limit. The wire format now uses roster slots, and presence is sent at 20 Hz only when it changes.
+- **Phone (iPhone 13 viewport, touch):** the joystick drives the machine (z 88 → 81 in 2 s). The lobby scrolls in one column, the HUD is compact (mass top-left, board top-right, minimap under it, timer bottom-centre), and the DASH button is bottom-right, hidden in the lobby.
+- **Rematch:** the host's 再来一局 starts a new epoch with the same city and players. This fixed a race where the old round's clock re-ended the new round.
+- **Balance:** a trailing machine gains up to +60% from objects (cube-root mass gap to the leader), and eating the leader pays a +25% bounty. In three AI rounds the gap between 1st and 2nd was 482/343 t in Shanghai and 794/324 t in New York; Paris still ran away (1668/16 t). Bot rounds vary a lot; humans will play differently.
+- **Story regression:** 24/24 PASS. Warehouse climax is at 180.6 s (target 176–282 s): machines can now drive under elevated roof bays.
+- **Budgets (high tier, including shadow and GTAO passes):** Shanghai 1.01 M at spawn / 1.34 M big; New York 1.34 / 1.65 M; Paris 0.94 / 1.26 M; draw calls 191–333. Vehicles use far LOD at 7 sizes.

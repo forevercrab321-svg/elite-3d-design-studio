@@ -155,8 +155,20 @@ export class ArenaSession {
     return players.every((p) => p.isMe || p.ready) && (players.length > 1 || this.bots);
   }
 
+  /** Host, from the results card: same city, same joined players, new round (no ready check). */
+  rematch(): void {
+    if (!this.isHost() || this.match.ph !== 'results' || !this.lobbyPlayers().length) return;
+    this.launch();
+  }
+
   start(): void {
     if (!this.canStart()) return;
+    this.launch();
+  }
+
+  private launch(): void {
+    // Drop the finished round first: host duties must never run the new epoch on the old game.
+    if (this.game) this.endGame();
     const players = this.lobbyPlayers();
     const roster: RosterEntry[] = players.map((p, i) => ({ id: p.id, slot: i, kind: 'player', name: p.name, vehicle: p.vehicle }));
     if (this.bots) {
