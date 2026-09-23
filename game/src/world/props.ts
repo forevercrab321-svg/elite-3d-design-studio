@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { mergeGeometries, mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { mergeGeometries, mergeVertices, toCreasedNormals } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import type { ObjectType, Shape } from '../config/objects';
 import type { Role } from '../art/materials';
@@ -27,6 +27,10 @@ const PROJECTED: ReadonlySet<Role> = new Set<Role>(['paint', 'cardboard', 'propB
 class Builder {
   private readonly parts = new Map<Role, THREE.BufferGeometry[]>();
   private readonly m = new THREE.Matrix4();
+  /** Optional whole-model deformation (e.g. car tumblehome) applied to every role at build time. */
+  deform: ((v: THREE.Vector3) => void) | null = null;
+  /** Roles that get creased smooth normals after deformation (curved body panels). */
+  smoothRoles = new Set<Role>();
 
   add(role: Role, g: THREE.BufferGeometry, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0): this {
     if (role === 'chrome') role = 'steel'; // small bright-metal trim shares the steel draw call
@@ -60,6 +64,16 @@ class Builder {
       });
       let merged = mergeGeometries(clean, false);
       if (!merged) throw new Error(`merge failed for role ${role}`);
+      if (this.deform) {
+        const pos = merged.getAttribute('position');
+        const v = new THREE.Vector3();
+        for (let i = 0; i < pos.count; i++) {
+          v.fromBufferAttribute(pos, i);
+          this.deform(v);
+          pos.setXYZ(i, v.x, v.y, v.z);
+        }
+      }
+      if (this.smoothRoles.has(role)) merged = toCreasedNormals(merged, THREE.MathUtils.degToRad(40));
       if (LAMP_COLOURS[role]) {
         // Fold head/tail/indicator lamps into the shared 'lamps' role with a per-vertex colour.
         const c = LAMP_COLOURS[role]!;
@@ -98,13 +112,36 @@ const v3 = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
  * Side-profile extrusion: `pts` are (z, y) with forward = −z, extruded across `width` on X,
  * centred. Bevel softens every edge (the single biggest "not a primitive" cue).
  */
-function profile(shape: THREE.Shape, width: number, bevel: number, curveSegments = 10): THREE.BufferGeometry {
+function profile(shape: THREE.Shape, width: number, bevel: number, curveSegments = 10, smooth = false): THREE.BufferGeometry {
   const depth = Math.max(0.001, width - 2 * bevel);
-  const g = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: bevel > 0, bevelThickness: bevel, bevelSize: bevel * 0.9, bevelSegments: 3, curveSegments });
+  let g: THREE.BufferGeometry = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: bevel > 0, bevelThickness: bevel, bevelSize: bevel * 0.9, bevelSegments: 3, curveSegments });
+  if (smooth) g = smoothWalls(g);
   g.translate(0, 0, -depth / 2);
   g.rotateY(-Math.PI / 2); // shape x (length) → z (front at −z), extrusion depth → x
   return g;
 }
+/**
+ * Smooth-shade the extrusion walls (the curved outline: hood, roof, bevels) while the flat
+ * side caps stay flat — smoothing the caps smears their long thin triangles into blotches.
+ */
+function smoothWalls(g: THREE.BufferGeometry): THREE.BufferGeometry {
+  const src = g.index ? g.toNonIndexed() : g;
+  const pick = (groupIndex: number) => {
+    const parts = src.groups.filter((gr) => gr.materialIndex === groupIndex);
+    const out = new THREE.BufferGeometry();
+    for (const name of ['position', 'normal', 'uv'] as const) {
+      const a = src.getAttribute(name);
+      const items: number[] = [];
+      for (const gr of parts) for (let i = gr.start; i < gr.start + gr.count; i++) for (let k = 0; k < a.itemSize; k++) items.push(a.array[i * a.itemSize + k]);
+      out.setAttribute(name, new THREE.Float32BufferAttribute(items, a.itemSize));
+    }
+    return out;
+  };
+  const caps = pick(0);
+  const walls = toCreasedNormals(pick(1), THREE.MathUtils.degToRad(50));
+  return mergeGeometries([caps, walls.index ? walls.toNonIndexed() : walls], false)!;
+}
+
 function poly(pts: [number, number][]): THREE.Shape {
   const s = new THREE.Shape();
   s.moveTo(pts[0][0], pts[0][1]);
@@ -144,53 +181,63 @@ function wheel(b: Builder, r: number, w: number, x: number, y: number, z: number
 
 // ── Vehicles ─────────────────────────────────────────────────────────────────
 function car(type: ObjectType): PropParts {
-  const [W, H, L] = type.size; // 1.75 × 1.45 × 3.9
+  const [W, , L] = type.size; // 1.75 × 1.45 × 3.9
   const b = new Builder();
   const hl = L / 2;
   const wr = 0.31;
   const axle = 1.25;
   const sill = 0.3;
   const arch = 0.38;
-  const bevel = 0.06;
 
-  // Lower body: bumper-to-bumper side silhouette with wheel arches cut into the sills.
+  // Lower body: bumper-to-bumper side silhouette (spline top line) with wheel arches in the sills.
   const body = new THREE.Shape();
   body.moveTo(-hl + 0.03, sill + 0.04);
-  for (const [z, y] of [
-    [-hl, 0.52],
-    [-hl + 0.06, 0.7],
-    [-hl + 0.55, 0.84],
-    [-1.05, 0.9],
-    [-0.52, 0.95],
-    [hl - 0.55, 0.98],
-    [hl - 0.08, 0.93],
-    [hl, 0.74],
-    [hl - 0.02, 0.44],
-    [hl - 0.08, sill],
-  ] as [number, number][])
-    body.lineTo(z, y);
+  body.lineTo(-hl, 0.5);
+  body.splineThru(
+    ([
+      [-hl + 0.03, 0.66],
+      [-hl + 0.3, 0.8],
+      [-1.05, 0.88],
+      [-0.52, 0.95],
+      [0.4, 0.97],
+      [hl - 0.55, 0.98],
+      [hl - 0.12, 0.94],
+      [hl, 0.76],
+    ] as [number, number][]).map(([z, y]) => new THREE.Vector2(z, y)),
+  );
+  body.lineTo(hl - 0.02, 0.44);
+  body.lineTo(hl - 0.08, sill);
   body.lineTo(axle + arch, sill);
   body.absarc(axle, sill, arch, 0, Math.PI, false);
   body.lineTo(-axle + arch, sill);
   body.absarc(-axle, sill, arch, 0, Math.PI, false);
   body.closePath();
-  b.add('carPaint', profile(body, W, bevel, 16));
+  b.add('carPaint', profile(body, W, 0.09, 10, true));
 
-  // Greenhouse: glass cabin, then roof skin and pillars in body colour over it.
-  const cabin = poly([
+  // Greenhouse: curved glass cabin, then a roof skin following the same arc.
+  const arc: [number, number][] = [
     [-0.52, 0.93],
-    [-0.02, 1.36],
-    [0.92, 1.38],
-    [1.38, 0.96],
-  ]);
-  b.add('glass', profile(cabin, W - 0.22, 0.05, 4));
-  const roof = poly([
-    [-0.06, 1.35],
-    [0.95, 1.37],
-    [0.93, H],
-    [0.0, H - 0.01],
-  ]);
-  b.add('carPaint', profile(roof, W - 0.16, 0.035, 2));
+    [-0.28, 1.14],
+    [0.02, 1.36],
+    [0.48, 1.41],
+    [0.92, 1.37],
+    [1.18, 1.16],
+    [1.4, 0.96],
+  ];
+  const cabin = new THREE.Shape();
+  cabin.moveTo(arc[0][0], arc[0][1]);
+  cabin.splineThru(arc.slice(1).map(([z, y]) => new THREE.Vector2(z, y)));
+  cabin.closePath();
+  b.add('glass', profile(cabin, W - 0.22, 0.05, 8, true));
+  const roofTop = new THREE.SplineCurve(arc.slice(2, 5).map(([z, y]) => new THREE.Vector2(z - 0.02, y + 0.035))).getPoints(10);
+  const roof = new THREE.Shape([...roofTop, ...roofTop.slice().reverse().map((p) => new THREE.Vector2(p.x, p.y - 0.06))]);
+  b.add('carPaint', profile(roof, W - 0.16, 0.03, 6, true));
+  // Tumblehome (upper body narrower than the beltline) and plan-view taper at both ends.
+  b.deform = (v) => {
+    const tumble = 1 - 0.1 * THREE.MathUtils.smoothstep(v.y, 0.8, 1.45);
+    const taper = 1 - 0.08 * THREE.MathUtils.smoothstep(Math.abs(v.z), hl - 0.4, hl + 0.1);
+    v.x *= tumble * taper;
+  };
   for (const s of [-1, 1]) {
     const px = s * (W / 2 - 0.1);
     b.add('carPaint', strut(v3(px, 0.94, -0.52), v3(px, 1.39, -0.02), 0.045, 6)); // A pillar
@@ -199,11 +246,11 @@ function car(type: ObjectType): PropParts {
     b.add('carPaint', rbox(0.06, 0.1, 0.18, 0.02), s * (W / 2 + 0.02), 1.0, -0.42); // mirror
     b.add('darkTrim', box(0.012, 0.52, 0.012), s * (W / 2 + 0.002), 0.64, -0.5); // door shut lines
     b.add('darkTrim', box(0.012, 0.56, 0.012), s * (W / 2 + 0.002), 0.64, 0.42);
-    b.add('darkTrim', box(0.012, 0.5, 0.012), s * (W / 2 + 0.002), 0.66, 1.25);
+    b.add('darkTrim', box(0.012, 0.46, 0.012), s * (W / 2 + 0.002), 0.68, 0.84); // rear door ends ahead of the arch
     b.add('chrome', box(0.02, 0.03, 0.14), s * (W / 2 + 0.01), 0.84, -0.2); // handles
     b.add('chrome', box(0.02, 0.03, 0.14), s * (W / 2 + 0.01), 0.84, 0.72);
     b.add('chrome', box(0.01, 0.012, 2.6), s * (W / 2 + 0.004), 0.93, 0.1); // beltline trim
-    b.add('darkTrim', box(0.02, 0.06, 2.1), s * (W / 2 + 0.005), 0.4, 0); // side skirt
+    b.add('darkTrim', box(0.02, 0.06, 1.66), s * (W / 2 + 0.005), 0.4, 0); // side skirt, between the arches
     b.add('headlight', box(0.36, 0.11, 0.05), s * 0.56, 0.64, -hl - 0.045);
     b.add('chrome', box(0.38, 0.13, 0.04), s * 0.56, 0.64, -hl - 0.03);
     b.add('taillight', box(0.34, 0.13, 0.05), s * 0.58, 0.7, hl + 0.045);
@@ -356,7 +403,7 @@ function trashCan(type: ObjectType): PropParts {
   const [W, H] = type.size; // 0.6 × 0.95 wheelie-less municipal bin
   const r = W / 2;
   const b = new Builder();
-  b.add('plastic', lathe([[r * 0.82, 0], [r * 0.86, 0.02], [r * 0.95, H * 0.86], [r, H * 0.88], [r, H * 0.9], [r * 0.92, H * 0.9]], 28));
+  b.add('plastic', lathe([[r * 0.82, 0], [r * 0.86, 0.02], [r * 0.95, H * 0.86], [r, H * 0.88], [r, H * 0.9], [r * 0.92, H * 0.9]], 22));
   b.add('plastic', lathe([[0.001, H], [r * 0.5, H - 0.005], [r * 0.95, H - 0.05], [r * 1.03, H * 0.9], [r * 1.03, H * 0.88]], 28));
   for (let i = 0; i < 10; i++) {
     const a = (i / 10) * Math.PI * 2;
@@ -442,11 +489,11 @@ function bicycle(type: ObjectType): PropParts {
   const fz = -L / 2 + r;
   const rz = L / 2 - r;
   for (const z of [fz, rz]) {
-    b.add('rubber', new THREE.TorusGeometry(r, 0.022, 8, 36).rotateY(Math.PI / 2), 0, r, z);
-    b.add('steel', new THREE.TorusGeometry(r - 0.03, 0.01, 6, 36).rotateY(Math.PI / 2), 0, r, z);
-    for (let i = 0; i < 16; i++) {
-      const a = (i / 16) * Math.PI * 2;
-      b.add('steel', strut(v3(0, r, z), v3(0, r + Math.sin(a) * (r - 0.035), z + Math.cos(a) * (r - 0.035)), 0.0025, 4));
+    b.add('rubber', new THREE.TorusGeometry(r, 0.022, 6, 28).rotateY(Math.PI / 2), 0, r, z);
+    b.add('steel', new THREE.TorusGeometry(r - 0.03, 0.01, 4, 28).rotateY(Math.PI / 2), 0, r, z);
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      b.add('steel', strut(v3(0, r, z), v3(0, r + Math.sin(a) * (r - 0.035), z + Math.cos(a) * (r - 0.035)), 0.0025, 3));
     }
     b.add('steel', cyl(0.025, 0.025, 0.1, 10).rotateZ(Math.PI / 2), 0, r, z);
   }
