@@ -74,6 +74,8 @@ Single place for settled decisions (CLAUDE.md §19–20). Update on every approv
 | 2026-09-23 | 整体视觉像低端3D游戏 | Lighting (HDRI, sun 20°, AgX), post grade, surface shaders, dressing | Realism pass; budgets held |
 | 2026-09-23 | 在线多人（≤4 人，账号，链接）、上海/纽约/巴黎关卡、奖惩、出局、冠军、车型 | New arena mode, `config/arena.ts`, `config/vehicles.ts`, city kit + 3 cities | All three cities finish with a champion in 3.5–4.5 min (bots); 2-tab sync test passes |
 | 2026-09-23 | 全力复刻各大城市作为游戏地图，四人竞争 | City identity pass: per-city buildings, vehicles, furniture, light, skyline, landmark kits | Review renders in `renders/review/arena-*` |
+| 2026-09-23 | 做成能直接卖、上线的完整游戏 | zh/en i18n; cosmetics shop (coins); settings; first-run tip; portal SDK layer (CrazyGames/Poki) with rewarded revive (75% mass, once per match), double coins, midrolls; legal pages, icons, OG image, PWA, `build:web` | Shop/revive smoke test en+zh; see `docs/business/launch-checklist.md` |
+| 2026-09-23 | 分享/和好友一起玩赠送固定皮肤；付费再想想卖什么 | Friend gifts (never for sale): share → Party Hat; finish a match with 1 friend → Best Buddies skin; squad of 4 → Crown. Procedural hats (`entities/Hat.ts`). Paid proposal in `docs/business/paid-catalog.md`, SKUs in `0002_products_seed.sql` | Gift unlock + hat sync verified in test; paid items await user decision |
 | 2026-09-23 | 完成游戏 | Content, destruction, climax, tier 4, audio, HUD; reward table and speed curve rebalanced | Full MVP run passes 24/24 on 3 seeds |
 
 ## Pending issues
