@@ -23,6 +23,17 @@ class Batch {
     this.e.set(rx, ry, rz, 'YXZ');
     this.m.compose(new THREE.Vector3(x, y, z), this.q.setFromEuler(this.e), new THREE.Vector3(1, 1, 1));
     g.applyMatrix4(this.m);
+    if (key === 'windowGlass' || key === 'shopGlass') {
+      // Interior mapping needs each pane's centre: the fake room is built around it.
+      const n = g.index ? g.toNonIndexed() : g;
+      n.computeBoundingBox();
+      const c = n.boundingBox!.getCenter(new THREE.Vector3());
+      const count = n.getAttribute('position').count;
+      const rc = new Float32Array(count * 3);
+      for (let i = 0; i < count; i++) rc.set([c.x, c.y, c.z], i * 3);
+      n.setAttribute('roomCenter', new THREE.BufferAttribute(rc, 3));
+      g = n;
+    }
     const list = this.lists.get(key) ?? [];
     list.push(g);
     this.lists.set(key, list);
@@ -35,7 +46,7 @@ class Batch {
     for (const [key, list] of this.lists) {
       const parts = list.map((g) => {
         let n = g.index ? g.toNonIndexed() : g;
-        for (const k of Object.keys(n.attributes)) if (!['position', 'normal'].includes(k)) n.deleteAttribute(k);
+        for (const k of Object.keys(n.attributes)) if (!['position', 'normal', 'roomCenter'].includes(k)) n.deleteAttribute(k);
         n = boxProjectUV(n);
         n.computeBoundingBox();
         const tall = n.boundingBox!.max.y - n.boundingBox!.min.y > 0.3;
@@ -184,7 +195,6 @@ function facade(batch: Batch, f: Face): void {
   put(trim, box(f.len + 0.1, 0.12, 0.42), 0, H - 0.3, 0.21);
   put('steelDark', box(f.len, 0.06, 0.06), 0, H + 0.03, 0.2);
 
-  const litChance = 0.18;
   for (let i = 0; i < bays; i++) {
     const u = start + i * bay;
     // Upper floors: windows with reveals, sill, lintel, frame and mullion.
@@ -192,8 +202,7 @@ function facade(batch: Batch, f: Face): void {
       const w = f.ground === 'shop' ? 1.4 : 1.15;
       const h = 1.7;
       const cy = y + h / 2;
-      const glass: ArchKey = rand() < litChance ? 'shopGlass' : 'windowGlass';
-      put(glass, box(w - 0.08, h - 0.08, 0.02), u, cy, 0.01);
+      put('windowGlass', box(w - 0.08, h - 0.08, 0.02), u, cy, 0.01); // interior + lit rooms come from the glass shader
       put('windowFrame', box(w, 0.05, 0.05), u, cy + h / 2 - 0.025, 0.03);
       put('windowFrame', box(w, 0.05, 0.05), u, cy - h / 2 + 0.025, 0.03);
       put('windowFrame', box(0.05, h, 0.05), u - w / 2 + 0.025, cy, 0.03);

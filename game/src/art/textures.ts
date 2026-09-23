@@ -179,7 +179,7 @@ function asphalt(size: number, aniso: number): PbrSet {
     const tar = smooth(0.6, 0.7, n.fbm(u + 0.7, v + 0.2, 3, 4));
     const crackField = Math.abs(n.fbm(u, v, 5, 3) - 0.5);
     const crack = crackField < 0.0035 && n.sample(u, v, 4) > 0.62 ? 1 : 0;
-    const tone = 62 + stone * 70 + (f - 0.5) * 16 - tar * 12 - crack * 14;
+    const tone = 92 + stone * 60 + (f - 0.5) * 18 - tar * 14 - crack * 16;
     return { h: 0.5 + stone * 0.4 + f * 0.2 - crack * 0.25, r: tone, g: tone, b: tone * 1.03, rough: 0.9 - tar * 0.2 - stone * 0.05 };
   }, aniso);
 }
@@ -303,9 +303,14 @@ export interface TextureKit {
 
 /** Build the whole kit. `size` 512 (high) or 256 (low); about 11 × 3 textures. */
 export function buildTextureKit(size: number, anisotropy: number): TextureKit {
+  const red = brick(size, anisotropy, false);
+  const dark = brick(size, anisotropy, true);
+  // Same bond layout: the dark brick reuses the red brick's relief and roughness (−2 GPU textures).
+  dark.normalMap.dispose();
+  dark.roughnessMap.dispose();
   return {
-    brick: brick(size, anisotropy, false),
-    darkBrick: brick(size, anisotropy, true),
+    brick: red,
+    darkBrick: { ...dark, normalMap: red.normalMap, roughnessMap: red.roughnessMap },
     concrete: concrete(size, anisotropy),
     asphalt: asphalt(size, anisotropy),
     sidewalk: sidewalk(size, anisotropy),

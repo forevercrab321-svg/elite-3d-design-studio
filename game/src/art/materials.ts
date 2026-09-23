@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { signTexture, type TextureKit } from './textures';
+import { interiorMapping, weathering } from './surfaceShaders';
 
 /**
  * Shared material roles (technical-art.md: one material per role, reused everywhere).
@@ -62,9 +63,9 @@ export class MaterialLibrary {
     const phy = (p: THREE.MeshPhysicalMaterialParameters) => new THREE.MeshPhysicalMaterial(p);
     this.roles = {
       paint: std({ color: 0xffffff, ...tex(kit.wornPaint, 0.6), metalness: 0.35, envMapIntensity: 0.8 }),
-      carPaint: phy({ color: 0xffffff, metalness: 0.45, roughness: 0.32, clearcoat: 1, clearcoatRoughness: 0.06, envMapIntensity: 1.35 }),
+      carPaint: phy({ color: 0xffffff, metalness: 0.35, roughness: 0.38, clearcoat: 0.8, clearcoatRoughness: 0.1, envMapIntensity: 1.0 }),
       plastic: std({ color: 0xffffff, roughness: 0.55, metalness: 0, envMapIntensity: 0.6 }),
-      glossyPlastic: phy({ color: 0xffffff, roughness: 0.28, metalness: 0, clearcoat: 0.6, clearcoatRoughness: 0.35, envMapIntensity: 0.9 }),
+      glossyPlastic: phy({ color: 0xffffff, roughness: 0.42, metalness: 0, clearcoat: 0.25, clearcoatRoughness: 0.45, envMapIntensity: 0.7 }),
       cardboard: std({ color: 0xffffff, ...tex(kit.cardboard, 0.5), metalness: 0 }),
       propBrick: std({ color: 0xffffff, ...tex(kit.concrete, 0.8), roughness: 1, metalness: 0 }),
       glassTint: phy({ color: 0xffffff, roughness: 0.08, metalness: 0, transparent: true, opacity: 0.72, clearcoat: 1, envMapIntensity: 1.4, depthWrite: true }),
@@ -94,17 +95,17 @@ export class MaterialLibrary {
     this.arch = {
       brick: std({ ...tex(kit.brick, 1.1), vertexColors: true, metalness: 0 }),
       darkBrick: std({ ...tex(kit.darkBrick, 1.1), vertexColors: true, metalness: 0 }),
-      plaster: std({ color: 0xd9cdb4, ...tex(kit.plaster, 0.25), vertexColors: true, metalness: 0 }),
+      plaster: std({ color: 0xb4ada2, ...tex(kit.plaster, 0.55), vertexColors: true, metalness: 0 }),
       concrete: std({ ...tex(kit.concrete, 1), vertexColors: true, metalness: 0 }),
-      asphalt: std({ ...tex(kit.asphalt, 1), metalness: 0 }),
+      asphalt: std({ color: 0xe0dcd4, ...tex(kit.asphalt, 0.3), metalness: 0 }),
       sidewalk: std({ ...tex(kit.sidewalk, 1), metalness: 0 }),
       curb: std({ color: 0xbdb8ae, ...tex(kit.concrete, 1), metalness: 0 }),
-      windowGlass: phy({ color: 0x3a4650, roughness: 0.04, metalness: 0.4, clearcoat: 1, envMapIntensity: 1.5 }),
+      windowGlass: phy({ color: 0x3a4650, roughness: 0.04, metalness: 0.0, clearcoat: 1, envMapIntensity: 1.0 }),
       windowFrame: std({ color: 0x2c2f31, roughness: 0.5, metalness: 0.4 }),
       steelDark: std({ color: 0x3d4145, roughness: 0.55, metalness: 0.8, envMapIntensity: 0.9 }),
-      roofing: std({ color: 0x4a4a48, ...tex(kit.asphalt, 0.6), metalness: 0 }),
+      roofing: std({ color: 0x8c8983, ...tex(kit.concrete, 0.5), roughness: 0.95, metalness: 0 }), // weathered bitumen membrane
       awning: phy({ color: 0x2f5140, roughness: 0.85, sheen: 0.5, sheenColor: new THREE.Color(0x9fc0a8) }),
-      shopGlass: phy({ color: 0x28323a, roughness: 0.03, metalness: 0.3, clearcoat: 1, emissive: 0x3a2a16, emissiveIntensity: 0.35, envMapIntensity: 1.6 }),
+      shopGlass: phy({ color: 0x28323a, roughness: 0.03, metalness: 0.0, clearcoat: 1, envMapIntensity: 1.0 }),
       puddle: phy({ color: 0x1c1f22, roughness: 0.02, metalness: 0.6, clearcoat: 1, envMapIntensity: 1.8, transparent: true, opacity: 0.85, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
       paintLine: std({ color: 0xd8d2bd, roughness: 0.7, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }),
       lampGlow: std({ color: 0xfff1d0, emissive: 0xffd9a0, emissiveIntensity: 2.2, roughness: 0.3 }),
@@ -116,5 +117,14 @@ export class MaterialLibrary {
       craneYellow: std({ color: 0xd8a01c, roughness: 0.5, metalness: 0.35, envMapIntensity: 0.9 }),
     };
     for (const [name, m] of Object.entries(this.arch)) m.name = `MAT_ARCH_${name}`;
+
+    // Lived-in pass: world-space weathering on every surface family, fake rooms behind glass.
+    for (const k of ['brick', 'darkBrick', 'plaster', 'concrete', 'curb'] as const) weathering(this.arch[k], 'wall');
+    weathering(this.arch.metals, 'wall', 0.6);
+    weathering(this.arch.skylineWindows, 'wall', 0.5);
+    for (const k of ['asphalt', 'sidewalk', 'gravel', 'roofing'] as const) weathering(this.arch[k], 'ground');
+    for (const r of ['paint', 'corrugated', 'concreteProp', 'roofMetal'] as const) weathering(this.roles[r], 'prop', 0.8);
+    interiorMapping(this.arch.windowGlass as THREE.MeshPhysicalMaterial, { width: 3.2, depth: 4.2, height: 3.0, floorBelowCentre: 1.75, litChance: 0.3, shop: false });
+    interiorMapping(this.arch.shopGlass as THREE.MeshPhysicalMaterial, { width: 3.6, depth: 6, height: 3.8, floorBelowCentre: 1.9, litChance: 1, shop: true });
   }
 }
