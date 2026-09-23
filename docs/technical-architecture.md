@@ -63,29 +63,48 @@ tools/inspect-game.mjs        threejs-qa-release canvas inspector (pixel metrics
 | medium | MSAA 4× → bloom → CinematicOutputPass | 512² |
 | low | Direct render, native antialias | 256² |
 
-- Shadows: one PCF directional shadow map (4096²) focused ahead of the camera, texel-snapped to avoid shimmer; the extent grows with size.
+- Shadows: one PCF directional shadow map (4096 × 2048), focused ahead of the camera and texel-snapped to avoid shimmer. The extent grows with size. The orthographic window is fitted to the receivers' light-space footprint: ±extent horizontally, ±extent·sin(sun elevation) plus roof height vertically. A caster is rendered only if its shadow can land in view, and texel density is about 3× higher than with a square window.
 - `renderer.info.autoReset = false`, so counts include every pass of a frame.
 - IBL: `public/hdri/pedestrian_overpass_1k.hdr` (CC0) → PMREM, `scene.environmentRotation` aligns its sun with `SUN_DIRECTION`. If it fails to load, the environment is baked from the procedural sky dome.
 - Tone mapping: AgX by default (`?tonemap=agx|aces|neutral`, `?exposure=`). Grade, vignette, grain and chromatic aberration run inside the output pass (`CinematicOutputPass`).
 - Surface shaders are injected with `onBeforeCompile` plus `customProgramCacheKey`: `weathering()` (wall/ground/prop) and `interiorMapping()` (window and shop glass, per-window `roomCenter` attribute).
 - Set dressing (`world/dressing.ts`) is 3 merged meshes: trunks+pits+sign pole (vertex colour), leaf canopies (alpha-tested, wind sway, custom depth material for shadows), and weeds+decals sharing one atlas texture.
-- `__GROW__.meshStats()` returns a per-mesh triangle/instance/shadow table for budget work.
+- **Props render through `BatchedMesh`, one per material role and size set** (`world/World.ts`). Every object type that uses a role shares one multi-draw call (`WEBGL_multi_draw`). Instances are frustum-culled per camera by BatchedMesh, for both the view and the sun's shadow camera. Per frame, `World.cull()` hides instances smaller than about 3 px and swaps in a far **LOD** beyond 9 object sizes. LODs come from `world/lod.ts`: the role geometry is welded, edge-collapsed to about 28 % with `SimplifyModifier`, then its creased normals and UV convention are rebuilt. This is done once per heavy geometry at load. The switch is `setGeometryIdAt`. BatchedMesh keeps instance data in small float textures (2–3 per batch).
+- **Render layers** (`art/layers.ts`): small props (class ≤ 5), FX, alpha-tested foliage, weeds, decals, the sky and the player live on `LAYER_NO_AO`, which the GTAO pre-pass skips. Foliage cards would otherwise read as solid quads in the normal pass. The main camera and the shadow camera see both layers.
+- The world is data-driven: object kit in `world/props.ts` (street) and `world/heavyProps.ts` (site, yard, warehouse), shared authoring in `world/propKit.ts`. Supports, collapses and the climax are driven by placement tags (`supports`) and `destructionType`; nothing is special-cased per object.
+- Audio: `audio/AudioEngine.ts` is a WebAudio synth driven by `Game.onEvent` (presentation only; it never runs in test mode).
+- QA hooks: `__GROW__.meshStats()`, `grant(kg)`, `teleport(x, z, heading)`; `__GROW_DEBUG__` (test mode) exposes `{ game, renderer, pipeline }`; `tools/mesh-stats.mjs` prints the per-mesh table.
 
 ### Measured (2026-09-23, high tier, 1600×900)
 
 | View | Draw calls | Triangles | Geometries | Textures |
 | --- | --- | --- | --- | --- |
-| Spawn (gameplay camera), realism pass | 290 | 686k | 94 | 60 |
-| Worst review view (cafe street / chase cam) | 290 | 686k | 94 | 60 |
-| Bot run end state (all 3 seeds) | 284 | 659k | — | — |
-| Desktop budget | ≤ 300 | ≤ 750k | ≤ 300 | ≤ 60 |
-| Mobile (medium tier, iPhone 13 viewport) | 136 / ≤ 150 ✔ | 316k / ≤ 300k ✘ | 92 ✔ | 54 / ≤ 40 ✘ |
+| Spawn (gameplay camera), MVP with all zones | 187 | 591k | 76 | 60 image + 84 data |
+| Worst review view (alley mouth → lot, 24 vehicles) | 171 | ≤ 745k → trimmed by LOD 12 → 9 sizes | 76 | 60 + 84 |
+| Tier-4 machine / climax tear-down | 220–230 | 646–675k | 104–106 | ≤ 60 + 84 |
+| Bot run end state (all 3 seeds) | 199–203 | 298–304k | — | — |
+| Desktop budget | ≤ 300 | ≤ 750k | ≤ 300 | ≤ 60 image textures |
+| Mobile (medium tier, iPhone 13 viewport) | 131 / ≤ 150 ✔ | 319k / ≤ 300k ✘ | 76 ✔ | 54 / ≤ 40 image ✘ |
+
+The inspector's `textures` row counts every GPU texture, so it reads 144 against a limit of 60 on desktop. `tools/inspect-game.mjs` leaves that row as the inspector reports it and adds an `imageTextures` row that excludes BatchedMesh data textures. Desktop is within budget by that row (60/60).
+
+How the full MVP world fits the budget (first integration: 600 calls and 1.41M triangles):
+
+| Step | Calls | Triangles |
+| --- | --- | --- |
+| New content on InstancedMesh per (type × role) | 600 | 1.41M |
+| GTAO skips small props, FX, foliage and sky; lighter wheels | 471 | 864k |
+| BatchedMesh per role and size set (multi-draw, per-camera culling) | 211 | 844k |
+| Shadow window fitted to the receivers' light-space footprint | 211 | 799k |
+| Far LOD (SimplifyModifier, 28 %) | 211 | 558k |
+| Player off the GTAO pass | 187 at spawn / 220 at tier 4 | 591k / 675k |
 
 Realism-pass trims to stay inside the budget: bicycle wheels (fewer torus segments and spokes), bin lathes (28 → 22), no shadow casting for tyre/trim roles below class 5, the dark brick reusing the red brick's normal/roughness maps, and weeds living in the decal atlas. Draw calls were cut earlier from ~400 to under 300 by merging player parts per material, per-axle wheel groups, folding trim/lamp/chrome roles and merging untextured arch metals. Startup in the cloud CPU renderer is ~13 s, dominated by first-frame shader compilation (31 programs); on a real GPU this should be ~1 s, which is **not yet measured**.
 
 ## Performance (earlier notes)
 
 58 draw calls and about 28k triangles in the start area (shadow pass included). In the cloud session, measured FPS comes from SwiftShader (a CPU renderer), so it **is not performance evidence**; FPS must be measured on real hardware. Phase 7 items:
-- Per-instance frustum culling (instanced meshes currently span the map).
+- ~~Per-instance frustum culling~~: done with BatchedMesh and per-camera culling (MVP).
+- Mobile tier: triangles 319k vs 300k and image textures 54 vs 40. Next steps are a coarser LOD at medium quality and 256² textures on touch devices.
 - Code-splitting the shared three.js chunk (562 kB, 142 kB gzipped).
 - Distance-based physics states (§39).

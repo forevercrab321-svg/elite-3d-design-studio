@@ -20,6 +20,9 @@ Single place for settled decisions (CLAUDE.md §19–20). Update on every approv
 | Art pass (2026-09-23) | "更加真实高端的3D": procedural PBR kit, authored props/architecture/player, sky env + GTAO + bloom; no external generation (no API keys) | REQUIRED (Creative Director) → INFERRED implementation | Yes: props/architecture are data-driven; GLB swap path documented |
 | Quality tiers | high (GTAO+bloom), medium (bloom), low (none); touch devices default to medium | INFERRED | Yes |
 | Sidewalk height | Raised 0.12 m visually, collision unchanged | INFERRED (realism) | Yes |
+| MVP completion (2026-09-23) | "按照这个方案开始继续做。完成游戏": zones D/E, 22 new object types, staged warehouse climax, destruction types, tier 4, procedural audio, HUD objective and end card | REQUIRED (Creative Director) → INFERRED implementation | Yes: all content is data in `config/objects.ts` and `world/scrapCity.ts` |
+| Warehouse as a kit | The class-8 monolith is replaced by 19 class-7 parts. The front wall and sign need 8 m; the back wall, gables and roof need 9.6 m. Roof bays collapse when a supporting wall goes | INFERRED (brief §13 hierarchical destruction) | Yes |
+| Heavier top-speed curve | Exponent 0.45 → 0.36 | INFERRED (brief §08 "top speed may rise slightly") | Yes |
 | Realism pass (2026-09-23) | "整体视觉更真实，不要像低端3D游戏": HDRI IBL + golden-hour sun, AgX + cinematic output, weathering, interior-mapped windows, trees/weeds/decals | REQUIRED (Creative Director) → INFERRED implementation | Yes: each layer is a separate module/flag (`?tonemap`, `?quality`) |
 
 ## Locked elements
@@ -52,6 +55,7 @@ Single place for settled decisions (CLAUDE.md §19–20). Update on every approv
 | --- | --- | --- | --- |
 | 2026-09-23 | 更加真实高端的3D | Procedural PBR kit, authored models | Phase 5 art pass |
 | 2026-09-23 | 整体视觉像低端3D游戏 | Lighting (HDRI, sun 20°, AgX), post grade, surface shaders, dressing | Realism pass; budgets held |
+| 2026-09-23 | 完成游戏 | Content, destruction, climax, tier 4, audio, HUD; reward table and speed curve rebalanced | Full MVP run passes 24/24 on 3 seeds |
 
 ## Pending issues
 

@@ -50,3 +50,18 @@ When `TRIPO_API_KEY` is available, the planned upgrade is Tripo hero models for 
 | HDRI `pedestrian_overpass_1k.hdr` | `public/hdri/` | CC0 (Poly Haven) | Lighting only (the visible sky stays procedural); see `public/hdri/LICENSE.md` |
 
 Any new third-party file must carry its licence next to it and a row here. External hosts (Poly Haven, ambientCG and jsDelivr) are blocked from the cloud build environment. Photoscan textures therefore have to be committed by the user or fetched from a reachable mirror.
+
+## MVP kit (2026-09-23)
+
+- **Shared authoring:** `world/propKit.ts` holds the role Builder and primitives.
+- **Street kit:** `world/props.ts`.
+- **Site, yard and warehouse kit:** `world/heavyProps.ts`.
+- **Contract (unchanged):**
+  - Authored at real size, pivot on the ground at the footprint centre, forward −Z.
+  - Split into material roles.
+  - Tinted roles take the instance colour and the locked/eligible tint.
+- **New roles:**
+  - `timber` (tinted sawn wood).
+  - `concreteProp` is now tinted, for barriers and plinths.
+- **Far LODs are generated, not authored.** `world/lod.ts` simplifies any role geometry over 260 triangles for class ≥ 3 types. A new heavy model therefore gets its LOD automatically. Check it at distance in `npm run art:review`.
+- **Warehouse parts and stacked objects:** placement `tag` / `supports` in `scrapCity.ts`. `destructionType: 'collapse'` means "locked while held up; falls when a support goes".

@@ -26,20 +26,20 @@
       "height": 996
     },
     "alphaPixels": 4097,
-    "variance": 254,
-    "colorBuckets": 144,
+    "variance": 255,
+    "colorBuckets": 239,
     "metrics": {
-      "colorBuckets": 199,
-      "colorEntropyBits": 4.16,
-      "edgeDensity": 0.332,
+      "colorBuckets": 365,
+      "colorEntropyBits": 5.26,
+      "edgeDensity": 0.317,
       "luminance": {
-        "mean": 71.1,
-        "p5": 32.9,
-        "p95": 102.7,
-        "contrast": 69.9
+        "mean": 73.2,
+        "p5": 34.7,
+        "p95": 163.9,
+        "contrast": 129.2
       },
-      "dominantColorShare": 0.371,
-      "nonBackgroundShare": 0.629
+      "dominantColorShare": 0.142,
+      "nonBackgroundShare": 0.858
     },
     "renderBudget": {
       "tier": "mobile",
@@ -47,30 +47,38 @@
       "rows": [
         {
           "metric": "calls",
-          "actual": 136,
+          "actual": 131,
           "limit": 150,
           "ok": true
         },
         {
           "metric": "triangles",
-          "actual": 316228,
+          "actual": 319463,
           "limit": 300000,
           "ok": false
         },
         {
           "metric": "geometries",
-          "actual": 92,
+          "actual": 76,
           "limit": 200,
           "ok": true
         },
         {
           "metric": "textures",
-          "actual": 54,
+          "actual": 138,
           "limit": 40,
           "ok": false
+        },
+        {
+          "metric": "imageTextures",
+          "actual": 54,
+          "limit": 40,
+          "ok": false,
+          "note": "84 BatchedMesh data textures excluded"
         }
       ],
-      "withinBudget": false
+      "withinBudget": false,
+      "withinBudgetImageTextures": false
     },
     "diagnostics": {
       "t": 0,
@@ -85,8 +93,9 @@
       "power": 0.35,
       "cls": 1,
       "tier": 1,
-      "remaining": 258,
-      "eligibleRemaining": 150,
+      "remaining": 507,
+      "eligibleRemaining": 196,
+      "won": false,
       "metrics": {
         "firstMoveAt": null,
         "firstCollectAt": null,
@@ -98,19 +107,24 @@
         "objectsCollected": 0,
         "bumps": 0,
         "stuckEvents": 0,
-        "resets": 0
+        "resets": 0,
+        "climaxAt": null,
+        "climaxPartsTotal": 19,
+        "climaxPartsLeft": 19
       },
       "fps": 0,
       "renderer": {
-        "calls": 136,
-        "triangles": 316228,
-        "geometries": 92,
-        "textures": 54,
-        "programs": 41,
-        "instancedMeshes": 54,
-        "sceneMeshes": 89,
+        "calls": 131,
+        "triangles": 319463,
+        "geometries": 76,
+        "textures": 138,
+        "programs": 49,
+        "instancedMeshes": 33,
+        "visibleInstances": 419,
+        "batchDataTextures": 84,
+        "sceneMeshes": 75,
         "playerMeshes": 14,
-        "shadowCasters": 47,
+        "shadowCasters": 44,
         "postPasses": 1,
         "quality": "medium",
         "dpr": 1.5,

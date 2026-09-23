@@ -94,3 +94,35 @@ Defects found in review shots and fixed:
 - Shop shelving read as a saturated mosaic.
 - The car's rear shut line and side skirt ran through the wheel arches.
 - A first dressing build went over budget at 308 calls and 765k triangles.
+
+## 2026-09-23 — MVP complete: full run to the warehouse climax
+
+`npm run playtest` now plays the whole run (up to 330 s game time) and captures `07-first-vehicle`, `08-structures`, `09-warehouse-teardown` and `10-warehouse-destroyed`. The result is 24 assertions: pacing gates for vehicles, structures and the climax; tier 4 reached; the win condition; stuck events ≤ 15; and the render budget at spawn and at the end of the run.
+
+| Seed | Vehicles | Structures | Warehouse destroyed | Stuck | Assertions | Calls / tris (spawn → end) |
+| --- | --- | --- | --- | --- | --- | --- |
+| 7 | 67.7 s | 158.2 s | 195.2 s | ≤ 12 | 24/24 PASS | 187 / 592k → 201 / 303k |
+| 2026 | 66.9 s | 168.3 s | 205.3 s | ≤ 12 | 24/24 PASS | 187 / 592k → 199 / 298k |
+| 1337 | 67.9 s | 164.0 s | 201.0 s | ≤ 12 | 24/24 PASS | 187 / 591k → 203 / 304k |
+
+### Balance history (this phase)
+
+1. **First full run: won at 132 s (bot).** Mass jumped from 20 t to 65 t in about 10 s in the container yard, because class 6–7 rewards were 15–20 % of the player's mass. Class 5–7 rewards were scaled to 0.6–0.7×, and more cars and containers were added.
+2. **Seed 7 stalled 400 kg short of class 7.** The 8 m machine could no longer enter the 7 m alley, and the racks inside the warehouse were unreachable. Fixes:
+   - Far vacuum for tiny debris.
+   - More class-6 slack.
+   - The bot's blacklist for unreachable targets now escalates (4 s, 12 s, 36 s…).
+3. **Won at 153–168 s: the climax was too fast.**
+   - Staged tear-down: back wall, gables and roof need 9.6 m.
+   - Class-7 destruction phases last longer.
+   - Heavier speed curve (exponent 0.45 → 0.36).
+
+### Visual review findings (fixed)
+
+- Roof bays hung in the air after the front wall went. A spanning member now fails when either support is removed.
+- Dust puffs read as white six-point stars.
+- The camera could sit inside a street-tree canopy. Canopies near the camera now dissolve.
+- Container grime read as camouflage.
+- Ground and roof textures showed obvious 2–3 m stain and tar repeats.
+- The old warehouse barrel roof was a lopsided shell, because the cylinder arc started at the wrong angle.
+- At its first integration the new content cost 600 calls and 1.41M triangles. The performance work is in `technical-architecture.md`.

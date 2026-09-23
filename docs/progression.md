@@ -11,10 +11,10 @@ All numbers live in `game/src/config/` (`growth.ts`, `classes.ts`, `objects.ts`)
 
 | Stat | Formula | Effect |
 | --- | --- | --- |
-| Top speed | 3.4 m/s × (d/d₀)^0.45 | Faster in m/s, slower in body lengths per second |
+| Top speed | 3.4 m/s × (d/d₀)^0.36 | Faster in m/s, much slower in body lengths per second (heavy) |
 | Acceleration time | 0.16 s × (1 + 0.35·ln(m/m₀)) | Heavier machines take longer to spin up |
 | Turn rate | 11 rad/s ÷ (1 + 0.3·ln(m/m₀)) | Turning gets heavier; sharp turns slow the machine |
-| Magnet reach | d/2 + 0.6·d + 0.3 m | Pull radius grows with size |
+| Magnet reach | d/2 + 0.6·d + 0.3 m (× 2.6 for debris < 8 % of d) | Pull radius grows with size; far vacuum for tiny debris |
 | Camera | distance 1.25 + 4.2·d, height 0.5 + 2.0·d, FOV 56° → 64° | Eased, never snapped |
 | Push | Objects needing ≤ 1/0.72 of current power can be shoved | "Now I can move it" |
 
@@ -36,7 +36,11 @@ All numbers live in `game/src/config/` (`growth.ts`, `classes.ts`, `objects.ts`)
 
 ## Reward table (kg)
 
-scrap 0.14 · can 0.28 · bottle 0.36 · brick 0.48 · small box 0.65 · cardboard box 2.4 · trash bag 2.8 · cone 2.2 · chair 12.5 · café table 15 · trash can 19.5 · bicycle 21 · vending machine 110 · dumpster 140 · compact car 520 · delivery truck 1,800 · warehouse 40,000.
+- **Classes 0–4:** scrap 0.14, can 0.28, bottle 0.36, brick 0.48, small box 0.65, pallet 14, cardboard box 2.4, trash bag 2.8, cone 2.2, chair 12.5, café table 15, shopping cart 16, trash can 19.5, bicycle 21, hoarding panel 35, utility cabinet 60, pallet stack 70, motorcycle 75, jersey barrier 85, vending machine 110, dumpster 140.
+- **Class 5:** pipe stack 270, generator 300, scaffold 320, car 380, van 480.
+- **Class 6:** sign 900, container 1,100, site cabin 1,100, pallet rack 1,100, delivery truck 1,200, tipper 1,700, excavator 2,400.
+- **Class 7:** gable panel 3,000, wall panel 3,600, garage row 4,500, storage tank 5,000, roof bay 6,000 (end bays 6,500).
+- The warehouse back wall, gables and roof require 9.6 m of power (≈103 t). All content below that power totals 125 t.
 
 Rule of thumb: each absorbed object should add roughly 3–10% of the player's mass at the moment it becomes available. Tuning history is in `playtest-notes.md`.
 
@@ -45,11 +49,9 @@ Rule of thumb: each absorbed object should add roughly 3–10% of the player's m
 | Beat | Human target (§49) | Bot window (÷1.7, assumption) | Seed 7 | Seed 2026 | Seed 1337 |
 | --- | --- | --- | --- | --- | --- |
 | First collection | < 5 s | ≤ 2.9 s | 0.5 | 0.4 | 0.7 |
-| First growth (tier 2) | 10–20 s | 5.9–11.8 s | 8.4 | 7.6 | 7.8 |
-| Medium objects (class 3) | 30–60 s | 17.6–35.3 s | 19.4 | 20.4 | 18.2 |
-| Clearly larger object (class 4 absorbed) | ≤ 75 s | ≤ 44.1 s | 34.6 | 35.3 | 29.8 |
-| Vehicles | 1.5–3 min | — | not reachable in this build | | |
-
-## Known gap (Phase 2 work)
-
-After the class-4 milestone, reachable content runs out at about 1,300 kg by ~55 s, and cars need 3,149 kg. Phase 2 must add about 2,000 kg of class-4/5-transition material (motorcycles, utility boxes, shopping carts, barriers, kiosks) in the street and parking lot, so that vehicles unlock in the 1.5–3 min window.
+| First growth (tier 2) | 10–20 s | 5.9–11.8 s | 8.7 | 7.7 | 8.1 |
+| Medium objects (class 3) | 30–60 s | 17.6–35.3 s | 22.7 | 21.3 | 20.1 |
+| Clearly larger object (class 4 absorbed) | ≤ 75 s | ≤ 44.1 s | ~30 | ~28 | ~27 |
+| Vehicles (class 5 absorbed) | 1.5–3 min | 52.9–105.9 s | 67.7 | 66.9 | 67.9 |
+| Structures (class 7 absorbed) | 3–6 min | 105.9–211.8 s | 158.2 | 168.3 | 164.0 |
+| Warehouse destroyed | 5–8 min | 176.5–282.4 s | 195.2 | 205.3 | 201.0 |

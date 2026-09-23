@@ -2,6 +2,35 @@
 
 **Premium stylized realism.** The target is readable silhouettes, believable materials, simplified but sophisticated geometry, clean late-afternoon light and strong scale perception. It is not low-poly-cute, Roblox, mobile-ad or hyperreal.
 
+## Status — MVP content and polish pass (2026-09-23)
+
+New visual content, all procedural (`world/heavyProps.ts`) and reviewed in `renders/review/game/art/10–15`:
+- **Site and yard kit:** shopping cart, pallet and pallet stack, motorcycle, utility cabinet, jersey barrier, site hoarding, panel van, trailer generator, pipe stack, scaffold tower, ISO container, site cabin, 8×4 tipper, tracked excavator, pallet rack, storage tank with a spiral stair, and a garage row.
+- **Warehouse kit:** front, back and gable panels with portal columns and clerestory glazing; barrel roof bays with an inner shell and rafters; gable lunes; the sign.
+- **Tier 4 (Industrial Recycler):** track pods with rollers, chomping crusher jaws, a cyclone separator, twin stacks, a light bar and hazard armour.
+- **Destruction VFX:**
+  - Painted shards thrown off the object, then sucked into the intake.
+  - Soft billboard dust lit from the sun side.
+  - Additive sparks when metal is crushed.
+  - Crumple (squash) and rip (lean) deformation on the instance.
+  - Collapse dust and shake.
+- **HUD:**
+  - A glass panel showing mass, a tier chip, a segmented growth bar and the next unlock.
+  - An objective card with warehouse tear-down progress.
+  - Banners with a rule line, a controls legend, and an end-of-run card.
+- **Readability fixes:**
+  - Canopies near the camera dissolve.
+  - Lower-contrast concrete and asphalt repeats.
+  - Toned-down container grime.
+
+| Category | Realism pass | Now | Evidence |
+| --- | --- | --- | --- |
+| Obstacles / structures | 2.5 | 2.5 | The warehouse reads as built (panels, columns, glazing, roof shell), and so do the tanks and garages |
+| World / environment | 2.5 | 2.5 | Site, yard and back lot with a perimeter wall and backdrop sheds. Distant masses are still plain boxes |
+| VFX / motion | 1.5 | 2 | Destruction type decides the effect (crush, break, rip, collapse); shards home into the machine; jaws chomp |
+| UI / HUD | 1.5 | 2 | Designed panels, objective progress, end card. No settings or menu yet |
+| Performance evidence | 2.5 | 2.5 | Budget table and the step-by-step reduction in `technical-architecture.md` |
+
 ## Status — realism pass (2026-09-23, after "看上去像低端的3D游戏")
 
 The Creative Director judged the first art pass as still reading like a low-end 3D game. The weakest layer was the **image**, not the models: flat ambient light, clean CG surfaces, black windows, an empty street and no lens behaviour. This pass works on that layer.

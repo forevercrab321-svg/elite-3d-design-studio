@@ -31,32 +31,39 @@ The player **rolls into objects** to **absorb them and grow** while **locked, ov
 | Failure teaches | Bump toast names the object and the kg needed. |
 | Fast restart | R resets the seeded world in one frame. |
 
-## Level plan — Scrap City (current build)
+## Level plan — Scrap City (MVP build)
 
-The layout data lives in `game/src/world/scrapCity.ts`. −Z points downtown.
+The layout data lives in `game/src/world/scrapCity.ts`. −Z points downtown. Playable bounds are x ±80, z −126…36. North of the street, anything beyond x ±44 is closed off by street-end blocks.
 
-| Zone | Status | Content | Role |
-| --- | --- | --- | --- |
-| A Alley (x ±3.5, z 0–36) | playable | scrap, cans, bottles, bricks, small boxes → boxes, bags, cones → a first dumpster | Start, first growth, first "impossible" object |
-| Alley mouth / B street | playable | café tables and chairs, bins, bikes, a vending machine, a second dumpster, cones, bags | Class 3–4 payoff, milestone |
-| B street / C parking lot | visible, locked | 3 street cars, 8 lot cars, a delivery truck | Promises: "cars feel impossible" |
-| Construction (crane) | visible landmark | a 38 m tower crane in the alley's sight line | Promise |
-| Warehouse (z −67…−97) | visible, locked (class 8) | 48 × 30 × 16 m | The MVP climax, visible from the first frame |
-
-- **Start:** the player spawns at z 32 facing downtown. The alley frames the street cars, the crane and the warehouse.
-- **First decision:** within one body length.
-- **First reward:** the beacon-marked can cluster.
-- **Landmarks:** crane, warehouse, dumpster.
-
-## Current verdict (60-second milestone)
-
-| Requirement (§62) | Status | Evidence |
+| Zone | Content (class) | Role |
 | --- | --- | --- |
-| Spawn | DONE | `00-spawn.png` |
-| Move | DONE | Keyboard smoke test: W moved the player 2.2 m in 40 frames |
-| Collect tiny objects | DONE | First collection at 0.4–0.7 s (bot) |
-| Gain mass | DONE | 5 → ~1,300 kg over 90 s |
-| Visibly grow | DONE | 0.35 → 2.2 m diameter (6.4×), plus tier-2 parts unfold |
-| Unlock larger objects | DONE | Classes 2, 3 and 4 unlock with banners |
-| Collect one clearly larger object | DONE | Dumpster / vending machine at 29.8–35.3 s (bot), ≈50–60 s estimated for a human |
-| "Wait, I got bigger" for a new player | NEEDS REVIEW | Requires a human playtest (see `playtest-notes.md`) |
+| A Alley (x ±3.5, z 0–36) | scrap, cans, bottles, bricks (0–1) → boxes, bags, cones (2) → bins, chairs, bike (3) → dumpster (4) | Start, first growth, first "impossible" object |
+| B Street + sidewalks | café furniture, bins, bikes (3); vending machine, dumpster, utility cabinets, motorcycle bay (4); parked cars and a van (5); delivery truck (6) | Class 3–4 payoff, cars as the next promise |
+| C Parking lot | 19 cars and 5 vans (5), shopping carts (3) | The first "I can eat THAT" moment |
+| D Construction site (x < −36) | a hoarding line to smash through (4); pallets, pallet stacks, jersey barriers (3–4); generators, pipe stacks, scaffold towers (5); site cabins (one stacked), containers, excavator, tipper (6) | Big jumps in scale |
+| E Industrial yard (x > +36) | container rows, some stacked two high (6), tippers, a delivery truck, an excavator (6); storage tanks (7) | The player starts eating infrastructure |
+| Back lot (z < −100) | garage rows and tanks (7), containers, a tipper | Class-7 warm-up |
+| Warehouse (z −67…−97) | 19 class-7 parts: 4 front panels + the sign (8 m machine); 4 back panels, 6 gable panels and 4 roof bays (9.6 m machine); pallet racks inside (6) | **The climax**, visible from the first frame |
+
+- **Staged tear-down:** a roof bay is held up by its front and back wall panels. When either panel goes, the bay collapses (dust, shake, crumple) and can then be absorbed. The front wall and sign come off first. The rest needs about 103 t, so the tanks, garages and what is left of the yard get eaten in between. Recycling the last part wins the run; play continues as free roam.
+- **Destruction types (§10, §13):**
+  - `collect`: pulled in.
+  - `crush` / `collapse`: flattened on the spot with sparks and shards, then pulled in.
+  - `break`: splits into shards that are sucked into the intake.
+  - `rip`: leans away from its anchor, then tears off.
+  - Stacked objects (containers, the top site cabin, the sign) fall when what holds them up is gone.
+- **Anti-frustration (§52):**
+  - Debris smaller than 8 % of the machine is vacuumed from 2.6× the normal reach, so an alley the machine no longer fits into is not a dead end.
+  - Every threshold keeps at least 20 % mass slack in reachable content.
+- **Landmarks:** crane, warehouse, storage tanks.
+
+## Current verdict (MVP milestones §62–65)
+
+| Requirement | Status | Evidence |
+| --- | --- | --- |
+| 60-second prototype (spawn → move → collect → grow → unlock → larger object) | DONE | `npm run playtest`, 3 seeds, first 11 assertions |
+| 3-minute vertical slice: alley → street → lot → first vehicle destroyed | DONE | First car recycled at 67–68 s (bot) ≈ 1.9 min human; `07-first-vehicle.png` |
+| Complete MVP: 5–8 minute run ending in warehouse destruction, warehouse visible early | DONE (bot) | Warehouse destroyed at 195–205 s (bot) ≈ 5.5–5.8 min human; `10-warehouse-destroyed.png` |
+| Tier transformations 1 → 4 | DONE | Tier 2 hopper/scoop, tier 3 arms/cage, tier 4 track pods, crusher jaws, cyclone, stacks; `13-tier4-machine.png` |
+| Sound (§45) | DONE (procedural) | WebAudio synth: size-scaled SFX, motor drone, tier-layered music (`audio/AudioEngine.ts`); not verified by ear in the cloud session |
+| "Wait, I got bigger" / "I ate the car" for a new player | NEEDS REVIEW | Needs a human playtest (the bot runs ~1.7× human speed, an assumption) |

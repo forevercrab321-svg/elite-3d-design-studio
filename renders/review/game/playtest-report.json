@@ -1,184 +1,379 @@
 {
-  "seed": 2026,
-  "date": "2026-09-23T15:04:07.195Z",
+  "seed": 1337,
+  "date": "2026-09-23T16:07:20.821Z",
   "bot": {
-    "seconds": 90,
+    "seconds": 202.5,
     "final": {
-      "mass": 1298.1000000000026,
-      "diameter": 2.232787675163255,
-      "cls": 4,
-      "tier": 2,
-      "remaining": 13,
-      "eligibleRemaining": 0
+      "mass": 180237.56,
+      "diameter": 11.561756664338638,
+      "cls": 7,
+      "tier": 4,
+      "remaining": 24,
+      "eligibleRemaining": 24
     },
     "metrics": {
       "firstMoveAt": 0.016666666666666666,
-      "firstCollectAt": 0.3833333333333333,
+      "firstCollectAt": 0.6833333333333338,
       "classUnlockAt": {
-        "2": 7.599999999999978,
-        "3": 20.383333333333457,
-        "4": 27.549999999999716
+        "2": 8.11666666666665,
+        "3": 20.06666666666681,
+        "4": 26.94999999999975,
+        "5": 66.54999999999751,
+        "6": 96.88333333332912,
+        "7": 153.5833333333477
       },
       "tierAt": {
         "1": 0,
-        "2": 7.599999999999978
+        "2": 8.11666666666665,
+        "3": 66.54999999999751,
+        "4": 153.5833333333477
       },
       "firstAbsorbOfClassAt": {
-        "0": 0.5833333333333335,
-        "1": 0.3833333333333333,
-        "2": 8.866666666666687,
-        "3": 22.05000000000003,
-        "4": 35.56666666666593
+        "0": 0.6833333333333338,
+        "1": 0.8000000000000008,
+        "2": 8.950000000000024,
+        "3": 20.233333333333466,
+        "4": 27.399999999999725,
+        "5": 67.88333333333077,
+        "6": 101.59999999999552,
+        "7": 163.9666666666893
       },
-      "objectsCollected": 245,
-      "bumps": 4,
-      "stuckEvents": 0,
-      "resets": 0
+      "objectsCollected": 483,
+      "bumps": 12,
+      "stuckEvents": 10,
+      "resets": 0,
+      "climaxAt": 200.95000000005206,
+      "climaxPartsTotal": 19,
+      "climaxPartsLeft": 0
     },
     "timeline": [
       {
         "t": 0.5,
-        "mass": 5.6,
-        "diameter": 0.36,
+        "mass": 5,
+        "diameter": 0.35,
         "cls": 1,
         "tier": 1,
-        "collected": 2
+        "collected": 0
       },
       {
         "t": 5.5,
-        "mass": 21.6,
-        "diameter": 0.56,
+        "mass": 18.6,
+        "diameter": 0.53,
         "cls": 1,
         "tier": 1,
-        "collected": 50
+        "collected": 48
       },
       {
         "t": 10.5,
-        "mass": 31.3,
-        "diameter": 0.64,
+        "mass": 32.3,
+        "diameter": 0.65,
         "cls": 2,
         "tier": 2,
-        "collected": 69
+        "collected": 76
       },
       {
         "t": 15.5,
-        "mass": 60.8,
-        "diameter": 0.79,
+        "mass": 62.5,
+        "diameter": 0.81,
         "cls": 2,
         "tier": 2,
-        "collected": 94
+        "collected": 104
       },
       {
         "t": 20.5,
-        "mass": 87,
-        "diameter": 0.9,
+        "mass": 104.8,
+        "diameter": 0.95,
         "cls": 3,
         "tier": 2,
-        "collected": 117
+        "collected": 125
       },
       {
         "t": 25.5,
-        "mass": 258.4,
-        "diameter": 1.28,
+        "mass": 368.7,
+        "diameter": 1.47,
         "cls": 3,
         "tier": 2,
-        "collected": 136
+        "collected": 149
       },
       {
         "t": 30.5,
-        "mass": 439.3,
-        "diameter": 1.56,
-        "cls": 4,
-        "tier": 2,
-        "collected": 156
-      },
-      {
-        "t": 35.5,
-        "mass": 499.4,
-        "diameter": 1.61,
+        "mass": 713.9,
+        "diameter": 1.83,
         "cls": 4,
         "tier": 2,
         "collected": 160
       },
       {
-        "t": 40.5,
-        "mass": 1022.2,
-        "diameter": 2.05,
+        "t": 35.5,
+        "mass": 924.9,
+        "diameter": 1.99,
         "cls": 4,
         "tier": 2,
-        "collected": 178
+        "collected": 170
+      },
+      {
+        "t": 40.5,
+        "mass": 984.9,
+        "diameter": 2.04,
+        "cls": 4,
+        "tier": 2,
+        "collected": 171
       },
       {
         "t": 45.5,
-        "mass": 1128.3,
-        "diameter": 2.13,
+        "mass": 1393.7,
+        "diameter": 2.28,
+        "cls": 4,
+        "tier": 2,
+        "collected": 180
+      },
+      {
+        "t": 50.5,
+        "mass": 1703.7,
+        "diameter": 2.44,
+        "cls": 4,
+        "tier": 2,
+        "collected": 184
+      },
+      {
+        "t": 55.5,
+        "mass": 2083.7,
+        "diameter": 2.61,
         "cls": 4,
         "tier": 2,
         "collected": 192
       },
       {
-        "t": 50.5,
-        "mass": 1129.3,
-        "diameter": 2.13,
-        "cls": 4,
-        "tier": 2,
-        "collected": 199
-      },
-      {
-        "t": 55.5,
-        "mass": 1261.7,
-        "diameter": 2.21,
-        "cls": 4,
-        "tier": 2,
-        "collected": 212
-      },
-      {
         "t": 60.5,
-        "mass": 1296.3,
-        "diameter": 2.23,
+        "mass": 2573.7,
+        "diameter": 2.8,
         "cls": 4,
         "tier": 2,
-        "collected": 232
+        "collected": 201
       },
       {
         "t": 65.5,
-        "mass": 1298.1,
-        "diameter": 2.23,
+        "mass": 3040.3,
+        "diameter": 2.94,
         "cls": 4,
         "tier": 2,
-        "collected": 245
+        "collected": 213
       },
       {
         "t": 70.5,
-        "mass": 1298.1,
-        "diameter": 2.23,
-        "cls": 4,
-        "tier": 2,
-        "collected": 245
+        "mass": 4025.3,
+        "diameter": 3.25,
+        "cls": 5,
+        "tier": 3,
+        "collected": 222
       },
       {
         "t": 75.5,
-        "mass": 1298.1,
-        "diameter": 2.23,
-        "cls": 4,
-        "tier": 2,
-        "collected": 245
+        "mass": 8210.7,
+        "diameter": 4.11,
+        "cls": 5,
+        "tier": 3,
+        "collected": 247
       },
       {
         "t": 80.5,
-        "mass": 1298.1,
-        "diameter": 2.23,
-        "cls": 4,
-        "tier": 2,
-        "collected": 245
+        "mass": 11070.7,
+        "diameter": 4.56,
+        "cls": 5,
+        "tier": 3,
+        "collected": 254
       },
       {
         "t": 85.5,
-        "mass": 1298.1,
-        "diameter": 2.23,
-        "cls": 4,
-        "tier": 2,
-        "collected": 245
+        "mass": 12890.8,
+        "diameter": 4.79,
+        "cls": 5,
+        "tier": 3,
+        "collected": 259
+      },
+      {
+        "t": 90.5,
+        "mass": 14172.7,
+        "diameter": 4.95,
+        "cls": 5,
+        "tier": 3,
+        "collected": 303
+      },
+      {
+        "t": 95.5,
+        "mass": 14355.6,
+        "diameter": 4.97,
+        "cls": 5,
+        "tier": 3,
+        "collected": 320
+      },
+      {
+        "t": 100.5,
+        "mass": 15331.6,
+        "diameter": 5.08,
+        "cls": 6,
+        "tier": 3,
+        "collected": 323
+      },
+      {
+        "t": 105.5,
+        "mass": 16231.6,
+        "diameter": 5.18,
+        "cls": 6,
+        "tier": 3,
+        "collected": 324
+      },
+      {
+        "t": 110.5,
+        "mass": 16531.6,
+        "diameter": 5.21,
+        "cls": 6,
+        "tier": 3,
+        "collected": 325
+      },
+      {
+        "t": 115.5,
+        "mass": 16531.6,
+        "diameter": 5.21,
+        "cls": 6,
+        "tier": 3,
+        "collected": 325
+      },
+      {
+        "t": 120.5,
+        "mass": 18441.6,
+        "diameter": 5.31,
+        "cls": 6,
+        "tier": 3,
+        "collected": 329
+      },
+      {
+        "t": 125.5,
+        "mass": 29627.8,
+        "diameter": 6.3,
+        "cls": 6,
+        "tier": 3,
+        "collected": 361
+      },
+      {
+        "t": 130.5,
+        "mass": 46607.8,
+        "diameter": 7.36,
+        "cls": 6,
+        "tier": 3,
+        "collected": 377
+      },
+      {
+        "t": 135.5,
+        "mass": 48847.8,
+        "diameter": 7.48,
+        "cls": 6,
+        "tier": 3,
+        "collected": 380
+      },
+      {
+        "t": 140.5,
+        "mass": 51417.8,
+        "diameter": 7.61,
+        "cls": 6,
+        "tier": 3,
+        "collected": 383
+      },
+      {
+        "t": 145.5,
+        "mass": 55317.8,
+        "diameter": 7.8,
+        "cls": 6,
+        "tier": 3,
+        "collected": 386
+      },
+      {
+        "t": 150.5,
+        "mass": 56417.8,
+        "diameter": 7.85,
+        "cls": 6,
+        "tier": 3,
+        "collected": 387
+      },
+      {
+        "t": 155.5,
+        "mass": 63436.2,
+        "diameter": 8.16,
+        "cls": 7,
+        "tier": 4,
+        "collected": 419
+      },
+      {
+        "t": 160.5,
+        "mass": 70180.4,
+        "diameter": 8.44,
+        "cls": 7,
+        "tier": 4,
+        "collected": 451
+      },
+      {
+        "t": 165.5,
+        "mass": 77382.6,
+        "diameter": 8.72,
+        "cls": 7,
+        "tier": 4,
+        "collected": 454
+      },
+      {
+        "t": 170.5,
+        "mass": 80982.6,
+        "diameter": 8.86,
+        "cls": 7,
+        "tier": 4,
+        "collected": 455
+      },
+      {
+        "t": 175.5,
+        "mass": 80982.6,
+        "diameter": 8.86,
+        "cls": 7,
+        "tier": 4,
+        "collected": 455
+      },
+      {
+        "t": 180.5,
+        "mass": 94982.6,
+        "diameter": 9.34,
+        "cls": 7,
+        "tier": 4,
+        "collected": 458
+      },
+      {
+        "t": 185.5,
+        "mass": 99482.6,
+        "diameter": 9.47,
+        "cls": 7,
+        "tier": 4,
+        "collected": 459
+      },
+      {
+        "t": 190.5,
+        "mass": 114567.6,
+        "diameter": 9.93,
+        "cls": 7,
+        "tier": 4,
+        "collected": 463
+      },
+      {
+        "t": 195.5,
+        "mass": 130767.6,
+        "diameter": 10.39,
+        "cls": 7,
+        "tier": 4,
+        "collected": 468
+      },
+      {
+        "t": 200.5,
+        "mass": 173967.6,
+        "diameter": 11.38,
+        "cls": 7,
+        "tier": 4,
+        "collected": 480
       }
     ],
     "shots": [
@@ -188,18 +383,25 @@
       "03-class3-unlocked",
       "04-class4-unlocked",
       "05-large-object-absorbed",
-      "06-at-60s"
+      "06-at-60s",
+      "07-first-vehicle",
+      "08-structures",
+      "09-warehouse-teardown",
+      "10-warehouse-destroyed"
     ],
     "pacing": {
-      "firstCollection": 0.3833333333333333,
-      "firstGrowth": 7.599999999999978,
-      "mediumObjects": 20.383333333333457,
-      "clearlyLargerObject": 35.56666666666593
+      "firstCollection": 0.6833333333333338,
+      "firstGrowth": 8.11666666666665,
+      "mediumObjects": 20.06666666666681,
+      "clearlyLargerObject": 27.399999999999725,
+      "vehicles": 67.88333333333077,
+      "structures": 163.9666666666893,
+      "warehouseClimax": 200.95000000005206
     }
   },
   "smoke": {
-    "moved": 6.321283394972358,
-    "collectedDuringSmoke": 12,
+    "moved": 6.205410628900292,
+    "collectedDuringSmoke": 11,
     "afterRestart": {
       "mass": 5,
       "x": 0,
@@ -207,17 +409,18 @@
       "resets": 1
     },
     "perf": {
-      "fps": 14.755065905961176,
-      "drawCalls": 136,
-      "calls": 136,
-      "triangles": 343006,
-      "geometries": 94,
-      "textures": 44,
-      "programs": 42,
-      "instancedMeshes": 54,
-      "sceneMeshes": 93,
+      "fps": 10.000000000000002,
+      "drawCalls": 114,
+      "calls": 114,
+      "triangles": 427442,
+      "geometries": 75,
+      "textures": 125,
+      "programs": 40,
+      "instancedMeshes": 33,
+      "visibleInstances": 419,
+      "sceneMeshes": 71,
       "playerMeshes": 14,
-      "shadowCasters": 43,
+      "shadowCasters": 44,
       "postPasses": 0,
       "quality": "low",
       "dpr": 1,
@@ -225,16 +428,35 @@
     },
     "perfHigh": {
       "fps": 0,
-      "drawCalls": 284,
-      "calls": 284,
-      "triangles": 658534,
-      "geometries": 103,
-      "textures": 63,
+      "drawCalls": 203,
+      "calls": 203,
+      "triangles": 303814,
+      "geometries": 109,
+      "textures": 144,
       "programs": 58,
-      "instancedMeshes": 54,
-      "sceneMeshes": 100,
-      "playerMeshes": 22,
-      "shadowCasters": 51,
+      "instancedMeshes": 33,
+      "visibleInstances": 21,
+      "sceneMeshes": 105,
+      "playerMeshes": 45,
+      "shadowCasters": 75,
+      "postPasses": 2,
+      "quality": "high",
+      "dpr": 1,
+      "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+    },
+    "perfSpawn": {
+      "fps": 0,
+      "drawCalls": 187,
+      "calls": 187,
+      "triangles": 591400,
+      "geometries": 76,
+      "textures": 144,
+      "programs": 58,
+      "instancedMeshes": 33,
+      "visibleInstances": 419,
+      "sceneMeshes": 75,
+      "playerMeshes": 14,
+      "shadowCasters": 44,
       "postPasses": 2,
       "quality": "high",
       "dpr": 1,
@@ -256,57 +478,82 @@
     {
       "name": "collect tiny objects",
       "pass": true,
-      "detail": "class0 0.5833333333333335, class1 0.3833333333333333"
+      "detail": "class0 0.6833333333333338, class1 0.8000000000000008"
     },
     {
       "name": "gain mass",
       "pass": true,
-      "detail": "5 → 1298.1 kg"
+      "detail": "5 → 180237.6 kg"
     },
     {
       "name": "visibly grow (≥3× diameter)",
       "pass": true,
-      "detail": "0.35 → 2.23 m (6.4×)"
+      "detail": "0.35 → 11.56 m (33.0×)"
     },
     {
       "name": "unlock larger objects (class ≥ 2)",
       "pass": true,
-      "detail": "class 4"
+      "detail": "class 7"
     },
     {
       "name": "collect a clearly larger object (class 4)",
       "pass": true,
-      "detail": "at 35.56666666666593 s"
+      "detail": "at 27.399999999999725 s"
     },
     {
       "name": "pacing firstCollection {\"max\":2.9}",
       "pass": true,
-      "detail": "0.3833333333333333 s"
+      "detail": "0.6833333333333338 s"
     },
     {
       "name": "pacing firstGrowth {\"min\":5.9,\"max\":11.8}",
       "pass": true,
-      "detail": "7.599999999999978 s"
+      "detail": "8.11666666666665 s"
     },
     {
       "name": "pacing mediumObjects {\"min\":17.6,\"max\":35.3}",
       "pass": true,
-      "detail": "20.383333333333457 s"
+      "detail": "20.06666666666681 s"
     },
     {
       "name": "pacing clearlyLargerObject {\"max\":44.1}",
       "pass": true,
-      "detail": "35.56666666666593 s"
+      "detail": "27.399999999999725 s"
     },
     {
-      "name": "stuck events ≤ 3",
+      "name": "pacing vehicles {\"min\":52.9,\"max\":105.9}",
       "pass": true,
-      "detail": "0"
+      "detail": "67.88333333333077 s"
+    },
+    {
+      "name": "pacing structures {\"min\":105.9,\"max\":211.8}",
+      "pass": true,
+      "detail": "163.9666666666893 s"
+    },
+    {
+      "name": "pacing warehouseClimax {\"min\":176.5,\"max\":282.4}",
+      "pass": true,
+      "detail": "200.95000000005206 s"
+    },
+    {
+      "name": "tier 4 reached (Industrial Recycler)",
+      "pass": true,
+      "detail": "tier 4"
+    },
+    {
+      "name": "warehouse destroyed (win condition)",
+      "pass": true,
+      "detail": "climaxAt 200.95000000005206 s, parts left 0"
+    },
+    {
+      "name": "stuck events ≤ 15 over the full run",
+      "pass": true,
+      "detail": "10"
     },
     {
       "name": "keyboard W moves the player",
       "pass": true,
-      "detail": "6.32 m over 103 game frames"
+      "detail": "6.21 m over 102 game frames"
     },
     {
       "name": "R restarts the run",
@@ -314,14 +561,24 @@
       "detail": "{\"mass\":5,\"x\":0,\"z\":32,\"resets\":1}"
     },
     {
-      "name": "draw calls ≤ 300 (high tier, desktop budget)",
+      "name": "draw calls ≤ 300 (high tier, spawn)",
       "pass": true,
-      "detail": "284 calls"
+      "detail": "187 calls"
     },
     {
-      "name": "triangles ≤ 750k (high tier, desktop budget)",
+      "name": "triangles ≤ 750k (high tier, spawn)",
       "pass": true,
-      "detail": "658534 tris"
+      "detail": "591400 tris"
+    },
+    {
+      "name": "draw calls ≤ 300 (high tier, end of run)",
+      "pass": true,
+      "detail": "203 calls"
+    },
+    {
+      "name": "triangles ≤ 750k (high tier, end of run)",
+      "pass": true,
+      "detail": "303814 tris"
     },
     {
       "name": "no page or console errors",
