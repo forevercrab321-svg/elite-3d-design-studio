@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { AudioEngine } from '../audio/AudioEngine';
+import { arenaConfig as A } from '../config/arena';
 import { bakeSkyEnvironment } from '../art/environment';
 import { RenderPipeline } from '../art/postfx';
 import { installRenderGuards, type AppContext } from '../app';
@@ -48,6 +49,7 @@ export async function runArena(ctx: AppContext): Promise<void> {
     if (preview?.city === city) return;
     preview?.dispose();
     preview = new ArenaGame(input, lib, city, 7, null, [], () => false);
+    audio?.setTheme(city.id);
     preview.hud.dispose();
     envFor(preview.scene, city);
     usePipeline(preview);
@@ -64,6 +66,7 @@ export async function runArena(ctx: AppContext): Promise<void> {
         const g = new ArenaGame(input, lib, city, state.seed, localId, state.roster, (): boolean => session.isHost());
         game = g;
         g.onEvent = (e) => audio?.handle(e);
+        audio?.setTheme(city.id);
         envFor(g.scene, city);
         usePipeline(g);
         ui.resetRound();
@@ -113,6 +116,7 @@ export async function runArena(ctx: AppContext): Promise<void> {
     session.update(dt);
     if (game) {
       game.step(dt);
+      audio?.setTension(game.phase === 'playing' && A.roundSeconds - game.matchTime < 30);
       ui.renderRound(game);
       if (session.match.ph === 'results' && shownResultsEp !== session.match.ep) {
         shownResultsEp = session.match.ep;

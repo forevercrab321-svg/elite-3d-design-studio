@@ -7,6 +7,8 @@ import type { GameEvent } from '../game/Game';
  * tier (pulse → kick → bass → industrial percussion). Starts on the first user gesture;
  * `M` toggles mute. Presentation only: the simulation never waits on audio.
  */
+import { THEMES, type MusicTheme } from './themes';
+
 export class AudioEngine {
   private ctx: AudioContext | null = null;
   private master!: GainNode;
@@ -20,6 +22,13 @@ export class AudioEngine {
   private timer: number | null = null;
   private muted = false;
   private lastTick = 0;
+  /** City theme (null = the original industrial loop) and an optional file track override. */
+  private theme: MusicTheme | null = null;
+  private themeId = '';
+  private track: HTMLAudioElement | null = null;
+  private trackNode: MediaElementAudioSourceNode | null = null;
+  private trackLive = false;
+  private tension = 1;
 
   constructor() {
     const start = () => this.start();
@@ -52,8 +61,48 @@ export class AudioEngine {
     const d = this.noise.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     this.startMotor();
+    if (this.themeId) this.loadTrack(this.themeId);
     this.nextStepTime = ctx.currentTime + 0.1;
     this.timer = window.setInterval(() => this.schedule(), 25);
+  }
+
+  /** Switch the BGM to a city's theme. A file at music/<id>.mp3 (e.g. a Suno export) wins if present. */
+  setTheme(id: string): void {
+    if (id === this.themeId) return;
+    this.themeId = id;
+    this.theme = THEMES[id] ?? null;
+    this.step = 0;
+    this.tension = 1;
+    if (this.ctx) this.loadTrack(id);
+  }
+
+  /** Last stretch of a round: the loop speeds up a little. */
+  setTension(on: boolean): void {
+    this.tension = on ? 1.1 : 1;
+    if (this.track) this.track.playbackRate = this.tension;
+  }
+
+  private loadTrack(id: string): void {
+    this.track?.pause();
+    this.trackNode?.disconnect();
+    this.track = null;
+    this.trackNode = null;
+    this.trackLive = false;
+    const base = (import.meta as unknown as { env?: { BASE_URL?: string } }).env?.BASE_URL ?? './';
+    const el = new Audio();
+    el.loop = true;
+    el.preload = 'auto';
+    el.crossOrigin = 'anonymous';
+    el.addEventListener('canplaythrough', () => {
+      if (this.track !== el || !this.ctx) return;
+      this.trackNode = this.ctx.createMediaElementSource(el);
+      this.trackNode.connect(this.music);
+      this.trackLive = true; // the sequencer stays quiet while a real track plays
+      void el.play().catch(() => (this.trackLive = false));
+    }, { once: true });
+    el.addEventListener('error', () => (this.trackLive = false), { once: true });
+    el.src = `${base}music/${id}.mp3`;
+    this.track = el;
   }
 
   setMuted(m: boolean): void {
@@ -285,9 +334,12 @@ export class AudioEngine {
   // ── Music: 16-step sequencer, 104 BPM, layers unlock per tier ───────────────
   private schedule(): void {
     const ctx = this.ctx!;
-    const stepDur = 60 / 104 / 4;
+    const stepDur = 60 / ((this.theme?.bpm ?? 104) * this.tension) / 4;
     while (this.nextStepTime < ctx.currentTime + 0.12) {
-      this.playStep(this.step % 16, this.nextStepTime);
+      if (!this.trackLive) {
+        if (this.theme) this.playThemeStep(this.theme, this.step % this.theme.steps, this.nextStepTime);
+        else this.playStep(this.step % 16, this.nextStepTime);
+      }
       this.step++;
       this.nextStepTime += stepDur;
     }
@@ -335,5 +387,68 @@ export class AudioEngine {
       hit(310, 0.18, 0.25, 'square', 0.4);
       hat(0.4);
     }
+  }
+
+  /** One step of a city theme: lead from tier 1, drums from tier 2, bass from 3, accents from 4. */
+  private playThemeStep(th: MusicTheme, i: number, t: number): void {
+    const ctx = this.ctx!;
+    const out = this.music;
+    const note = (semi: number) => th.root * Math.pow(2, semi / 12);
+    const voice = (freq: number, wave: OscillatorType, level: number, decay: number, opts: { pluck?: boolean; tremolo?: boolean; detune?: number; drop?: number } = {}) => {
+      const oscs: OscillatorNode[] = [];
+      const g = ctx.createGain();
+      const f = ctx.createBiquadFilter();
+      f.type = 'lowpass';
+      f.frequency.setValueAtTime(opts.pluck ? 4200 : 2400, t);
+      if (opts.pluck) f.frequency.exponentialRampToValueAtTime(700, t + decay);
+      for (const d of opts.detune ? [-opts.detune, opts.detune] : [0]) {
+        const o = ctx.createOscillator();
+        o.type = wave;
+        o.frequency.setValueAtTime(freq, t);
+        if (opts.drop) o.frequency.exponentialRampToValueAtTime(Math.max(20, freq * opts.drop), t + decay);
+        o.detune.value = d;
+        o.connect(f);
+        oscs.push(o);
+      }
+      f.connect(g).connect(out);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(level, t + (opts.pluck ? 0.004 : 0.02));
+      if (opts.tremolo) {
+        // Pipa-style tremolo: fast amplitude flutter over the decay.
+        const lfo = ctx.createOscillator();
+        const depth = ctx.createGain();
+        lfo.frequency.value = 18;
+        depth.gain.value = level * 0.5;
+        lfo.connect(depth).connect(g.gain);
+        lfo.start(t);
+        lfo.stop(t + decay + 0.05);
+      }
+      g.gain.exponentialRampToValueAtTime(0.0001, t + decay);
+      for (const o of oscs) {
+        o.start(t);
+        o.stop(t + decay + 0.05);
+      }
+    };
+    const noise = (hp: number, level: number, dur: number) => {
+      const src = ctx.createBufferSource();
+      src.buffer = this.noise;
+      const f = ctx.createBiquadFilter();
+      f.type = 'highpass';
+      f.frequency.value = hp;
+      const g = ctx.createGain();
+      src.connect(f).connect(g).connect(out);
+      g.gain.setValueAtTime(level, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      src.start(t, Math.random() * 0.5);
+      src.stop(t + dur + 0.02);
+    };
+    const lead = th.lead.pattern[i];
+    if (lead !== null && lead !== undefined) voice(note(lead), th.lead.wave, th.lead.level, th.lead.decay, th.lead);
+    if (th.hat.includes(i)) noise(7500, 0.12, 0.05);
+    if (this.tier >= 2 && th.kick.includes(i)) voice(120, 'sine', 0.8, 0.28, { drop: 0.3 });
+    if (this.tier >= 2 && th.snare.includes(i)) noise(1800, 0.35, 0.14);
+    const bass = th.bass.pattern[i];
+    if (this.tier >= 3 && bass !== null && bass !== undefined) voice(note(bass), th.bass.wave, th.bass.level, 0.3);
+    if (this.tier >= 4 && th.accent?.steps.includes(i)) for (const c of th.accent.chord) voice(note(c), th.accent.wave, th.accent.level, th.accent.decay);
   }
 }
