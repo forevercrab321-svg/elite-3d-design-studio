@@ -1,6 +1,6 @@
 {
   "seed": 1337,
-  "date": "2026-09-23T23:21:36.831Z",
+  "date": "2026-09-24T04:07:33.448Z",
   "bot": {
     "seconds": 182.5,
     "final": {
@@ -368,7 +368,7 @@
     }
   },
   "smoke": {
-    "moved": 6.32710903097739,
+    "moved": 6.353073177865237,
     "collectedDuringSmoke": 11,
     "afterRestart": {
       "mass": 5,
@@ -377,7 +377,7 @@
       "resets": 1
     },
     "perf": {
-      "fps": 12.998700129986926,
+      "fps": 10.820381664371526,
       "drawCalls": 114,
       "calls": 114,
       "triangles": 381635,
@@ -524,7 +524,7 @@
     {
       "name": "keyboard W moves the player",
       "pass": true,
-      "detail": "6.33 m over 104 game frames"
+      "detail": "6.35 m over 103 game frames"
     },
     {
       "name": "R restarts the run",

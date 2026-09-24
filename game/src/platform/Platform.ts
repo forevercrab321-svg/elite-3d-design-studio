@@ -104,10 +104,13 @@ export function detectPlatform(): PlatformName {
   return 'web';
 }
 
-/** Build a fallback invite URL on the current page: location.href with ?room=<code>. */
+/** Build a clean invite URL for this page: the path plus ?room=<code> (and ?platform= if forced). */
 export function fallbackInviteUrl(room: string): string {
   try {
-    const u = new URL(location.href);
+    // A clean link: the inviter's name, language or test flags must not travel with it.
+    const u = new URL(location.origin + location.pathname);
+    const keep = new URL(location.href).searchParams.get('platform');
+    if (keep) u.searchParams.set('platform', keep);
     u.searchParams.set(INVITE_PARAM, room);
     return u.toString();
   } catch {

@@ -2,6 +2,7 @@ import { GIFT_LABEL, HATS, HORNS, SKINS, type GiftRule, type HornSound } from '.
 import { L, lang, setLang } from '../i18n';
 import { loadSettings, saveSettings } from '../settings';
 import { buy, equip, owns, progress } from './progress';
+import { channels, copyText, isPhone, openOut, qrSvg, type ShareChannel } from './share';
 
 /**
  * Lobby modal panels: the cosmetics SHOP (coins → skins, hats and horns, looks only; friend gifts) and SETTINGS
@@ -31,6 +32,15 @@ const CSS = `
 #arena .panel .langs { display: flex; gap: 8px; }
 #arena .panel .links { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 18px; font-size: 12px; }
 #arena .panel .links a { color: #ffb347; }
+#arena .panel .share-sys { width: 100%; margin-bottom: 12px; padding: 14px; font-size: 15px; }
+#arena .panel .apps { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 10px; margin-bottom: 14px; }
+#arena .panel .app { display: grid; justify-items: center; gap: 6px; border: 0; border-radius: 14px; padding: 12px 6px; color: #fff; font-weight: 800; font-size: 12px; }
+#arena .panel .app i { font-style: normal; font-size: 24px; line-height: 1; }
+#arena .panel .linkrow { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+#arena .panel .linkrow input { flex: 1; min-width: 0; font: inherit; font-size: 12px; padding: 9px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,.15); background: rgba(0,0,0,.35); color: inherit; }
+#arena .panel .qr { display: grid; justify-items: center; gap: 8px; margin: 4px 0 14px; font-size: 12px; }
+#arena .panel .qr svg { width: 180px; height: 180px; background: #fff; border-radius: 10px; }
+#arena .panel .tip { min-height: 18px; font-size: 12px; font-weight: 700; color: #8be07a; margin-bottom: 8px; }
 @media (pointer: coarse) and (orientation: landscape), (max-height: 520px) {
   #arena .panel .card { padding: 12px 14px; } #arena .panel .grid { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; margin-bottom: 10px; }
   #arena .panel .item { padding: 8px 6px; } #arena .panel .item .sw { width: 34px; height: 34px; } #arena .panel .item .ic { font-size: 22px; line-height: 34px; }
@@ -45,8 +55,10 @@ const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
 export interface PanelHooks {
   /** Equipped cosmetics changed: publish them for the next round. */
   equipped(skin: string, horn: string, hat: string): void;
-  /** Share the invite link (unlocks the share gift). */
-  share(): Promise<void>;
+  /** The link to share (room invite, or the game) and the message that goes with it. */
+  invite(): Promise<{ url: string; text: string }>;
+  /** A share went out on `channel` (unlocks the share gift, analytics). */
+  shared(channel: ShareChannel): void;
   previewHorn(horn: HornSound): void;
   volumes(music: number, sfx: number): void;
   /** Coins changed (the lobby shows the balance). */
@@ -110,14 +122,14 @@ export class ArenaPanels {
     </div>`;
     this.el.hidden = false;
     (this.el.querySelector('.x') as HTMLButtonElement).onclick = () => this.close();
-    (this.el.querySelector('[data-share]') as HTMLButtonElement).onclick = () => void this.hooks.share().then(() => this.open && this.showShop());
+    (this.el.querySelector('[data-share]') as HTMLButtonElement).onclick = () => void this.showShare();
     this.el.querySelectorAll<HTMLButtonElement>('.item').forEach((b) => {
       b.onclick = () => {
         const id = b.dataset.id!;
         const isHorn = b.dataset.horn === '1';
         if (isHorn) this.hooks.previewHorn(id as HornSound);
         if (!owns(id) && b.dataset.gift === 'share') {
-          void this.hooks.share().then(() => this.open && this.showShop());
+          void this.showShare();
           return;
         }
         if (!owns(id)) {
@@ -131,6 +143,73 @@ export class ArenaPanels {
         const now = progress();
         this.hooks.equipped(now.skin, now.horn, now.hat);
         this.showShop();
+      };
+    });
+  }
+
+  /** Invite / share sheet: phone share sheet, one button per app, the link and a QR code. */
+  async showShare(): Promise<void> {
+    const { url, text } = await this.hooks.invite();
+    const phone = isPhone();
+    const canSystem = typeof navigator.share === 'function' && phone;
+    const apps = channels()
+      .map((c) => `<button class="app" data-ch="${c.id}" style="background:${c.color}"><i>${c.icon}</i>${c.label}</button>`)
+      .join('');
+    this.el.innerHTML = `<div class="card" role="dialog" aria-label="${L('邀请好友', 'Invite friends')}" style="width:min(560px,100%)">
+      <div class="hd"><h2>📣 ${L('邀请好友一起玩', 'INVITE FRIENDS')}</h2><button class="x" aria-label="${L('关闭', 'Close')}">✕</button></div>
+      ${canSystem ? `<button class="btn primary share-sys" data-ch="system">📤 ${L('分享到微信 / 抖音 / 小红书 / Instagram…', 'Share to WhatsApp / TikTok / Instagram / WeChat…')}</button>` : ''}
+      <div class="apps">${apps}</div>
+      <div class="tip" aria-live="polite"></div>
+      <div class="linkrow"><input readonly aria-label="${L('邀请链接', 'Invite link')}"><button class="btn" data-ch="copy">${L('复制', 'Copy')}</button></div>
+      <div class="qr" hidden><div class="code"></div><span>${L('用微信「扫一扫」打开，再点右上角「…」发送给朋友', 'Scan with WeChat, then tap “…” to send it to a friend')}</span></div>
+      <div class="note">🎁 ${L('分享就送派对帽；好友进房和你打完一局，再送「好友限定」涂装。', 'Sharing unlocks the Party Hat; finish a match with a friend for the Best Buddies skin.')}</div>
+    </div>`;
+    this.el.hidden = false;
+    (this.el.querySelector('.linkrow input') as HTMLInputElement).value = url;
+    (this.el.querySelector('.x') as HTMLButtonElement).onclick = () => this.close();
+    const tip = this.el.querySelector('.tip') as HTMLElement;
+    const say = (t: string) => (tip.textContent = t);
+    const message = `${text} ${url}`;
+    this.el.querySelectorAll<HTMLButtonElement>('[data-ch]').forEach((b) => {
+      b.onclick = async () => {
+        const id = b.dataset.ch as ShareChannel;
+        if (id === 'system') {
+          try {
+            await navigator.share({ title: 'GROW EVERYTHING', text, url });
+            this.hooks.shared('system');
+          } catch {
+            /* dismissed: no gift */
+          }
+          return;
+        }
+        if (id === 'copy') {
+          if (await copyText(message)) {
+            say(L('✓ 已复制，粘贴发给好友即可', '✓ Copied — paste it to a friend'));
+            this.hooks.shared('copy');
+          }
+          return;
+        }
+        const c = channels().find((x) => x.id === id);
+        if (!c) return;
+        if (c.intent) {
+          say(L(`✓ 已打开 ${c.label}，确认发送即可`, `✓ Opened ${c.label} — just hit send`));
+          openOut(c.intent(url, text));
+          this.hooks.shared(id);
+          return;
+        }
+        const copied = await copyText(message);
+        if (id === 'wechat' && !phone) {
+          // Desktop: WeChat has no web share; scan the QR code with the phone.
+          const qr = this.el.querySelector('.qr') as HTMLElement;
+          (qr.querySelector('.code') as HTMLElement).innerHTML = qrSvg(url);
+          qr.hidden = false;
+          say(copied ? L('✓ 链接已复制；也可以用手机微信扫码', '✓ Link copied — or scan the code with WeChat') : '');
+          this.hooks.shared(id);
+          return;
+        }
+        say(copied ? L(`✓ 邀请已复制，正在打开${c.label}，粘贴发送即可`, `✓ Invite copied — opening ${c.label}, just paste it`) : L(`正在打开${c.label}`, `Opening ${c.label}`));
+        this.hooks.shared(id);
+        window.setTimeout(() => openOut(phone ? c.app! : (c.web ?? c.app!)), 350);
       };
     });
   }
