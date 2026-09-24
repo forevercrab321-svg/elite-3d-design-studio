@@ -104,11 +104,23 @@ export function detectPlatform(): PlatformName {
   return 'web';
 }
 
+/** Public web address of the game (invite links from portal iframes point here). */
+export const PUBLIC_GAME_URL: string = (import.meta.env.VITE_PUBLIC_GAME_URL as string | undefined) ?? 'https://grow-everything.vercel.app/game/';
+
 /** Build a clean invite URL for this page: the path plus ?room=<code> (and ?platform= if forced). */
 export function fallbackInviteUrl(room: string): string {
   try {
     // A clean link: the inviter's name, language or test flags must not travel with it.
-    const u = new URL(location.origin + location.pathname);
+    // Framed on a portal CDN (itch.io, Newgrounds…) the page's own URL is not shareable, so
+    // invites point at our public site; the room lives on the same backend either way.
+    const framed = (() => {
+      try {
+        return window.top !== window;
+      } catch {
+        return true;
+      }
+    })();
+    const u = new URL(framed ? PUBLIC_GAME_URL : location.origin + location.pathname);
     const keep = new URL(location.href).searchParams.get('platform');
     if (keep) u.searchParams.set('platform', keep);
     u.searchParams.set(INVITE_PARAM, room);

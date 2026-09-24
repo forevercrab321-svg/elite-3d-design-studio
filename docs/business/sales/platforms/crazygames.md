@@ -59,8 +59,8 @@
 **标题 / Title**：GROW EVERYTHING
 
 **短描述（≤150 字符）**
-- EN（121 字符）：`Eat anything smaller than you, grow, and swallow a whole city. 4-player online rooms with friends, AI fills empty seats.`
-- 中（56 字）：`吃掉比你小的一切，越吃越大，最后吞掉整座城市！最多 4 人联机，好友没到齐就由 AI 补位。`
+- EN（120 字符）：`Eat anything smaller than you, grow, and swallow a whole city. 4-player online rooms with friends, AI fills empty seats.`
+- 中（46 字）：`吃掉比你小的一切，越吃越大，最后吞掉整座城市！最多 4 人联机，好友没到齐就由 AI 补位。`
 
 **长描述 / Long description**
 

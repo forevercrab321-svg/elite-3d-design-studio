@@ -18,7 +18,7 @@ import { ArenaSession, type MatchState } from './ArenaSession';
 import { ArenaUi } from './ArenaUi';
 import { addCoins, award, progress, unlockGift } from './progress';
 import type { GiftRule } from '../config/cosmetics';
-import { createPlatform } from '../platform/Platform';
+import { createPlatform, PUBLIC_GAME_URL } from '../platform/Platform';
 import type { CrazyGamesPlatform } from '../platform/CrazyGamesPlatform';
 
 /**
@@ -187,7 +187,7 @@ export async function runArena(ctx: AppContext): Promise<void> {
       url = clean.toString();
     }
     // Attribution: invited players arrive tagged (the share sheet adds the channel as utm_medium).
-    if (url.startsWith(location.origin)) {
+    if (url.startsWith(location.origin) || url.startsWith(PUBLIC_GAME_URL)) {
       const u = new URL(url);
       u.searchParams.set('utm_source', 'invite');
       url = u.toString();
