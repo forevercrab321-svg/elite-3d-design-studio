@@ -67,6 +67,10 @@ interface CgSdk {
     settings?: { muteAudio?: boolean; disableChat?: boolean };
     addSettingsChangeListener?(listener: (settings: { muteAudio?: boolean }) => void): void;
   };
+  /** SDK v3 user module (docs.crazygames.com/sdk/user/); getUser() resolves null for guests. */
+  user?: {
+    getUser?(): Promise<{ username?: string } | null>;
+  };
 }
 
 interface CgWindow {
@@ -118,6 +122,20 @@ export class CrazyGamesPlatform implements Platform {
     } catch {
       /* ignore */
     }
+  }
+
+  async playerName(): Promise<string | null> {
+    const get = this.sdk?.user?.getUser;
+    if (!get || !this.sdk?.user) return null;
+    const user = this.sdk.user;
+    const u = await withTimeout(
+      Promise.resolve()
+        .then(() => get.call(user))
+        .catch(() => null),
+      2000,
+      null,
+    );
+    return typeof u?.username === 'string' && u.username ? u.username : null;
   }
 
   loadingFinished(): void {

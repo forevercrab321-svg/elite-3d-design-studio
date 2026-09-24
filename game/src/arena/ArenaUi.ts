@@ -154,6 +154,8 @@ export class ArenaUi {
   onStory: (() => void) | null = null;
   onEmote: ((id: number) => void) | null = null;
   onShare: (() => void) | null = null;
+  /** Runs before a Start click starts the round (portal ad break tied to the click); never rejects. */
+  onBeforeStart: (() => Promise<void>) | null = null;
   /** Rewarded ads (platform SDK): null / false hides the ad buttons. */
   adsAvailable = false;
   onRevive: (() => void) | null = null;
@@ -300,7 +302,7 @@ export class ArenaUi {
         const a = (el as HTMLElement).dataset.a;
         if (a === 'join') s.setJoined(!me);
         else if (a === 'ready') s.setReady(!s.ready);
-        else if (a === 'start') s.start();
+        else if (a === 'start') void (this.onBeforeStart?.() ?? Promise.resolve()).catch(() => undefined).then(() => s.start());
         else if (a === 'story') this.onStory?.();
         else if (a === 'shop') return this.panels?.showShop();
         else if (a === 'settings') return this.panels?.showSettings();

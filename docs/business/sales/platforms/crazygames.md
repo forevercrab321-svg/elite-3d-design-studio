@@ -21,14 +21,14 @@
 | --- | --- | --- | --- |
 | 初始下载 ≤ 50 MB，总大小 ≤ 250 MB；**进手机首页需初始下载 ≤ 20 MB** | [S5] | JS 约 1.3 MB + HDR 贴图 1.5 MB，`dist-web/` 全部 3.6 MB（含 0.7 MB 的 og.png，可不打进包） | ✅ 已满足 |
 | 文件数 ≤ 1500 | [S5] | `dist-web/` 共 19 个文件 | ✅ 已满足 |
-| **只能用相对路径，绝对路径会加载失败** | [S5] | `vite.web.config.mjs` 是 `base: '/'`，`dist-web/game/index.html` 引用 `/assets/...`、`/icons/...` 绝对路径；游戏入口在 `game/` 子目录 | ❌ **需要改**：出一个平台专用构建（`base: './'`，游戏 `index.html` 放在 zip 根目录，`hdri/`、`legal/` 与它同级） |
+| **只能用相对路径，绝对路径会加载失败** | [S5] | `vite.web.config.mjs` 是 `base: '/'`，`dist-web/game/index.html` 引用 `/assets/...`、`/icons/...` 绝对路径；游戏入口在 `game/` 子目录 | ✅ **已完成**：`npm run build:portal` 产出 `dist-portal.zip`（`base: './'`，`index.html` 在 zip 根目录），已在子路径下启动验证 |
 | 支持鼠标、键盘；若支持手机则支持触屏；桌面可横屏玩 | [S5] | 键盘 WASD/空格、鼠标转视角；手机虚拟摇杆 + 冲刺键，横屏锁定 | ✅ 已满足 |
-| 只允许通过 CrazyGames SDK 请求的广告；视频广告不能打断游戏、不能突然出现 | [S6] | `CrazyGamesPlatform.ts`：只在复活/金币翻倍（激励）和局间（间隔 ≥ 90 秒）请求广告，播放时静音暂停 | ✅ 已满足（Full Launch 时 QA 会复核） |
+| 只允许通过 CrazyGames SDK 请求的广告；视频广告不能打断游戏、不能突然出现 | [S6] | `CrazyGamesPlatform.ts`：只在复活/金币翻倍（激励）和局间（间隔 ≥ 180 秒）请求广告，播放时静音暂停 | ✅ 已满足（Full Launch 时 QA 会复核） |
 | SDK：Basic Launch 可选，Full Launch 必须完整集成 | [S9] | 已集成 SDK v3：loadingStart/Stop、gameplayStart/Stop、happytime、激励/局间广告、inviteLink、showInviteButton | ✅ 已满足；⚠️ 适配层注释写明当时没能打开官方文档，是按搜索摘要和类型定义写的 → 提交前用 `?platform=crazygames` 本地跑一遍 |
 | 不能交叉推广其他游戏/平台；社区链接（Discord、官网）只能放主菜单，且**不能直接指向可玩的网页版** | [S6][S7] | 分享面板会打开小红书/抖音/TikTok/X 等外部网站（分享用，不是推广）；设置页有隐私政策、用户协议链接 | ⚠️ 不确定：分享链接本身走 SDK `inviteLink` 是合规的；打开外部社交网站是否算违规未查到明确条款。稳妥做法：CrazyGames 上把隐私/协议页打进包内（相对路径），分享面板只保留「复制邀请链接」+ 系统分享 |
 | 玩家必须能以游客身份直接开始；「用 CrazyGames 登录」按钮不能是主要行动按钮 | [S8] | 匿名即玩，无登录墙 | ✅ 已满足 |
 | 内购只允许用 Xsolla，且需要平台选中 | [S4] | 目前商店只用游戏金币，Stripe 未接 | ✅ 已满足（平台上**不要**接 Stripe） |
-| 多人：服务器可自备；要进「多人游戏」专区须通过 SDK 上报房间/状态（Join/Invite），并**在游戏里显示 CrazyGames 用户名** | [S10] | 自备 Supabase Realtime 房间 ✅；已接 inviteLink ✅；**没有**调用 SDK 的房间更新接口，**没有**读取 CrazyGames 用户名 | ⚠️ 需要改（仅影响多人专区资格，不影响 Basic Launch） |
+| 多人：服务器可自备；要进「多人游戏」专区须通过 SDK 上报房间/状态（Join/Invite），并**在游戏里显示 CrazyGames 用户名** | [S10] | 自备 Supabase Realtime 房间 ✅；已接 inviteLink ✅；已读取 CrazyGames 用户名作为默认昵称（`user.getUser()`，游客为空时用随机名）✅；**没有**调用 SDK 的房间状态接口（官方文档打不开，接口名未核实） | ⚠️ 房间状态待改（仅影响多人专区资格，不影响 Basic Launch） |
 
 ## 3. 收入分成与付款
 
@@ -94,8 +94,8 @@ EN:
 
 1. 打开 https://developer.crazygames.com/ → 点 **Sign up / Log in** → 用公司或个人邮箱注册开发者账号；在账户里填写付款信息（PayPal 或银行）。
 2. 在门户里打开 **Requirements** 和 **FAQ** 两页，核对本档案第 2、3 节（特别是当前分成比例截图存档到 `docs/business/sales/platforms/`）。
-3. 等工程出「平台专用构建」（相对路径 zip，见 README 的技术改动 A），拿到 `grow-everything-portal.zip`。
-4. 门户里点 **Submit game / Add new game** → 选 HTML5 → 上传 zip → 粘贴第 6 节标题、描述、玩法、操作 → 上传缩略图（`public/og.png` 需按门户要求的尺寸另外裁一张）→ **Submit for review**。
+3. 用 `npm run build:portal` 生成 `dist-portal.zip`（本地 `.env.local` 先填 Supabase URL 和 anon key）。
+4. 门户里点 **Submit game / Add new game** → 选 HTML5 → 上传 zip → 粘贴第 6 节标题、描述、玩法、操作 → 上传封面（`marketing/press-kit/covers/` 里按尺寸挑，以门户上传框提示为准）→ **Submit for review**。
 5. 通过后进入 Basic Launch：在自有渠道（社群、达人）发 CrazyGames 链接，帮游戏在 7 天内过 500 次游玩门槛。
 
 ## 来源

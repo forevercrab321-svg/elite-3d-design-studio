@@ -16,9 +16,10 @@ import { ArenaBot } from './ArenaBot';
 import { ArenaGame } from './ArenaGame';
 import { ArenaSession, type MatchState } from './ArenaSession';
 import { ArenaUi } from './ArenaUi';
+import { cleanName } from './nameFilter';
 import { addCoins, award, progress, unlockGift } from './progress';
 import type { GiftRule } from '../config/cosmetics';
-import { createPlatform, PUBLIC_GAME_URL } from '../platform/Platform';
+import { createPlatform, PORTAL_BUILD, PUBLIC_GAME_URL } from '../platform/Platform';
 import type { CrazyGamesPlatform } from '../platform/CrazyGamesPlatform';
 
 /**
@@ -28,9 +29,11 @@ import type { CrazyGamesPlatform } from '../platform/CrazyGamesPlatform';
  */
 export async function runArena(ctx: AppContext): Promise<void> {
   const { renderer, lib, input, quality, testMode, params } = ctx;
-  const nickname = params.get('name') ?? savedName() ?? `${L('玩家', 'Player')}${Math.floor(Math.random() * 900 + 100)}`;
   // Portal SDK (CrazyGames / Poki) or our own site; never throws, bounded wait.
   const portal = await createPlatform();
+  // Name: ?name= › the one typed here before › the portal account (CrazyGames asks multiplayer games to show it) › random.
+  const randomName = `${L('玩家', 'Player')}${Math.floor(Math.random() * 900 + 100)}`;
+  const nickname = cleanName(params.get('name') ?? savedName() ?? (await portal.playerName()), randomName);
   const platform = portal.name;
   let net: Net | null = null;
   const want = params.get('net');
@@ -120,7 +123,7 @@ export async function runArena(ctx: AppContext): Promise<void> {
   ui.installPanels({
     equipped: (skin, horn, hat) => session.setCosmetics(skin, horn, hat),
     invite: () => inviteInfo(),
-    externalLinks: portal.name === 'web',
+    externalLinks: portal.name === 'web' && !PORTAL_BUILD,
     shared: (channel) => {
       track('share_click', { channel });
       gift('share');
@@ -199,6 +202,7 @@ export async function runArena(ctx: AppContext): Promise<void> {
     return { url, text };
   };
   ui.onShare = () => void ui.panels.showShare();
+  if (portal.userBreak) ui.onBeforeStart = () => portal.userBreak?.() ?? Promise.resolve();
 
   ui.onEmote = (id) => {
     game?.emote(id);

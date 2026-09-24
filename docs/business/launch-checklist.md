@@ -9,7 +9,7 @@
 - ✅ 商店：金币买涂装、帽子、喇叭；邀请好友送限定礼物（见 `paid-catalog.md`）
 - ✅ 设置：音乐和音效音量、语言、操作说明，以及隐私政策、用户协议、致谢页的链接
 - ✅ 新手提示：第一次开局时出现一句操作说明
-- ✅ 平台 SDK 层（`game/src/platform/`）：CrazyGames 和 Poki 的加载完成事件、游戏开始/暂停事件、激励广告（复活保留 75% 质量，每局 1 次；结算金币翻倍）、局间广告（间隔至少 90 秒）。广告播放时静音，单人模式同时暂停
+- ✅ 平台 SDK 层（`game/src/platform/`）：CrazyGames 和 Poki 的加载完成事件、游戏开始/暂停事件、激励广告（复活保留 75% 质量，每局 1 次；结算金币翻倍）、局间广告（间隔至少 180 秒）。广告播放时静音，单人模式同时暂停
 - ✅ 上线素材：图标、1200×630 分享图、PWA manifest、robots.txt、社交分享 meta 标签
 - ✅ 网页构建：`npm run build:web` 输出到 `dist-web/`，可以直接放到任何静态托管
 - ✅ 数据库和埋点：`supabase/migrations`、`submit-match` 函数、`telemetry.ts`

@@ -2,8 +2,10 @@ import { arenaConfig as A } from '../config/arena';
 import { HATS, HORNS, SKINS } from '../config/cosmetics';
 import { VEHICLE_ORDER, type VehicleLook } from '../config/vehicles';
 import type { Net, NetPeer } from '../net/Net';
+import { L } from '../i18n';
 import { CITIES, cityById } from '../world/cities';
 import type { ArenaGame, EatenEvent, RosterEntry, Standing, WireState } from './ArenaGame';
+import { cleanName } from './nameFilter';
 
 /**
  * Lobby, match flow and host authority on top of a Net.
@@ -130,7 +132,7 @@ export class ArenaSession {
       .peers()
       .filter((p) => p.presence.j === true)
       .slice(0, A.maxPlayers)
-      .map((p) => ({ id: p.id, name: this.net.nameOf(p), vehicle: asVehicle(p.presence.v), skin: shortId(p.presence.k), horn: shortId(p.presence.hn), hat: shortId(p.presence.ht), ready: p.presence.r === true, isMe: p.isMe, guest: p.guest }));
+      .map((p) => ({ id: p.id, name: cleanName(this.net.nameOf(p), `${L('玩家', 'Player')}${p.id.replace(/\W/g, '').slice(-3).toUpperCase()}`), vehicle: asVehicle(p.presence.v), skin: shortId(p.presence.k), horn: shortId(p.presence.hn), hat: shortId(p.presence.ht), ready: p.presence.r === true, isMe: p.isMe, guest: p.guest }));
   }
 
   spectators(): NetPeer[] {
@@ -163,7 +165,7 @@ export class ArenaSession {
 
   // ── Lobby actions ─────────────────────────────────────────────────────────
   setNickname(n: string): void {
-    this.nickname = n.trim().slice(0, 16) || this.nickname;
+    this.nickname = cleanName(n, this.nickname);
     this.publishLobbyPresence();
   }
 
