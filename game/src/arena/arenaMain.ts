@@ -120,6 +120,7 @@ export async function runArena(ctx: AppContext): Promise<void> {
   ui.installPanels({
     equipped: (skin, horn, hat) => session.setCosmetics(skin, horn, hat),
     invite: () => inviteInfo(),
+    externalLinks: portal.name === 'web',
     shared: (channel) => {
       track('share_click', { channel });
       gift('share');

@@ -57,6 +57,8 @@ export interface PanelHooks {
   equipped(skin: string, horn: string, hat: string): void;
   /** The link to share (room invite, or the game) and the message that goes with it. */
   invite(): Promise<{ url: string; text: string }>;
+  /** Portal builds (CrazyGames/Poki) forbid outbound links and cross-promotion: copy + system share only. */
+  externalLinks: boolean;
   /** A share went out on `channel` (unlocks the share gift, analytics). */
   shared(channel: ShareChannel): void;
   previewHorn(horn: HornSound): void;
@@ -152,7 +154,7 @@ export class ArenaPanels {
     const { url, text } = await this.hooks.invite();
     const phone = isPhone();
     const canSystem = typeof navigator.share === 'function' && phone;
-    const apps = channels()
+    const apps = (this.hooks.externalLinks ? channels() : [])
       .map((c) => `<button class="app" data-ch="${c.id}" style="background:${c.color}"><i>${c.icon}</i>${c.label}</button>`)
       .join('');
     this.el.innerHTML = `<div class="card" role="dialog" aria-label="${L('邀请好友', 'Invite friends')}" style="width:min(560px,100%)">
