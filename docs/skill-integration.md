@@ -16,14 +16,22 @@ To update: clone upstream, re-run `CLAUDE_SKILLS_DIR=$PWD/.claude/skills ./insta
 
 ## Local modifications to the vendored pack
 
-| Skill | Change | Reason |
-| --- | --- | --- |
-| `threejs-game-director` | `disable-model-invocation: true` | Its trigger words ("premium", "AAA", "high-fidelity", "showcase") match ordinary design requests and would pull 3D design work into a game workflow. Still callable explicitly as `/threejs-game-director`. The folder stays in place because sibling skills reference its credential probe script |
-| `threejs-gameplay-systems` | `disable-model-invocation: true` | Game loop / scoring / level design is outside the studio scope unless an interactive deliverable is requested |
-| `threejs-game-ui-designer` | `disable-model-invocation: true` | HUDs and menus are game-only |
-| `threejs-audio-generator` | `disable-model-invocation: true` | Audio is not part of model production |
+None currently. All nine skills are auto-invocable.
 
-Auto-invocable for 3D design: `threejs-aaa-graphics-builder`, `threejs-3d-generator`, `threejs-image-generator`, `threejs-debug-profiler`, `threejs-qa-release`.
+History: on 2026-09-22 the four game-only skills (director, gameplay, game UI, audio) were set to `disable-model-invocation: true`, so that design requests would not be pulled into a game workflow. On 2026-09-23 the Creative Director started **GROW EVERYTHING**, a browser game, so they were re-enabled. Pure modeling work still starts at `studio-3d-design`; game work follows `game/CLAUDE.md`.
+
+## How GROW EVERYTHING uses the pack
+
+| Game need | Skill | Notes |
+| --- | --- | --- |
+| Design brief, core-loop contract, level plan, feel | `threejs-gameplay-systems` (`game-feel.md`, `physics-engine-selection.md`) | Brief is in `docs/game-design.md`. Physics ladder: custom collision now, Rapier in Phase 4 |
+| Bot playtest, screenshots, release checks | `threejs-qa-release` (`playtest-bot.md`) | Implemented as `tools/playtest.mjs` + `game/src/debug/bot.ts` |
+| Art pass, materials, lighting, scorecard | `threejs-aaa-graphics-builder` | Used 2026-09-23 (all four references read). Scorecard and metrics are in `docs/art-direction.md` |
+| Canvas pixel metrics + render budget | `threejs-qa-release/scripts/inspect-threejs-canvas.mjs` | Wrapped by `tools/inspect-game.mjs` (pre-warms the page; the inspector's 10 s readiness window is shorter than first-frame shader compile on the cloud CPU renderer). `@playwright/test@1.56.1` + `pngjs` added as dev deps for it |
+| HUD polish | `threejs-game-ui-designer` | Phase 6 |
+| Hero assets (collector tiers, vehicles, warehouse) | `threejs-3d-generator` + `threejs-image-generator` | Needs `TRIPO_API_KEY` / `GEMINI_API_KEY`; output validated per `docs/asset-guidelines.md` |
+| Size-scaled SFX and layered music | `threejs-audio-generator` | Needs `ELEVENLABS_API_KEY`; Phase 6 |
+| FPS, draw calls, memory | `threejs-debug-profiler` | Phase 7, on a real GPU |
 
 ## What the pack is
 
@@ -46,7 +54,7 @@ Nine skills built for **Three.js browser games**. Our studio is a 3D design and 
 | K. Performance / Real-time | `threejs-debug-profiler`, `threejs-aaa-graphics-builder/references/technical-art.md` | Draw calls, triangles, textures, memory, render budgets, LOD, instancing |
 | L. Technical Pipeline | `threejs-3d-generator` (`conversion` postprocess, `references/threejs-integration.md`), `threejs-gameplay-systems` (Vite + TS + Three.js scaffold) | GLB/FBX import/export, web viewer scaffold |
 | M. GitHub / Version Control | — | Handled by studio rules (§27–28) |
-| (interactive deliverables only, explicit `/` invocation) | `threejs-game-director`, `threejs-gameplay-systems`, `threejs-game-ui-designer`, `threejs-audio-generator` | Only when the user asks for an interactive experience, configurator, walkthrough, or game |
+| Interactive deliverables (GROW EVERYTHING) | `threejs-game-director`, `threejs-gameplay-systems`, `threejs-game-ui-designer`, `threejs-audio-generator` | Only when the user asks for an interactive experience, configurator, walkthrough, or game |
 
 ## Conventions adopted
 

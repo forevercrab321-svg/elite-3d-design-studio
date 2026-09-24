@@ -7,19 +7,27 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5190",
     "build": "tsc --noEmit && vite build",
+    "build:web": "tsc --noEmit && vite build -c vite.web.config.mjs",
     "typecheck": "tsc --noEmit",
     "render:review": "node tools/studio.mjs render",
     "qa:geometry": "node tools/studio.mjs qa",
     "export:glb": "node tools/studio.mjs export",
-    "studio:check": "node tools/studio.mjs all"
+    "studio:check": "node tools/studio.mjs all",
+    "game": "vite --host 127.0.0.1 --port 5190 --open /game/",
+    "playtest": "node tools/playtest.mjs",
+    "art:review": "node tools/art-review.mjs",
+    "inspect:game": "node tools/inspect-game.mjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.117.1",
     "three": "^0.184.0",
     "yaml": "^2.8.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.1",
     "@types/three": "^0.184.1",
     "playwright": "1.56.1",
+    "pngjs": "^7.0.0",
     "typescript": "^6.0.3",
     "vite": "^8.0.13"
   }

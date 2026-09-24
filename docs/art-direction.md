@@ -1,0 +1,132 @@
+# Art Direction
+
+**Premium stylized realism.** The target is readable silhouettes, believable materials, simplified but sophisticated geometry, clean late-afternoon light and strong scale perception. It is not low-poly-cute, Roblox, mobile-ad or hyperreal.
+
+## Status — MVP content and polish pass (2026-09-23)
+
+New visual content, all procedural (`world/heavyProps.ts`) and reviewed in `renders/review/game/art/10–15`:
+- **Site and yard kit:** shopping cart, pallet and pallet stack, motorcycle, utility cabinet, jersey barrier, site hoarding, panel van, trailer generator, pipe stack, scaffold tower, ISO container, site cabin, 8×4 tipper, tracked excavator, pallet rack, storage tank with a spiral stair, and a garage row.
+- **Warehouse kit:** front, back and gable panels with portal columns and clerestory glazing; barrel roof bays with an inner shell and rafters; gable lunes; the sign.
+- **Tier 4 (Industrial Recycler):** track pods with rollers, chomping crusher jaws, a cyclone separator, twin stacks, a light bar and hazard armour.
+- **Destruction VFX:**
+  - Painted shards thrown off the object, then sucked into the intake.
+  - Soft billboard dust lit from the sun side.
+  - Additive sparks when metal is crushed.
+  - Crumple (squash) and rip (lean) deformation on the instance.
+  - Collapse dust and shake.
+- **HUD:**
+  - A glass panel showing mass, a tier chip, a segmented growth bar and the next unlock.
+  - An objective card with warehouse tear-down progress.
+  - Banners with a rule line, a controls legend, and an end-of-run card.
+- **Readability fixes:**
+  - Canopies near the camera dissolve.
+  - Lower-contrast concrete and asphalt repeats.
+  - Toned-down container grime.
+
+| Category | Realism pass | Now | Evidence |
+| --- | --- | --- | --- |
+| Obstacles / structures | 2.5 | 2.5 | The warehouse reads as built (panels, columns, glazing, roof shell), and so do the tanks and garages |
+| World / environment | 2.5 | 2.5 | Site, yard and back lot with a perimeter wall and backdrop sheds. Distant masses are still plain boxes |
+| VFX / motion | 1.5 | 2 | Destruction type decides the effect (crush, break, rip, collapse); shards home into the machine; jaws chomp |
+| UI / HUD | 1.5 | 2 | Designed panels, objective progress, end card. No settings or menu yet |
+| Performance evidence | 2.5 | 2.5 | Budget table and the step-by-step reduction in `technical-architecture.md` |
+
+## Status — realism pass (2026-09-23, after "看上去像低端的3D游戏")
+
+The Creative Director judged the first art pass as still reading like a low-end 3D game. The weakest layer was the **image**, not the models: flat ambient light, clean CG surfaces, black windows, an empty street and no lens behaviour. This pass works on that layer.
+
+| Layer | Change | Where |
+| --- | --- | --- |
+| Light | Real photographed HDRI (Poly Haven `pedestrian_overpass_1k`, CC0) for image-based lighting, rotated so its sun matches `SUN_DIRECTION`; golden-hour key (20° elevation, 0xffc98f, 3.4) with long shadows; 4096² shadow map focused ahead of the camera and texel-snapped | `art/environment.ts`, `game/Game.ts` |
+| Tone / camera | AgX tone mapping; `CinematicOutputPass` (contrast, split toning, vignette, film grain, slight chromatic aberration) inside the output pass, so it costs no extra pass | `art/cinematicOutput.ts` |
+| Surfaces | World-space weathering shader on every static surface: macro albedo variation (breaks tiling), wall base grime, rain streaks, soot; ground oil, lane wear, damp patches that are also glossier | `art/surfaceShaders.ts` |
+| Windows | Interior mapping: every window shows a parallax room (walls, floor, ceiling, furniture, blinds, some lit); shopfronts show stocked shelving | `art/surfaceShaders.ts`, `roomCenter` attribute from `world/architecture.ts` |
+| Sky | Drifting two-layer cloud deck lit from the sun side | `art/environment.ts` |
+| Cars | Spline side silhouette, tumblehome and plan taper, creased-normal smoothing on the walls only; shut lines and skirts kept clear of the wheel arches | `world/props.ts` |
+| Set dressing | 16 street trees (leaf-card canopies with outward normals, AO in vertex colour, wind sway, alpha-tested shadows); weeds along wall bases and kerbs; posters, graffiti, stains and street signs from one decal atlas | `world/dressing.ts` |
+| Roofs | Grey bitumen membrane instead of a black asphalt repeat | `art/materials.ts` |
+
+### Visual scorecard (0–3)
+
+| Category | Phase 5 | Now | Evidence |
+| --- | --- | --- | --- |
+| Art direction | 2 | 2.5 | One golden-hour light story from sky, HDRI, fog and grade; the warehouse and crane remain the promise landmarks |
+| Hero / player | 2 | 2 | Unchanged forms; now lit by the HDRI with long contact shadows |
+| Obstacles | 2 | 2.5 | Smoother car body with correct shut lines; locked tint unchanged |
+| Collectibles | 2 | 2 | Unchanged |
+| World / environment | 2.5 | 2.5 | Trees, weeds, decals and inhabited windows make the city read as lived-in. Distant skyline blocks are still simple |
+| Materials | 2 | 2.5 | Weathering breaks the clean-CG look; interiors replace black glass |
+| Lighting / render | 2 | 2.5 | HDRI IBL, AgX, long sun shadows, cinematic output |
+| VFX / motion | 1.5 | 1.5 | Only foliage wind and cloud drift were added. **Phase 6** |
+| UI / HUD | 1.5 | 1.5 | **Phase 6** |
+| Performance evidence | 2.5 | 2.5 | Every budget row passes (see `technical-architecture.md`) |
+
+### Measured canvas metrics (spawn view, `npm run inspect:game`)
+
+| Metric | Phase 5 | Now | Threshold |
+| --- | --- | --- | --- |
+| colorEntropyBits | 4.19 | 5.17 | < 3.0 = sparse/flat |
+| edgeDensity | 0.31 | 0.39 | < 0.04 = primitive |
+| luminance contrast | 70.3 | 121.3 | < 60 = compressed |
+| dominantColorShare | 0.34 | 0.19 | > 0.6 = flat |
+
+### Honest limits
+
+- External asset hosts (Poly Haven, ambientCG and jsDelivr) are blocked from the build environment, so surfaces are still **procedural textures, not photoscans**. The one HDRI came from the three.js repository mirror.
+- No Tripo/Gemini keys are set, so no generated hero meshes were used.
+- In direct sun the plaster facade still reads a little flat and yellow.
+- Distant skyline towers are extruded boxes with a window texture.
+
+## Earlier status — Phase 5 procedural art pass (2026-09-23)
+
+The greybox has been replaced by an authored procedural art set. No external generation was used: `TRIPO_API_KEY`, `GEMINI_API_KEY` and `ELEVENLABS_API_KEY` are all unset. Everything is built in code (`game/src/art/`, `game/src/world/props.ts`, `game/src/world/architecture.ts`, `game/src/entities/PlayerModel.ts`).
+
+Review shots are generated by `npm run art:review` into `renders/review/game/art/`. They use the same nine fixed cameras every pass.
+
+### Visual scorecard (threejs-aaa-graphics-builder rubric, 0–3)
+
+| Category | Before | After | Evidence |
+| --- | --- | --- | --- |
+| Art direction | 1 | 2 | Safety-orange machine against a restrained brick/concrete/asphalt city; the industrial theme drives forms, materials and signage |
+| Hero / player | 1 | 2 | Profile-extruded two-tone chassis with bevels, panel lines, hatch, lidar, work lights, spinning intake roller, hazard lip and rear; tier parts unfold (hopper, scoop, rear axle; arms and cage at T3) |
+| Obstacles (locked large objects) | 1 | 2 | Cars with wheel arches, glass cabin, pillars, lamps and bumpers; box truck; tapered dumpster with ribs; warehouse with portal frames, dock doors and sign. Locked objects read by desaturation |
+| Collectibles / interactables | 1 | 2 | Lathe cans and bottles, textured bricks and cardboard with flaps and tape, smooth trash bags, bistro chairs, bikes with spoked wheels. Pull, spin and intake flare on absorb |
+| World / environment | 1 | 2.5 | Facades with window reveals, sills, lintels, storefronts, awnings, cornices and downpipes; fire escape, cables and water tank; raised kerbs, zebra crossing, puddles and gullies; lattice crane; layered skyline; closed street ends |
+| Materials / textures | 1 | 2 | Procedural tileable PBR kit (brick ×2, concrete, asphalt, paving, render, corrugated, cardboard, worn paint, tread, hazard, facade grid) with normal and roughness maps and metre-scale UVs; shared material roles |
+| Lighting / render | 1.5 | 2 | ACES, sky dome, environment baked from the sky, warm key sun, GTAO contact occlusion, bloom only on authored emissives, MSAA |
+| VFX / motion | 1.5 | 1.5 | Unchanged this pass (cube debris, pulse ring, shake). Intake flare added. **Below premium; Phase 6** |
+| UI / HUD | 1.5 | 1.5 | Unchanged minimal HUD. **Below premium; Phase 6** |
+| Performance evidence | 2 | 2.5 | Render-budget rows, before/after pixel metrics, per-view counts (see `playtest-notes.md`); software renderer, so no FPS evidence |
+| **Average** | **1.25** | **2.0** | Premium needs every category ≥ 2 and an average ≥ 2.3: **not reached yet** (VFX and UI) |
+
+No automatic failures remain. Placeholders do not dominate, the hero is not a primitive plus glow, the HUD is not stat cards, fog is not substituting for geometry, the game is playable with real input, and renderer diagnostics are reported.
+
+### Measured canvas metrics (spawn view, desktop 1280×720, `npm run inspect:game`)
+
+| Metric | Before | After | Threshold |
+| --- | --- | --- | --- |
+| colorEntropyBits | 2.17 | 4.19 | < 3.0 = sparse/flat |
+| edgeDensity | 0.086 | 0.31 | < 0.04 = primitive |
+| luminance contrast | 64.3 | 70.3 | < 60 = compressed |
+| dominantColorShare | 0.58 | 0.34 | > 0.6 = flat |
+
+## Decisions
+
+| Topic | Decision | Why |
+| --- | --- | --- |
+| Light | Late-afternoon sun from the south-west (`SUN_DIRECTION`), warm key 3.1; sky-baked environment map carries ambient; hemisphere fill 0.55; exposure 0.95 | One consistent light story; metals and glass reflect the same sky that lights them |
+| Sky | Gradient dome with sun disc/halo and a warm haze band; fog colour matches the horizon | Depth without a photo backdrop; one draw call |
+| Player | Safety-orange clearcoat shell over gunmetal tub; amber intake glow that flares on absorb | The hero must stay identifiable against the restrained city (brief §27) |
+| Locked vs absorbable | Absorbable paint is full colour; locked paint is desaturated 32% and darkened 6% (glass, rubber and lamps are never tinted) | Readable without outlines. The earlier stronger tint made big landmarks look black |
+| Surfaces | Every textured material is authored in metres (box-projected UVs), so brick courses, paving joints and corrugation are true to scale on any object size | Scale perception is the core of the game |
+| Warehouse | Light grey-blue corrugated cladding, dark portal frames, four dock doors, lettered "SCRAP CITY RECYCLING" sign facing the alley | The climax object must read as a destination from the first frame |
+| Crane | Yellow lattice mast and jib in the alley sight line | Promise landmark (brief §22) |
+
+## Known visual gaps (next passes)
+
+- **VFX (Phase 6):** debris is still cubes; there is no dust, sparks, absorption trail or tier-up transformation effect.
+- **UI (Phase 6):** the HUD is functional but not designed.
+- **Car silhouette:** a boxy late-80s sedan. It reads correctly, but a hero-quality car family (hatchback/SUV/van) would lift the lot.
+- **Vending machine:** the front reads as a lit panel; product rows are not visible through the glass.
+- ~~Storefront interiors~~ — done with interior mapping (realism pass).
+- **Mobile tier:** 316k triangles and 54 textures vs the 300k / 40 mobile budget (see `technical-architecture.md`).

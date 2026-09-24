@@ -1,0 +1,561 @@
+{
+  "seed": 1337,
+  "date": "2026-09-23T23:21:36.831Z",
+  "bot": {
+    "seconds": 182.5,
+    "final": {
+      "mass": 170467.56,
+      "diameter": 11.349025798566698,
+      "cls": 7,
+      "tier": 4,
+      "remaining": 27,
+      "eligibleRemaining": 27
+    },
+    "metrics": {
+      "firstMoveAt": 0.016666666666666666,
+      "firstCollectAt": 0.6833333333333338,
+      "classUnlockAt": {
+        "2": 8.11666666666665,
+        "3": 20.06666666666681,
+        "4": 26.94999999999975,
+        "5": 66.54999999999751,
+        "6": 96.88333333332912,
+        "7": 145.5166666666746
+      },
+      "tierAt": {
+        "1": 0,
+        "2": 8.11666666666665,
+        "3": 66.54999999999751,
+        "4": 145.5166666666746
+      },
+      "firstAbsorbOfClassAt": {
+        "0": 0.6833333333333338,
+        "1": 0.8000000000000008,
+        "2": 8.950000000000024,
+        "3": 20.233333333333466,
+        "4": 27.399999999999725,
+        "5": 67.88333333333077,
+        "6": 101.64999999999552,
+        "7": 155.71666666668273
+      },
+      "objectsCollected": 480,
+      "bumps": 14,
+      "stuckEvents": 8,
+      "resets": 0,
+      "climaxAt": 180.63333333336922,
+      "climaxPartsTotal": 19,
+      "climaxPartsLeft": 0
+    },
+    "timeline": [
+      {
+        "t": 0.5,
+        "mass": 5,
+        "diameter": 0.35,
+        "cls": 1,
+        "tier": 1,
+        "collected": 0
+      },
+      {
+        "t": 5.5,
+        "mass": 18.6,
+        "diameter": 0.53,
+        "cls": 1,
+        "tier": 1,
+        "collected": 48
+      },
+      {
+        "t": 10.5,
+        "mass": 32.3,
+        "diameter": 0.65,
+        "cls": 2,
+        "tier": 2,
+        "collected": 76
+      },
+      {
+        "t": 15.5,
+        "mass": 62.5,
+        "diameter": 0.81,
+        "cls": 2,
+        "tier": 2,
+        "collected": 104
+      },
+      {
+        "t": 20.5,
+        "mass": 104.8,
+        "diameter": 0.95,
+        "cls": 3,
+        "tier": 2,
+        "collected": 125
+      },
+      {
+        "t": 25.5,
+        "mass": 368.7,
+        "diameter": 1.47,
+        "cls": 3,
+        "tier": 2,
+        "collected": 149
+      },
+      {
+        "t": 30.5,
+        "mass": 713.9,
+        "diameter": 1.83,
+        "cls": 4,
+        "tier": 2,
+        "collected": 160
+      },
+      {
+        "t": 35.5,
+        "mass": 924.9,
+        "diameter": 1.99,
+        "cls": 4,
+        "tier": 2,
+        "collected": 170
+      },
+      {
+        "t": 40.5,
+        "mass": 984.9,
+        "diameter": 2.04,
+        "cls": 4,
+        "tier": 2,
+        "collected": 171
+      },
+      {
+        "t": 45.5,
+        "mass": 1393.7,
+        "diameter": 2.28,
+        "cls": 4,
+        "tier": 2,
+        "collected": 180
+      },
+      {
+        "t": 50.5,
+        "mass": 1703.7,
+        "diameter": 2.44,
+        "cls": 4,
+        "tier": 2,
+        "collected": 184
+      },
+      {
+        "t": 55.5,
+        "mass": 2083.7,
+        "diameter": 2.61,
+        "cls": 4,
+        "tier": 2,
+        "collected": 192
+      },
+      {
+        "t": 60.5,
+        "mass": 2573.7,
+        "diameter": 2.8,
+        "cls": 4,
+        "tier": 2,
+        "collected": 201
+      },
+      {
+        "t": 65.5,
+        "mass": 3040.3,
+        "diameter": 2.94,
+        "cls": 4,
+        "tier": 2,
+        "collected": 213
+      },
+      {
+        "t": 70.5,
+        "mass": 4025.3,
+        "diameter": 3.25,
+        "cls": 5,
+        "tier": 3,
+        "collected": 222
+      },
+      {
+        "t": 75.5,
+        "mass": 8210.7,
+        "diameter": 4.11,
+        "cls": 5,
+        "tier": 3,
+        "collected": 247
+      },
+      {
+        "t": 80.5,
+        "mass": 11070.7,
+        "diameter": 4.56,
+        "cls": 5,
+        "tier": 3,
+        "collected": 254
+      },
+      {
+        "t": 85.5,
+        "mass": 12890.8,
+        "diameter": 4.79,
+        "cls": 5,
+        "tier": 3,
+        "collected": 259
+      },
+      {
+        "t": 90.5,
+        "mass": 14172.7,
+        "diameter": 4.95,
+        "cls": 5,
+        "tier": 3,
+        "collected": 303
+      },
+      {
+        "t": 95.5,
+        "mass": 14355.6,
+        "diameter": 4.97,
+        "cls": 5,
+        "tier": 3,
+        "collected": 320
+      },
+      {
+        "t": 100.5,
+        "mass": 15331.6,
+        "diameter": 5.08,
+        "cls": 6,
+        "tier": 3,
+        "collected": 323
+      },
+      {
+        "t": 105.5,
+        "mass": 16231.6,
+        "diameter": 5.18,
+        "cls": 6,
+        "tier": 3,
+        "collected": 324
+      },
+      {
+        "t": 110.5,
+        "mass": 16531.6,
+        "diameter": 5.21,
+        "cls": 6,
+        "tier": 3,
+        "collected": 325
+      },
+      {
+        "t": 115.5,
+        "mass": 25143.8,
+        "diameter": 5.93,
+        "cls": 6,
+        "tier": 3,
+        "collected": 351
+      },
+      {
+        "t": 120.5,
+        "mass": 43927.8,
+        "diameter": 7.22,
+        "cls": 6,
+        "tier": 3,
+        "collected": 374
+      },
+      {
+        "t": 125.5,
+        "mass": 47147.8,
+        "diameter": 7.39,
+        "cls": 6,
+        "tier": 3,
+        "collected": 379
+      },
+      {
+        "t": 130.5,
+        "mass": 51417.8,
+        "diameter": 7.58,
+        "cls": 6,
+        "tier": 3,
+        "collected": 383
+      },
+      {
+        "t": 135.5,
+        "mass": 55317.8,
+        "diameter": 7.79,
+        "cls": 6,
+        "tier": 3,
+        "collected": 386
+      },
+      {
+        "t": 140.5,
+        "mass": 55317.8,
+        "diameter": 7.8,
+        "cls": 6,
+        "tier": 3,
+        "collected": 386
+      },
+      {
+        "t": 145.5,
+        "mass": 59225.5,
+        "diameter": 7.98,
+        "cls": 6,
+        "tier": 3,
+        "collected": 400
+      },
+      {
+        "t": 150.5,
+        "mass": 68901.6,
+        "diameter": 8.39,
+        "cls": 7,
+        "tier": 4,
+        "collected": 444
+      },
+      {
+        "t": 155.5,
+        "mass": 70180.4,
+        "diameter": 8.44,
+        "cls": 7,
+        "tier": 4,
+        "collected": 451
+      },
+      {
+        "t": 160.5,
+        "mass": 84582.6,
+        "diameter": 8.98,
+        "cls": 7,
+        "tier": 4,
+        "collected": 456
+      },
+      {
+        "t": 165.5,
+        "mass": 89667.6,
+        "diameter": 9.1,
+        "cls": 7,
+        "tier": 4,
+        "collected": 458
+      },
+      {
+        "t": 170.5,
+        "mass": 104167.6,
+        "diameter": 9.63,
+        "cls": 7,
+        "tier": 4,
+        "collected": 461
+      },
+      {
+        "t": 175.5,
+        "mass": 137967.6,
+        "diameter": 10.54,
+        "cls": 7,
+        "tier": 4,
+        "collected": 468
+      },
+      {
+        "t": 180.5,
+        "mass": 167467.6,
+        "diameter": 11.24,
+        "cls": 7,
+        "tier": 4,
+        "collected": 479
+      }
+    ],
+    "shots": [
+      "00-spawn",
+      "01-first-collection",
+      "02-tier2-first-growth",
+      "03-class3-unlocked",
+      "04-class4-unlocked",
+      "05-large-object-absorbed",
+      "06-at-60s",
+      "07-first-vehicle",
+      "08-structures",
+      "09-warehouse-teardown",
+      "10-warehouse-destroyed"
+    ],
+    "pacing": {
+      "firstCollection": 0.6833333333333338,
+      "firstGrowth": 8.11666666666665,
+      "mediumObjects": 20.06666666666681,
+      "clearlyLargerObject": 27.399999999999725,
+      "vehicles": 67.88333333333077,
+      "structures": 155.71666666668273,
+      "warehouseClimax": 180.63333333336922
+    }
+  },
+  "smoke": {
+    "moved": 6.32710903097739,
+    "collectedDuringSmoke": 11,
+    "afterRestart": {
+      "mass": 5,
+      "x": 0,
+      "z": 32,
+      "resets": 1
+    },
+    "perf": {
+      "fps": 12.998700129986926,
+      "drawCalls": 114,
+      "calls": 114,
+      "triangles": 381635,
+      "geometries": 75,
+      "textures": 125,
+      "programs": 40,
+      "instancedMeshes": 33,
+      "visibleInstances": 419,
+      "batchDataTextures": 84,
+      "sceneMeshes": 71,
+      "playerMeshes": 14,
+      "shadowCasters": 44,
+      "postPasses": 0,
+      "quality": "low",
+      "dpr": 1,
+      "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+    },
+    "perfHigh": {
+      "fps": 0,
+      "drawCalls": 184,
+      "calls": 184,
+      "triangles": 284325,
+      "geometries": 109,
+      "textures": 144,
+      "programs": 59,
+      "instancedMeshes": 33,
+      "visibleInstances": 24,
+      "batchDataTextures": 84,
+      "sceneMeshes": 102,
+      "playerMeshes": 45,
+      "shadowCasters": 75,
+      "postPasses": 2,
+      "quality": "high",
+      "dpr": 1,
+      "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+    },
+    "perfSpawn": {
+      "fps": 0,
+      "drawCalls": 188,
+      "calls": 188,
+      "triangles": 540661,
+      "geometries": 76,
+      "textures": 144,
+      "programs": 59,
+      "instancedMeshes": 33,
+      "visibleInstances": 419,
+      "batchDataTextures": 84,
+      "sceneMeshes": 75,
+      "playerMeshes": 14,
+      "shadowCasters": 44,
+      "postPasses": 2,
+      "quality": "high",
+      "dpr": 1,
+      "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+    },
+    "softwareRendered": true
+  },
+  "assertions": [
+    {
+      "name": "spawn: player starts at tier 1, class 1",
+      "pass": true,
+      "detail": "tier 1, class 1"
+    },
+    {
+      "name": "move: bot input moved the player",
+      "pass": true,
+      "detail": "firstMoveAt 0.016666666666666666"
+    },
+    {
+      "name": "collect tiny objects",
+      "pass": true,
+      "detail": "class0 0.6833333333333338, class1 0.8000000000000008"
+    },
+    {
+      "name": "gain mass",
+      "pass": true,
+      "detail": "5 → 170467.6 kg"
+    },
+    {
+      "name": "visibly grow (≥3× diameter)",
+      "pass": true,
+      "detail": "0.35 → 11.35 m (32.4×)"
+    },
+    {
+      "name": "unlock larger objects (class ≥ 2)",
+      "pass": true,
+      "detail": "class 7"
+    },
+    {
+      "name": "collect a clearly larger object (class 4)",
+      "pass": true,
+      "detail": "at 27.399999999999725 s"
+    },
+    {
+      "name": "pacing firstCollection {\"max\":2.9}",
+      "pass": true,
+      "detail": "0.6833333333333338 s"
+    },
+    {
+      "name": "pacing firstGrowth {\"min\":5.9,\"max\":11.8}",
+      "pass": true,
+      "detail": "8.11666666666665 s"
+    },
+    {
+      "name": "pacing mediumObjects {\"min\":17.6,\"max\":35.3}",
+      "pass": true,
+      "detail": "20.06666666666681 s"
+    },
+    {
+      "name": "pacing clearlyLargerObject {\"max\":44.1}",
+      "pass": true,
+      "detail": "27.399999999999725 s"
+    },
+    {
+      "name": "pacing vehicles {\"min\":52.9,\"max\":105.9}",
+      "pass": true,
+      "detail": "67.88333333333077 s"
+    },
+    {
+      "name": "pacing structures {\"min\":105.9,\"max\":211.8}",
+      "pass": true,
+      "detail": "155.71666666668273 s"
+    },
+    {
+      "name": "pacing warehouseClimax {\"min\":176.5,\"max\":282.4}",
+      "pass": true,
+      "detail": "180.63333333336922 s"
+    },
+    {
+      "name": "tier 4 reached (Industrial Recycler)",
+      "pass": true,
+      "detail": "tier 4"
+    },
+    {
+      "name": "warehouse destroyed (win condition)",
+      "pass": true,
+      "detail": "climaxAt 180.63333333336922 s, parts left 0"
+    },
+    {
+      "name": "stuck events ≤ 15 over the full run",
+      "pass": true,
+      "detail": "8"
+    },
+    {
+      "name": "keyboard W moves the player",
+      "pass": true,
+      "detail": "6.33 m over 104 game frames"
+    },
+    {
+      "name": "R restarts the run",
+      "pass": true,
+      "detail": "{\"mass\":5,\"x\":0,\"z\":32,\"resets\":1}"
+    },
+    {
+      "name": "draw calls ≤ 300 (high tier, spawn)",
+      "pass": true,
+      "detail": "188 calls"
+    },
+    {
+      "name": "triangles ≤ 750k (high tier, spawn)",
+      "pass": true,
+      "detail": "540661 tris"
+    },
+    {
+      "name": "draw calls ≤ 300 (high tier, end of run)",
+      "pass": true,
+      "detail": "184 calls"
+    },
+    {
+      "name": "triangles ≤ 750k (high tier, end of run)",
+      "pass": true,
+      "detail": "284325 tris"
+    },
+    {
+      "name": "no page or console errors",
+      "pass": true,
+      "detail": "none"
+    }
+  ],
+  "errors": []
+}

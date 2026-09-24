@@ -27,6 +27,16 @@ Design Director · 3D Modeling Director · Architectural/Spatial Specialist · H
 UNDERSTAND → ANALYZE → DESIGN → MODEL → VERIFY → VISUALIZE → OPTIMIZE → DOCUMENT → ITERATE
 ```
 
+## Active project — GROW EVERYTHING
+
+A browser 3D game: start as a tiny scrap collector, absorb everything, grow until the warehouse that towered over you is rubble. Brief: [`game/CLAUDE.md`](game/CLAUDE.md) · design: [`docs/game-design.md`](docs/game-design.md) · balance: [`docs/progression.md`](docs/progression.md).
+
+```bash
+npm install
+npm run game        # play → http://127.0.0.1:5190/game/   (WASD move · mouse-drag camera · Space dash · R restart)
+npm run playtest    # bot playtest + keyboard smoke test + milestone screenshots → renders/review/game/
+```
+
 ## Pipeline
 
 ```bash

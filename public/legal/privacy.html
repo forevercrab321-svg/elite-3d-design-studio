@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#16181a" />
+<link rel="icon" type="image/png" sizes="32x32" href="../icons/favicon-32.png" />
+<style>
+  :root { color-scheme: dark; --bg: #16181a; --panel: #1e2124; --text: #e9e6e1; --muted: #a8a39b; --accent: #ffb347; --accent2: #e8781a; --line: #2e3236; }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 18px; margin-bottom: 8px; }
+  .brand { display: flex; align-items: center; gap: 10px; color: var(--accent); font-weight: 800; letter-spacing: .12em; text-transform: uppercase; font-size: 13px; text-decoration: none; }
+  .brand img { width: 28px; height: 28px; border-radius: 7px; }
+  h1 { font-size: 30px; line-height: 1.2; margin: 18px 0 4px; }
+  h2 { font-size: 20px; margin: 34px 0 6px; color: #fff; }
+  h3 { font-size: 16px; margin: 22px 0 4px; color: var(--accent); }
+  p, li { color: var(--text); }
+  ul { padding-left: 22px; }
+  li { margin: 4px 0; }
+  a { color: var(--accent); }
+  .meta { color: var(--muted); font-size: 14px; margin: 0; }
+  nav.lang { margin-top: 12px; font-size: 14px; }
+  nav.lang a { margin-right: 14px; }
+  .fill { background: rgba(255,179,71,.14); color: var(--accent); border: 1px dashed var(--accent2); border-radius: 4px; padding: 0 4px; font-weight: 600; white-space: nowrap; }
+  section.lang-block { border-top: 1px solid var(--line); margin-top: 40px; padding-top: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; margin: 10px 0; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; }
+  .note { background: var(--panel); border-left: 3px solid var(--accent2); padding: 10px 14px; border-radius: 4px; color: var(--muted); font-size: 14px; }
+  footer { margin-top: 48px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 14px; color: var(--muted); }
+  footer a { margin-right: 14px; }
+  @media (max-width: 520px) { h1 { font-size: 25px; } table, thead, tbody, tr, th, td { display: block; } thead { display: none; } td { border: 0; padding: 2px 0; } tr { border-bottom: 1px solid var(--line); padding: 8px 0; } td:first-child { font-weight: 700; color: #fff; } }
+</style>
+<title>Privacy Policy · GROW EVERYTHING</title>
+<meta name="description" content="Privacy Policy for GROW EVERYTHING — what data the game collects and why. 隐私政策。" />
+</head>
+<body>
+<div class="wrap">
+<header>
+  <a class="brand" href="../game/"><img src="../icons/icon-192.png" alt="" />Grow Everything</a>
+  <h1>Privacy Policy <span style="color:var(--muted);font-weight:600">· 隐私政策</span></h1>
+  <p class="meta">Last updated: <span class="fill">[YYYY-MM-DD]</span></p>
+  <nav class="lang"><a href="#en">English</a><a href="#zh">简体中文</a></nav>
+</header>
+
+<p class="note">Owner note: replace every highlighted <span class="fill">[placeholder]</span> before publishing. 发布前请替换所有高亮的 <span class="fill">[占位符]</span>。</p>
+
+<section id="en" lang="en">
+<h2>1. Who we are</h2>
+<p>GROW EVERYTHING (“the Game”) is operated by <span class="fill">[Company / Operator name]</span>, <span class="fill">[postal address]</span> (“we”, “us”). If you have questions about this policy or your data, contact us at <a href="mailto:support@YOUR-DOMAIN"><span class="fill">support@YOUR-DOMAIN</span></a>.</p>
+
+<h2>2. What we collect</h2>
+<p>The Game does not require an account, and we do not ask for your real name, email address, phone number or precise location. We collect only what is needed to run online matches, keep the Game fair and improve it:</p>
+<table>
+  <thead><tr><th>Data</th><th>Purpose</th></tr></thead>
+  <tbody>
+    <tr><td>Anonymous player ID</td><td>A random identifier created automatically the first time you play (anonymous sign-in). It lets us keep your progress, match you with other players and stop abuse. It is not linked to your real identity.</td></tr>
+    <tr><td>Session &amp; device information</td><td>Session start/end, platform (our website or a game portal), device type (desktop / phone / tablet), browser type, graphics quality setting, game build version, referring page and campaign (UTM) tags.</td></tr>
+    <tr><td>Match statistics</td><td>City played, mass reached, placement, match duration, how the match ended, and similar game results.</td></tr>
+    <tr><td>Gameplay events</td><td>Anonymous in-game events (for example: tutorial step completed, power-up used, level reached, errors) used to balance difficulty and fix bugs.</td></tr>
+    <tr><td>Display name (optional)</td><td>If you choose a name, other players in your room and on leaderboards can see it. Names are automatically filtered and may be moderated or reset.</td></tr>
+  </tbody>
+</table>
+<p>We do not intentionally collect sensitive data. Please do not use your real name or personal information as your display name.</p>
+
+<h2>3. Where data is stored</h2>
+<p>Online features and telemetry are provided through <a href="https://supabase.com" rel="noopener">Supabase</a>, our database and hosting processor. Data is stored in the <span class="fill">[EU / US]</span> region. Supabase processes data only on our behalf under its data processing terms. Match traffic between players in a room is relayed through the same service.</p>
+
+<h2>4. Cookies and local storage</h2>
+<p>The Game uses your browser’s local storage (and, where needed, cookies set by our backend for the anonymous sign-in session) to remember your settings (sound, graphics quality, language), your progress, unlocked cosmetics and your anonymous player ID. We do not use these for cross-site advertising tracking. Clearing your browser data removes them; your progress may then be lost.</p>
+
+<h2>5. Game portals and advertising</h2>
+<p>If you play on a third-party game portal such as CrazyGames or Poki, that portal hosts the Game and may show advertisements and collect data under <strong>its own</strong> privacy policy and cookie consent tools. We do not control and are not responsible for the portal’s processing. Please review the portal’s privacy policy. When you play on our own website we do not show third-party advertising <span class="fill">[update if this changes]</span>.</p>
+
+<h2>6. How we use data and legal basis</h2>
+<ul>
+  <li>To provide online multiplayer, rooms, progress and leaderboards (performance of our service to you).</li>
+  <li>To keep the Game secure and fair, prevent cheating and moderate names (legitimate interests).</li>
+  <li>To measure and improve the Game with aggregated, anonymous statistics (legitimate interests).</li>
+  <li>To comply with legal obligations.</li>
+</ul>
+<p><strong>We do not sell or rent personal data</strong>, and we do not share it for cross-context behavioural advertising.</p>
+
+<h2>7. Retention</h2>
+<p>Gameplay telemetry is kept for up to <span class="fill">[24 months]</span> and then deleted or aggregated. Your anonymous profile and progress are kept while you continue to play and deleted after <span class="fill">[24 months]</span> of inactivity, or sooner on request.</p>
+
+<h2>8. Children</h2>
+<p>The Game is a general-audience casual game and is <strong>not directed at children under 13</strong> (or the minimum age of digital consent in your country, up to 16 in parts of the EU). We do not knowingly collect personal information from children. When the Game runs on a game portal, the portal’s age and consent handling (including its COPPA / kid-safe mode) applies, and we disable optional data collection such as display names and non-essential telemetry when the portal tells us a player is a child. If you believe a child has provided personal information, contact us and we will delete it.</p>
+
+<h2>9. Your rights</h2>
+<p>Depending on where you live (for example the EU/UK GDPR, California CCPA/CPRA, or China’s PIPL), you may have the right to access, correct, delete or export your data, object to or restrict processing, and withdraw consent. Because data is linked only to an anonymous ID, include the ID shown in the Game’s settings <span class="fill">[confirm where it is shown]</span> when you write to <a href="mailto:support@YOUR-DOMAIN">support@YOUR-DOMAIN</a>. You may also complain to your local data protection authority.</p>
+
+<h2>10. International transfers</h2>
+<p>Your data may be processed in countries other than your own. Where required, transfers are protected by standard contractual clauses or equivalent safeguards offered by our processors.</p>
+
+<h2>11. Security</h2>
+<p>Data is encrypted in transit (HTTPS) and access is restricted by database row-level security. No system is perfectly secure, but we work to protect your information.</p>
+
+<h2>12. Changes</h2>
+<p>We may update this policy. The “Last updated” date shows the latest version; significant changes will be announced in the Game.</p>
+</section>
+
+<section id="zh" class="lang-block" lang="zh-CN">
+<h2>一、我们是谁</h2>
+<p>《GROW EVERYTHING》（下称“本游戏”）由 <span class="fill">[公司 / 运营者名称]</span>（地址：<span class="fill">[通讯地址]</span>，下称“我们”）运营。如对本政策或您的数据有任何疑问，请联系 <a href="mailto:support@YOUR-DOMAIN"><span class="fill">support@YOUR-DOMAIN</span></a>。</p>
+
+<h2>二、我们收集哪些信息</h2>
+<p>本游戏无需注册账号，我们不会索取您的真实姓名、电子邮箱、手机号码或精确位置。我们仅收集运行联机对局、维护公平及改进游戏所必需的信息：</p>
+<table>
+  <thead><tr><th>数据</th><th>用途</th></tr></thead>
+  <tbody>
+    <tr><td>匿名玩家 ID</td><td>首次游玩时自动生成的随机标识（匿名登录），用于保存进度、匹配对局和防止滥用，与您的真实身份无关。</td></tr>
+    <tr><td>会话与设备信息</td><td>会话开始/结束时间、游玩平台（官网或游戏门户）、设备类型（电脑 / 手机 / 平板）、浏览器类型、画质设置、游戏版本号、来源页面及推广（UTM）参数。</td></tr>
+    <tr><td>对局数据</td><td>所选城市、达到的质量、名次、对局时长、结束方式等游戏结果。</td></tr>
+    <tr><td>游戏事件</td><td>匿名的游戏内事件（例如完成教程步骤、使用道具、升级、错误信息），用于平衡难度和修复问题。</td></tr>
+    <tr><td>昵称（可选）</td><td>若您设置昵称，同房间玩家及排行榜可见。昵称会经过自动过滤，并可能被审核或重置。</td></tr>
+  </tbody>
+</table>
+<p>我们不会主动收集敏感个人信息。请勿使用真实姓名或个人信息作为昵称。</p>
+
+<h2>三、数据存储位置</h2>
+<p>联机功能与统计数据由 <a href="https://supabase.com" rel="noopener">Supabase</a>（数据库与托管服务提供方）处理，存储于 <span class="fill">[欧盟 / 美国]</span> 区域。Supabase 仅依据其数据处理条款代表我们处理数据。同一房间玩家之间的对局数据也经由该服务转发。</p>
+
+<h2>四、Cookie 与本地存储</h2>
+<p>本游戏使用浏览器本地存储（必要时也会使用后端为匿名登录会话设置的 Cookie）来记住您的设置（声音、画质、语言）、游戏进度、已解锁的外观和匿名玩家 ID。这些信息不用于跨站广告追踪。清除浏览器数据会删除它们，您的进度可能因此丢失。</p>
+
+<h2>五、游戏门户与广告</h2>
+<p>如果您在 CrazyGames、Poki 等第三方游戏门户上游玩，该门户负责托管本游戏，可能展示广告，并依据<strong>其自身</strong>的隐私政策和 Cookie 同意工具收集数据。我们无法控制、也不对门户的数据处理负责，请查阅相应门户的隐私政策。在我们自己的网站上游玩时，我们不展示第三方广告 <span class="fill">[如有变化请更新]</span>。</p>
+
+<h2>六、使用目的与法律依据</h2>
+<ul>
+  <li>提供联机对战、房间、进度与排行榜（履行对您的服务）。</li>
+  <li>保障游戏安全与公平、防止作弊、审核昵称（正当利益）。</li>
+  <li>通过汇总的匿名统计来衡量和改进游戏（正当利益）。</li>
+  <li>履行法定义务。</li>
+</ul>
+<p><strong>我们不会出售或出租个人信息</strong>，也不会将其用于跨场景的行为广告。</p>
+
+<h2>七、保存期限</h2>
+<p>游戏统计数据最多保存 <span class="fill">[24 个月]</span>，之后删除或做汇总匿名化处理。匿名档案与进度在您持续游玩期间保留，连续 <span class="fill">[24 个月]</span> 未活动后删除，或应您的请求提前删除。</p>
+
+<h2>八、未成年人</h2>
+<p>本游戏面向一般大众，<strong>并非针对 13 周岁以下儿童</strong>（或您所在国家/地区规定的数字同意年龄，欧盟部分国家最高为 16 周岁）。我们不会在知情的情况下收集儿童个人信息。在游戏门户上运行时，适用该门户的年龄与同意机制（包括其 COPPA / 儿童安全模式）；当门户告知玩家为儿童时，我们会关闭昵称等可选功能及非必要的数据统计。若您认为儿童向我们提供了个人信息，请联系我们，我们将予以删除。</p>
+
+<h2>九、您的权利</h2>
+<p>根据您所在地的法律（例如欧盟/英国 GDPR、美国加州 CCPA/CPRA、中国《个人信息保护法》），您可能享有查阅、更正、删除、导出个人信息，反对或限制处理，以及撤回同意等权利。由于数据仅与匿名 ID 关联，来信 <a href="mailto:support@YOUR-DOMAIN">support@YOUR-DOMAIN</a> 时请附上游戏设置中显示的 ID <span class="fill">[请确认显示位置]</span>。您也可以向当地数据保护监管机构投诉。</p>
+
+<h2>十、跨境传输</h2>
+<p>您的数据可能在您所在国家/地区以外处理。在法律要求时，我们依托服务提供方的标准合同条款或同等保障措施保护跨境传输。</p>
+
+<h2>十一、安全</h2>
+<p>数据在传输过程中经 HTTPS 加密，数据库访问受行级安全策略限制。任何系统都无法做到绝对安全，但我们会尽力保护您的信息。</p>
+
+<h2>十二、政策更新</h2>
+<p>我们可能更新本政策，页首“最后更新”日期即为最新版本；重大变更将在游戏内提示。</p>
+<p class="meta">如中英文版本存在差异，以英文版本为准 <span class="fill">[或按运营地法律调整]</span>。</p>
+</section>
+
+<footer>
+  <a href="../game/">Play · 开始游戏</a><a href="terms.html">Terms · 用户协议</a><a href="credits.html">Credits · 致谢</a>
+</footer>
+</div>
+</body>
+</html>

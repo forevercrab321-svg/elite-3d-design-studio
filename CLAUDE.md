@@ -21,6 +21,7 @@ Every modeling decision must be intentional.
 > - `docs/skill-integration.md` — how the studio uses the installed `threejs-*` skills (§33)
 > - `docs/project-diagnosis.md` — current repository state (§32)
 > - `.claude/skills/studio-3d-design/SKILL.md` — the studio production workflow and commands (`npm run studio:check`)
+> - **Active project: GROW EVERYTHING** — browser game in `game/`; its brief is `game/CLAUDE.md` (game studio roles, milestones, pacing) and applies on top of this prompt for all game work
 
 ---
 
