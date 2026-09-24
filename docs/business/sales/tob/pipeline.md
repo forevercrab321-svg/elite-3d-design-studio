@@ -14,8 +14,8 @@
 | Y8 | 1 资格确认 | 送审；广告分成 | 开发者 50% | `dist-portal.zip`（SDK 要求待看） | 注册后读门户里的 SDK 要求 | 用户 → 工程 | D2 |
 | GameDistribution | 2 材料就绪（缺 Game ID） | 分发到发行网络；广告分成 | 开发者得净收入 33% | `dist-portal-gamedistribution.zip` | 用户注册 → 拿 Game ID → 重打包 → 激活 SDK → 申请发布 | 用户 + 工程 | D3 |
 | GamePix | 1 资格确认 | 独家或允许分发（上传时勾选） | 官方未查到 | `dist-portal-nosdk.zip` | 640×480 iframe 测试；用户注册 | 工程 + 用户 | D4 |
-| Armor Games | 2 材料就绪（Gmail 草稿已写好） | 策展；冠名或限时独占（邮件谈） | 官方未查到 | iframe 指向我们的网站 | 用户补名字后发送；对方回复后按 `negotiation-playbook.md` 回 3 个方案 | 用户 → BD | 尽快 |
-| MSN Games | 2 材料就绪（Gmail 草稿已写好） | 广告分成计划（2007 年公布，现行条款未知） | 未查到 | `dist-portal.zip` | 用户补名字后发送 | 用户 | 尽快 |
+| Armor Games | 3 已联系（2026-09-24 已发首封邮件，未回复） | 策展；冠名或限时独占（邮件谈） | 官方未查到 | iframe 指向我们的网站 | 等回复；9/30 未回复则跟进第 1 次，10/8 收尾；对方回复后按 `negotiation-playbook.md` 回 3 个方案 | BD | 9/30 |
+| MSN Games | 3 已联系（2026-09-24 已发首封邮件，未回复） | 广告分成计划（2007 年公布，现行条款未知） | 未查到 | `dist-portal.zip` | 等回复；9/30 未回复则跟进第 1 次，10/8 收尾 | BD | 9/30 |
 | Addicting Games | 1 资格确认 | 授权、赞助、独占 | 未查到 | 待定 | 用户在开发者中心提交；与 Armor 同期询价 | 用户 | D4 |
 | Poki | 暂缓（已选多平台） | 一次性非独占授权费 | 按游戏单独定，无分成 | `dist-portal.zip` | 其他平台上线、有数据后再询价 | BD | D14+ |
 | 国内（TapTap、4399、抖音/微信小游戏） | 暂缓 | — | — | 需要重做（小游戏无 DOM） | 需要软著、ICP、版号或小游戏备案；本阶段不做 | — | — |
@@ -24,6 +24,6 @@
 
 <!-- 格式：日期 · 平台 · 做了什么 · 对方原话或门户状态 · 下一步 -->
 
-- 2026-09-24 · Armor Games、MSN Games · 在用户的 Gmail（cityhunters2025@gmail.com）里写好首封邮件草稿，未发送 · — · 用户把 [Your name] 换成真名后发送
+- 2026-09-24 · Armor Games（mygame@armorgames.com）、MSN Games（webgames@microsoft.com）· 用户授权后，以 Zhuleli 署名从 cityhunters2025@gmail.com 发出首封邮件 · 未回复 · 9/30 跟进，10/8 收尾（最多跟进 2 次）
 - 2026-09-24 · 全部 · 用户选定路线 A（多平台）；对外邮件一律写成 Gmail 草稿，由用户自己发送
 - 2026-09-24 · 全部 · 建立 pipeline；通用包、GD 包、无 SDK 包已构建并通过测试 · — · 等用户选路线并注册账号
