@@ -80,6 +80,9 @@ export class ArenaSession {
   private beaconTimer = 0;
   private resultsTimer = 0;
   private wasHost = false;
+  private admitTimer = 0;
+  /** When this page was hidden during a round (ms timestamp), for away detection. */
+  private hiddenAt = 0;
 
   constructor(
     readonly net: Net,
@@ -95,6 +98,26 @@ export class ArenaSession {
     net.on('grant', (m) => this.onGrant(m.from, m.data as { ep: number; g: [number, number][]; r?: number[] }));
     net.on('eat', (m) => this.onEat(m.data as { ep: number; e: [number, number][] }));
     net.on('eaten', (m) => this.onEaten(m.from, m.data as { ep: number; v: number; a: number; gain: number; first: boolean }));
+    // A page that was hidden (phone locked, app switched, tab in background) stops simulating.
+    // After a few seconds away the others have moved on without it: on return it steps out of
+    // the round and asks back in (the host re-admits it to its own machine).
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') this.hiddenAt = Date.now();
+      else if (this.hiddenAt) {
+        const away = Date.now() - this.hiddenAt;
+        this.hiddenAt = 0;
+        if (away > A.awayMs) this.cameBack();
+      }
+    });
+  }
+
+  private cameBack(): void {
+    const g = this.game;
+    const me = this.net.selfId();
+    const others = this.match.roster.some((r) => r.kind === 'player' && r.id !== me);
+    if (!g?.local || !me || !others || this.match.ph === 'lobby' || this.match.ph === 'results') return;
+    g.markLeft(me, true);
+    this.net.setPresence({ aw: this.match.ep });
   }
 
   // ── Who is here ───────────────────────────────────────────────────────────
@@ -119,6 +142,15 @@ export class ArenaSession {
   hostId(): string | null {
     const inMatch = this.match.ph !== 'lobby' ? new Set(this.match.roster.filter((r) => r.kind === 'player').map((r) => r.id)) : null;
     const peers = this.net.peers();
+    if (inMatch) {
+      // In a round the host is sticky: whoever the match names keeps the job while present.
+      // Players who left or froze (marked left) never host, so a returning page cannot grab
+      // the round back with a stale simulation.
+      const eligible = (id: string) => inMatch.has(id) && !this.game?.byId.get(id)?.left && peers.some((p) => p.id === id);
+      if (this.match.host && eligible(this.match.host)) return this.match.host;
+      const next = peers.filter((p) => eligible(p.id)).map((p) => p.id).sort()[0];
+      if (next) return next;
+    }
     const candidates = peers.filter((p) => (inMatch ? inMatch.has(p.id) : p.presence.j === true));
     const pool = candidates.length ? candidates : peers;
     return pool.length ? pool.map((p) => p.id).sort()[0] : this.net.selfId();
@@ -299,6 +331,13 @@ export class ArenaSession {
         }
       }
     }
+    if ((m.ph === 'countdown' || m.ph === 'playing') && g) {
+      this.admitTimer += dt;
+      if (this.admitTimer >= 1) {
+        this.admitTimer = 0;
+        this.admitLateJoiners(g);
+      }
+    }
     if (m.ph === 'countdown' && g) {
       if (g.countdown <= 0) this.setPhase('playing');
     } else if (m.ph === 'playing' && g) {
@@ -367,6 +406,18 @@ export class ArenaSession {
       this.game = this.hooks.startGame(this.match, inRoster ? me : null);
     }
     const g = this.game;
+    if (g && m.ph !== 'lobby' && !newEpoch) {
+      // Drop-ins: rebuild any slot whose roster entry changed (a new player or a returning one).
+      const me = this.net.selfId();
+      for (const r of this.match.roster) {
+        const a = g.byId.get(r.id);
+        if (!a || a.gen !== (r.g ?? 0)) {
+          g.swapIn(r, r.id === me ? me : null);
+          if (r.id === me) this.net.setPresence({ aw: null });
+          this.hooks.changed();
+        }
+      }
+    }
     if (g && m.ph !== 'lobby') {
       if (m.ph === 'playing' && g.phase === 'countdown') g.phase = 'playing';
       if (m.ph === 'results') g.phase = 'results';
@@ -374,6 +425,45 @@ export class ArenaSession {
       if (m.ph === 'playing' && from !== this.net.selfId() && typeof m.abs === 'string' && m.abs.length < 8000) g.syncAbsorbed(m.abs);
     }
     if (prev.ph !== this.match.ph || newEpoch) this.hooks.changed();
+  }
+
+  /**
+   * Host: players who arrive mid-round (an invite link) or come back after being away take a
+   * slot now instead of waiting for the next round: a returning player gets their own machine
+   * back, a newcomer takes over the smallest living AI rival (or a free / abandoned slot).
+   */
+  private admitLateJoiners(g: ArenaGame): void {
+    const m = this.match;
+    if (m.ph === 'playing' && g.matchTime > A.roundSeconds - A.dropInCutoffSeconds) return;
+    let changed = false;
+    for (const p of this.lobbyPlayers()) {
+      const cur = g.byId.get(p.id);
+      const peer = this.net.peers().find((x) => x.id === p.id);
+      const away = peer?.presence.aw === m.ep;
+      if (cur && !cur.left && !away) continue;
+      let slot = m.roster.find((r) => r.id === p.id)?.slot;
+      if (slot === undefined) {
+        const bot = g.actors.filter((a) => a.kind === 'bot' && !a.eliminated).sort((a, b) => a.mass - b.mass)[0];
+        const present = new Set(this.net.peers().map((x) => x.id));
+        const abandoned = m.roster.find((r) => r.kind === 'player' && !present.has(r.id));
+        const used = new Set(m.roster.map((r) => r.slot));
+        const free = [0, 1, 2, 3].slice(0, A.maxPlayers).find((s) => !used.has(s));
+        slot = bot?.slot ?? abandoned?.slot ?? free;
+      }
+      if (slot === undefined) continue; // full: they watch until the next round
+      const prev = m.roster.find((r) => r.slot === slot);
+      const entry: RosterEntry = { id: p.id, slot, kind: 'player', name: p.name, vehicle: p.vehicle, skin: p.skin, horn: p.horn, hat: p.hat, g: (prev?.g ?? 0) + 1 };
+      m.roster = [...m.roster.filter((r) => r.slot !== slot), entry].sort((a, b) => a.slot - b.slot);
+      g.swapIn(entry, null);
+      const a = g.byId.get(p.id)!;
+      entry.st = [+a.x.toFixed(2), +a.z.toFixed(2), +a.heading.toFixed(3), Math.round(a.mass * 10) / 10, a.lives];
+      changed = true;
+    }
+    if (changed) {
+      this.match = { ...m };
+      this.net.emit('match', this.match);
+      this.hooks.changed();
+    }
   }
 
   /** Roster slot of a machine id (−1 if unknown) and back. */

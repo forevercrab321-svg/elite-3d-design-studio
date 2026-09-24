@@ -352,7 +352,7 @@ export class ArenaUi {
     else if (me && me.eliminated) center.innerHTML = `<span>${L('已出局 · 观战中（点击切换视角）', 'Eliminated · spectating (tap to switch)')}</span>`;
     else if (me && !me.alive && !isFinite(me.respawnAt)) center.innerHTML = `<span>${L('广告播放中…', 'Ad playing…')}</span>`;
     else if (me && !me.alive) center.innerHTML = `<b>${Math.max(0, me.respawnAt - g.matchTime).toFixed(1)}</b><span>${L('重生中', 'RESPAWNING')}</span>`;
-    else if (!me) center.innerHTML = `<span>${L('观战中 · 下一局可加入', 'Spectating · join next round')}</span>`;
+    else if (!me) center.innerHTML = `<span>${g.phase === 'playing' && A.roundSeconds - g.matchTime > A.dropInCutoffSeconds ? L('观战中 · 有空位会自动加入', 'Spectating · you join as soon as a slot frees up') : L('观战中 · 下一局可加入', 'Spectating · join next round')}</span>`;
     else center.textContent = '';
     const combo = this.overlay.querySelector('.combo') as HTMLElement;
     const cu = me && me.alive ? g.catchUp(me) : 1;
@@ -441,6 +441,8 @@ export class ArenaUi {
   private renderTags(g: ArenaGame): void {
     const host = this.overlay.querySelector('.tags') as HTMLElement;
     const v = new THREE.Vector3();
+    // Machines that left the roster (drop-in replaced them) lose their tag.
+    for (const [id, tag] of this.tags) if (!g.byId.has(id)) (tag.remove(), this.tags.delete(id));
     for (const a of g.actors) {
       let tag = this.tags.get(a.id);
       if (!tag) {

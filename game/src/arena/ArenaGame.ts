@@ -43,6 +43,10 @@ export interface RosterEntry {
   skin?: string;
   horn?: string;
   hat?: string;
+  /** Drop-in generation: bumped each time a player (re)takes this slot mid-round. */
+  g?: number;
+  /** Drop-in starting state decided by the host: [x, z, heading, mass, lives]. */
+  st?: [number, number, number, number, number];
 }
 
 export interface Actor {
@@ -99,6 +103,10 @@ export interface Actor {
   eatCooldown: Map<string, number>;
   /** The player closed the page mid-round: out of the round, never revived by stale presence. */
   left?: boolean;
+  /** Lives when the player left (a returning player continues with them). */
+  livesAtLeave?: number;
+  /** Roster generation this machine was built for (see RosterEntry.g). */
+  gen: number;
   /** Horn sound this machine honks with (cosmetic). */
   horn: HornSound;
   /** Mass just before the last time this machine was eaten (rewarded revive). */
@@ -304,12 +312,68 @@ export class ArenaGame {
       net: null,
       bot: kind === 'bot' ? new ArenaBot(this.seed + r.slot * 97) : null,
       eatCooldown: new Map(),
+      gen: r.g ?? 0,
     };
-    model.setTier(1, false);
-    model.update(1, d, 0, a.heading, a.x, a.z, 0, this.city.groundHeight(a.x, a.z));
+    const st = r.st;
+    if (Array.isArray(st) && st.length === 5 && st.every((v) => typeof v === 'number' && Number.isFinite(v))) {
+      Object.assign(a, { x: st[0], z: st[1], heading: st[2], lives: Math.max(1, Math.min(A.lives, Math.round(st[4]))) });
+      this.setMass(a, Math.max(growthConfig.startMass, st[3]));
+      a.diameter = a.targetDiameter;
+      a.tier = tierForClass(a.cls);
+      a.invulnerableUntil = this.matchTime + A.invulnerableSeconds;
+    }
+    model.setTier(a.tier, false);
+    model.update(1, a.diameter, 0, a.heading, a.x, a.z, 0, this.city.groundHeight(a.x, a.z));
     this.actors.push(a);
     this.byId.set(a.id, a);
     if (kind === 'local') this.local = a;
+  }
+
+  /**
+   * Drop-in: `r` takes roster slot `r.slot` mid-round. A player replacing a living AI rival, or
+   * returning to their own machine, continues it (position, mass, lives, score); anyone else
+   * starts fresh with a share of the field's mass so they are not instantly food.
+   */
+  swapIn(r: RosterEntry, localId: string | null): void {
+    const old = this.actors.find((x) => x.slot === r.slot);
+    const keep =
+      old && ((old.kind === 'bot' && !old.eliminated) || (old.id === r.id && (old.left ? (old.livesAtLeave ?? 0) > 0 : !old.eliminated)))
+        ? { x: old.x, z: old.z, heading: old.heading, mass: old.mass, lives: old.left ? old.livesAtLeave! : old.lives, kills: old.kills, deaths: old.deaths, objects: old.objects }
+        : null;
+    if (old) this.removeActor(old);
+    this.addActor(r, localId);
+    const a = this.byId.get(r.id)!;
+    if (r.st) {
+      // The host already decided where and how big this machine starts (addActor applied it).
+    } else if (keep) {
+      Object.assign(a, { x: keep.x, z: keep.z, heading: keep.heading, lives: Math.max(1, keep.lives), kills: keep.kills, deaths: keep.deaths, objects: keep.objects });
+      this.setMass(a, keep.mass);
+    } else {
+      const masses = this.actors.filter((x) => x !== a && !x.eliminated).map((x) => x.mass).sort((p, q) => p - q);
+      const median = masses.length ? masses[Math.floor(masses.length / 2)] : growthConfig.startMass;
+      this.setMass(a, Math.max(growthConfig.startMass, median * A.dropInMassShare));
+    }
+    a.diameter = a.targetDiameter;
+    a.tier = tierForClass(a.cls);
+    a.model.setTier(a.tier, false);
+    a.invulnerableUntil = this.matchTime + A.invulnerableSeconds;
+    if (a.kind === 'local') {
+      this.rig.snap(a.x, a.z, a.heading, a.diameter);
+      this.world.applyEligibility(a.power);
+    }
+    if (this.phase === 'playing') this.onFeed?.(L(`${a.name} 加入了比赛`, `${a.name} joined the match`), 'info');
+  }
+
+  private removeActor(a: Actor): void {
+    this.scene.remove(a.model.root, a.ring, a.bubble);
+    for (const o of [a.model.root, a.ring, a.bubble])
+      o.traverse((m) => {
+        const mesh = m as THREE.Mesh;
+        if (mesh.isMesh) mesh.geometry?.dispose();
+      });
+    this.actors.splice(this.actors.indexOf(a), 1);
+    this.byId.delete(a.id);
+    if (this.local === a) this.local = null;
   }
 
   /** Host changed (migration): AI rivals move to the new host's simulation. */
@@ -954,10 +1018,11 @@ export class ArenaGame {
   }
 
   /** A player's page is gone: they are out of this round (every client decides from its own peer list). */
-  markLeft(id: string): void {
+  markLeft(id: string, self = false): void {
     const a = this.byId.get(id);
-    if (!a || a.left || a.kind !== 'remote') return;
+    if (!a || a.left || a.kind !== (self ? 'local' : 'remote')) return;
     a.left = true;
+    a.livesAtLeave = a.eliminated ? 0 : a.lives;
     a.alive = false;
     if (!a.eliminated) {
       a.eliminated = true;
