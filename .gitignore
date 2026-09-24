@@ -28,3 +28,5 @@ artifacts/
 *.3dm.rhl
 *.bak
 !.env.example
+dist-portal/
+dist-portal.zip
