@@ -109,7 +109,7 @@ const CSS = `
 #arena .res tr.me td { color: #ffb347; font-weight: 800; }
 #arena .res .earn { text-align: center; margin-top: 14px; font-size: 13px; }
 #arena .res .actions { justify-content: center; margin-top: 16px; }
-#arena .notice { position: absolute; top: 14%; left: 50%; transform: translateX(-50%); z-index: 4; padding: 10px 16px; border-radius: 12px; background: rgba(40,16,30,.92); border: 1px solid #ff7eb6; font-size: 14px; font-weight: 800; letter-spacing: .04em; white-space: nowrap; animation: feed 4.2s forwards; }
+#arena .notice { position: absolute; bottom: 10%; left: 50%; transform: translateX(-50%); z-index: 4; padding: 10px 16px; border-radius: 12px; background: rgba(40,16,30,.92); border: 1px solid #ff7eb6; font-size: 14px; font-weight: 800; letter-spacing: .04em; white-space: nowrap; animation: feed 4.2s forwards; }
 #arena .revive { position: absolute; top: calc(40% + 80px); left: 50%; transform: translateX(-50%); white-space: nowrap; }
 #arena .res .earn .btn { margin-left: 10px; padding: 8px 12px; font-size: 12px; }
 body:has(#arena .lobby:not([hidden])) .ge-dash, body:has(#arena .res:not([hidden])) .ge-dash { display: none; }
@@ -196,12 +196,12 @@ export class ArenaUi {
     const peersN = s.net.peers().length;
     const invite =
       s.net.kind === 'online'
-        ? `${L('房间号', 'Room')} <b class="code"></b> · ${L('把链接发给好友就能一起玩（最多 4 人）', 'Send the link to friends to play together (up to 4)')}<br>🎁 ${L('分享就送派对帽，和好友打完一局送限定涂装', 'Share for a free Party Hat; play a match with a friend for an exclusive skin')}<br><button class="btn" data-a="copy">${L('复制邀请链接', 'Copy invite link')}</button>`
+        ? `${L('房间号', 'Room')} <b class="code"></b> · ${L('把链接发给好友就能一起玩（最多 4 人）', 'Send the link to friends to play together (up to 4)')}<br>🎁 ${L('分享就送派对帽，和好友打完一局送限定涂装', 'Share for a free Party Hat; play a match with a friend for an exclusive skin')}<br><button class="btn primary" data-a="copy">📣 ${L('邀请好友（微信 / 抖音 / 小红书…）', 'Invite friends (WhatsApp / TikTok / IG…)')}</button>`
         : s.net.kind === 'room'
           ? L('邀请好友：点页面右上角的 <b>Share</b>，给好友「可互动」或更高权限，再把链接发给他们。好友用自己的 Claude 账号登录打开即可加入。', 'Invite friends: click <b>Share</b> (top right), give them “can interact”, and send them the link. They join with their own Claude account.')
           : s.net.kind === 'local'
             ? L('本地多开测试：同一浏览器再开一个标签页即可加入。', 'Local test: open another tab in this browser to join.')
-            : L('单人模式：AI 对手补满 4 个位置。', 'Solo: AI rivals fill the empty slots.');
+            : `${L('单人模式：AI 对手补满 4 个位置。', 'Solo: AI rivals fill the empty slots.')}<br><button class="btn primary" data-a="copy">📣 ${L('分享游戏给好友', 'Share the game')}</button>`;
     this.lobby.innerHTML = `
       <div class="top">
         <div><div class="brand">GROW EVERYTHING</div><div class="title">${L('竞技场', 'Arena')}<small>${L('最多 4 人 · 吞下整座城市', 'Up to 4 players · eat the city')}</small></div></div>
@@ -301,7 +301,6 @@ export class ArenaUi {
         else if (a === 'shop') return this.panels?.showShop();
         else if (a === 'settings') return this.panels?.showSettings();
         else if (a === 'copy') {
-          void this.inviteUrl().then((url) => navigator.clipboard?.writeText(url)).then(() => ((el as HTMLElement).textContent = L('已复制 ✓', 'Copied ✓')));
           this.onShare?.();
           return;
         }
@@ -352,7 +351,7 @@ export class ArenaUi {
     else if (me && me.eliminated) center.innerHTML = `<span>${L('已出局 · 观战中（点击切换视角）', 'Eliminated · spectating (tap to switch)')}</span>`;
     else if (me && !me.alive && !isFinite(me.respawnAt)) center.innerHTML = `<span>${L('广告播放中…', 'Ad playing…')}</span>`;
     else if (me && !me.alive) center.innerHTML = `<b>${Math.max(0, me.respawnAt - g.matchTime).toFixed(1)}</b><span>${L('重生中', 'RESPAWNING')}</span>`;
-    else if (!me) center.innerHTML = `<span>${L('观战中 · 下一局可加入', 'Spectating · join next round')}</span>`;
+    else if (!me) center.innerHTML = `<span>${g.phase === 'playing' && A.roundSeconds - g.matchTime > A.dropInCutoffSeconds ? L('观战中 · 有空位会自动加入', 'Spectating · you join as soon as a slot frees up') : L('观战中 · 下一局可加入', 'Spectating · join next round')}</span>`;
     else center.textContent = '';
     const combo = this.overlay.querySelector('.combo') as HTMLElement;
     const cu = me && me.alive ? g.catchUp(me) : 1;
@@ -441,6 +440,8 @@ export class ArenaUi {
   private renderTags(g: ArenaGame): void {
     const host = this.overlay.querySelector('.tags') as HTMLElement;
     const v = new THREE.Vector3();
+    // Machines that left the roster (drop-in replaced them) lose their tag.
+    for (const [id, tag] of this.tags) if (!g.byId.has(id)) (tag.remove(), this.tags.delete(id));
     for (const a of g.actors) {
       let tag = this.tags.get(a.id);
       if (!tag) {
@@ -538,6 +539,9 @@ export class ArenaUi {
       };
       (this.results.querySelector('.earn') as HTMLElement).appendChild(dbl);
     }
+    const share = Object.assign(document.createElement('button'), { className: 'btn', textContent: `📣 ${L('分享 / 邀请好友', 'Share / invite')}` });
+    share.onclick = () => this.onShare?.();
+    (this.results.querySelector('.actions') as HTMLElement).appendChild(share);
     const b = this.results.querySelector('[data-a="lobby"]') as HTMLButtonElement | null;
     if (b) b.onclick = () => this.session.toLobby();
     const again = this.results.querySelector('[data-a="again"]') as HTMLButtonElement | null;

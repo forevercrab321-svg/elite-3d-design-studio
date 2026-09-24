@@ -11,7 +11,13 @@ import type { Json, Net, NetMessage, NetPeer } from './Net';
  * everyone including me. Realtime presence is meant for low-rate state, so fields that change
  * every frame (`s`, `b`, `ep`: the machine state) travel as a throttled broadcast instead and are
  * merged back into that peer's presence object here — the session never sees the difference.
+ *
+ * Liveness: Realtime presence only drops a peer when its socket closes, but a phone that locks
+ * or switches apps freezes the page with the socket still open. Every visible page therefore
+ * sends a heartbeat each second; a peer silent for PEER_TIMEOUT_MS is treated as gone (and
+ * comes back as soon as it speaks again). Hiding or closing the page says goodbye at once.
  */
+const PEER_TIMEOUT_MS = 4500;
 const FAST_KEYS = new Set(['s', 'b', 'ep']);
 
 export class SupabaseNet implements Net {
@@ -28,6 +34,9 @@ export class SupabaseNet implements Net {
   private slowDirty = false;
   private fastDirty = false;
   private uid: string | null = null;
+  /** Last time each other peer was heard from (heartbeat, state or message). */
+  private readonly seen = new Map<string, number>();
+  private hbTimer = 0;
 
   private constructor(
     readonly room: string,
@@ -41,14 +50,26 @@ export class SupabaseNet implements Net {
       .on('broadcast', { event: 'msg' }, ({ payload }) => {
         const m = payload as { topic?: string; from?: string; data?: Json };
         if (typeof m?.topic !== 'string' || typeof m.from !== 'string') return;
+        this.heard(m.from);
         for (const fn of this.handlers.get(m.topic) ?? []) fn({ from: m.from, isMe: m.from === this.id, data: m.data });
       })
       .on('broadcast', { event: 'st' }, ({ payload }) => {
         const m = payload as { from?: string; st?: Record<string, Json> };
         if (typeof m?.from !== 'string' || m.from === this.id || !m.st || typeof m.st !== 'object') return;
+        this.seen.set(m.from, Date.now());
         const o = this.others.get(m.from) ?? { slow: {}, fast: {} };
         o.fast = { ...o.fast, ...m.st };
         this.others.set(m.from, o);
+        this.refresh();
+      })
+      .on('broadcast', { event: 'hb' }, ({ payload }) => {
+        const from = (payload as { from?: string })?.from;
+        if (typeof from === 'string' && from !== this.id) this.heard(from);
+      })
+      .on('broadcast', { event: 'bye' }, ({ payload }) => {
+        const from = (payload as { from?: string })?.from;
+        if (typeof from !== 'string' || from === this.id) return;
+        this.seen.delete(from);
         this.refresh();
       })
       .subscribe((status) => {
@@ -56,6 +77,14 @@ export class SupabaseNet implements Net {
         if (this.live) this.slowDirty = true;
       });
     setInterval(() => this.pump(), 66); // ~15 Hz state, presence changes debounced into the same tick
+    const goodbye = () => {
+      if (this.live) void this.channel.send({ type: 'broadcast', event: 'bye', payload: { from: this.id } });
+    };
+    addEventListener('pagehide', goodbye);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') goodbye();
+      else this.slowDirty = this.fastDirty = true; // back: re-announce everything at once
+    });
     this.refresh();
   }
 
@@ -105,8 +134,26 @@ export class SupabaseNet implements Net {
     return (typeof peer.presence.nk === 'string' && peer.presence.nk) || 'Player';
   }
 
+  private heard(from: string): void {
+    const was = this.isAlive(from);
+    this.seen.set(from, Date.now());
+    if (!was) this.refresh();
+  }
+
+  private isAlive(id: string): boolean {
+    return Date.now() - (this.seen.get(id) ?? 0) < PEER_TIMEOUT_MS;
+  }
+
   private pump(): void {
     if (!this.live) return;
+    // Heartbeat (only while visible: a hidden page is not playing) and expiry of silent peers.
+    this.hbTimer += 66;
+    if (this.hbTimer >= 1000) {
+      this.hbTimer = 0;
+      if (document.visibilityState === 'visible') void this.channel.send({ type: 'broadcast', event: 'hb', payload: { from: this.id } });
+      const alive = 1 + [...this.others.keys()].filter((id) => this.isAlive(id)).length;
+      if (alive !== this.snapshot.length) this.refresh(); // someone went silent (or came back)
+    }
     if (this.slowDirty) {
       this.slowDirty = false;
       void this.channel.track({ ...this.slow });
@@ -126,6 +173,7 @@ export class SupabaseNet implements Net {
       const meta = { ...(metas[metas.length - 1] ?? {}) };
       delete meta.presence_ref;
       const o = this.others.get(key) ?? { slow: {}, fast: {} };
+      if (!this.others.has(key)) this.seen.set(key, Date.now()); // a fresh join counts as heard
       o.slow = meta;
       this.others.set(key, o);
     }
@@ -136,7 +184,7 @@ export class SupabaseNet implements Net {
   private refresh(): void {
     const me: NetPeer = { id: this.id, isMe: true, by: this.uid, guest: false, presence: { ...this.slow, ...this.fast } };
     const list: NetPeer[] = [me];
-    for (const [id, o] of this.others) list.push({ id, isMe: false, by: typeof o.slow.uid === 'string' ? o.slow.uid : null, guest: false, presence: { ...o.slow, ...o.fast } });
+    for (const [id, o] of this.others) if (this.isAlive(id)) list.push({ id, isMe: false, by: typeof o.slow.uid === 'string' ? o.slow.uid : null, guest: false, presence: { ...o.slow, ...o.fast } });
     list.sort((a, b) => (a.id < b.id ? -1 : 1));
     this.snapshot = Object.freeze(list);
     for (const fn of this.peerFns) fn(this.snapshot);

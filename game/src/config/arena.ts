@@ -21,6 +21,12 @@ export const arenaConfig = {
   respawnMassKeep: 0.45,
   /** Rewarded-ad revive (once per match) keeps this share of the mass instead. */
   reviveMassKeep: 0.75,
+  /** Drop-in players who do not inherit a machine start at this share of the field's median mass. */
+  dropInMassShare: 0.35,
+  /** No drop-in during the last seconds of a round (join the next one instead). */
+  dropInCutoffSeconds: 25,
+  /** Hidden longer than this during a round = away: step out and rejoin on return (ms). */
+  awayMs: 5000,
   respawnDelay: 3,
   invulnerableSeconds: 3,
   /** Chain absorbs within this window to build a combo (+10 % per step, capped). */

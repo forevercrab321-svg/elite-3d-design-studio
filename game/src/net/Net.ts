@@ -114,12 +114,17 @@ export class LocalNet implements Net {
       }
     }, 33);
     setInterval(() => {
-      this.post({ t: 'presence', presence: this.presence });
+      // Like the online transport: a hidden page sends no keepalive and expires for the others.
+      if (document.visibilityState === 'visible') this.post({ t: 'presence', presence: this.presence });
       const now = Date.now();
       for (const [id, o] of this.others) if (now - o.seen > 4000) this.others.delete(id);
       this.refresh();
     }, 1000);
     addEventListener('pagehide', () => this.post({ t: 'bye' }));
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') this.post({ t: 'bye' });
+      else this.post({ t: 'presence', presence: this.presence });
+    });
     this.refresh();
   }
   selfId(): string {

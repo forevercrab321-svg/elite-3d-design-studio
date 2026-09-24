@@ -119,7 +119,11 @@ export async function runArena(ctx: AppContext): Promise<void> {
   session.setCosmetics(prog0.skin, prog0.horn, prog0.hat);
   ui.installPanels({
     equipped: (skin, horn, hat) => session.setCosmetics(skin, horn, hat),
-    share: () => shareInvite(),
+    invite: () => inviteInfo(),
+    shared: (channel) => {
+      track('share_click', { channel });
+      gift('share');
+    },
     previewHorn: (horn) => audio?.handle({ kind: 'horn', horn }),
     volumes: (music, sfx) => audio?.setVolumes(music, sfx),
     changed: () => ui.renderLobby(),
@@ -173,18 +177,22 @@ export async function runArena(ctx: AppContext): Promise<void> {
     ui.notice(`🎁 ${L('好友礼物已解锁', 'Friend gift unlocked')}: ${names}`);
     track('gift_unlock', { rule });
   };
-  const shareInvite = async (): Promise<void> => {
-    const url = await ui.inviteUrl();
-    try {
-      if (navigator.share && matchMedia('(pointer: coarse)').matches) await navigator.share({ title: 'GROW EVERYTHING', text: L('来和我一起吞掉整座城市！', 'Come eat the city with me!'), url });
-      else await navigator.clipboard?.writeText(url);
-    } catch {
-      return; // share sheet dismissed: no gift
+  const inviteInfo = async (): Promise<{ url: string; text: string }> => {
+    const room = net instanceof SupabaseNet ? net.room : null;
+    // Share a clean link: never my name, language or test flags; just the room when there is one.
+    let url = await ui.inviteUrl();
+    if (url === location.href || /[?&](name|lang|test)=/.test(url)) {
+      const clean = new URL(location.origin + location.pathname);
+      if (room) clean.searchParams.set('room', room);
+      url = clean.toString();
     }
-    track('share_click', { room: true });
-    gift('share');
+    const text = room
+      ? L(`来 GROW EVERYTHING 和我一起吞掉整座城市！房间 ${room}，点链接直接加入 👉`, `Come eat the city with me in GROW EVERYTHING! Room ${room} — tap to join 👉`)
+      : L('来玩 GROW EVERYTHING：从一个易拉罐吃到整座城市，最多 4 人联机！👉', 'Play GROW EVERYTHING: start as a can, end up eating the whole city — up to 4 players! 👉');
+    return { url, text };
   };
-  ui.onShare = () => gift('share');
+  ui.onShare = () => void ui.panels.showShare();
+
   ui.onEmote = (id) => {
     game?.emote(id);
     track('emote', { id });
