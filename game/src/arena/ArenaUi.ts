@@ -112,6 +112,9 @@ const CSS = `
 #arena .notice { position: absolute; bottom: 10%; left: 50%; transform: translateX(-50%); z-index: 4; padding: 10px 16px; border-radius: 12px; background: rgba(40,16,30,.92); border: 1px solid #ff7eb6; font-size: 14px; font-weight: 800; letter-spacing: .04em; white-space: nowrap; animation: feed 4.2s forwards; }
 #arena .revive { position: absolute; top: calc(40% + 80px); left: 50%; transform: translateX(-50%); white-space: nowrap; }
 #arena .res .earn .btn { margin-left: 10px; padding: 8px 12px; font-size: 12px; }
+/* ?clip=1 — clean frame for marketing captures: mass HUD, banners and name tags only. */
+body.ge-clip #arena .board, body.ge-clip #arena .map, body.ge-clip #arena .emotes, body.ge-clip #arena .feed, body.ge-clip #arena .combo, body.ge-clip #hud .legend, body.ge-clip .ge-full, body.ge-clip .ge-dash { display: none !important; }
+body.ge-clip #arena .timer { top: auto; bottom: 28px; }
 body:has(#arena .lobby:not([hidden])) .ge-dash, body:has(#arena .res:not([hidden])) .ge-dash { display: none; }
 /* Phones play in landscape: HUD hugs the corners, thumbs own the bottom corners. */
 @media (pointer: coarse), (max-height: 520px) {
@@ -170,6 +173,7 @@ export class ArenaUi {
     this.el.id = 'arena';
     this.el.innerHTML = `<div class="lobby"></div><div class="overlay" hidden></div><div class="res" hidden></div>`;
     document.body.appendChild(this.el);
+    if (new URLSearchParams(location.search).get('clip') === '1') document.body.classList.add('ge-clip');
     this.lobby = this.el.querySelector('.lobby') as HTMLElement;
     this.overlay = this.el.querySelector('.overlay') as HTMLElement;
     this.results = this.el.querySelector('.res') as HTMLElement;
@@ -340,7 +344,7 @@ export class ArenaUi {
       r.innerHTML = `<span class="rk">${i + 1}</span><i style="background:#${SLOT_COLORS[a.slot % 4].toString(16).padStart(6, '0')}"></i><span class="nm"></span><span class="ms hex"></span><span class="lv2"></span>`;
       (r.querySelector('.nm') as HTMLElement).textContent = (i === 0 && !a.eliminated ? '👑 ' : '') + a.name + (a === g.local ? L('（你）', ' (you)') : '');
       (r.querySelector('.ms') as HTMLElement).textContent = massText(a.mass);
-      (r.querySelector('.lv2') as HTMLElement).textContent = `${'♥'.repeat(a.lives)}${'♡'.repeat(Math.max(0, A.lives - a.lives))} · 吞 ${a.kills} · ${a.vehicle.nameZh}${a.eliminated ? ' · 出局' : !a.alive ? ' · 重生中' : ''}`;
+      (r.querySelector('.lv2') as HTMLElement).textContent = `${'♥'.repeat(a.lives)}${'♡'.repeat(Math.max(0, A.lives - a.lives))} · ${L('吞', 'ate')} ${a.kills} · ${L(a.vehicle.nameZh, a.vehicle.name)}${a.eliminated ? L(' · 出局', ' · out') : !a.alive ? L(' · 重生中', ' · respawning') : ''}`;
       board.appendChild(r);
     });
     // Centre message.
