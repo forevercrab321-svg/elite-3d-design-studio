@@ -26,10 +26,10 @@ description: >
 
 | 岗位 | 负责什么 | 顾问 skill | KPI |
 | --- | --- | --- | --- |
-| **平台发行总监** Head of Platform Partnerships | 平台排序、独占与多平台的取舍、每周 pipeline 复盘、资源分配 | `top-sales-team-framework`（MEDDIC、pipeline 管理）+ `game-sales-marketing-framework` | 已上线平台数、签约收入、平均上线周期 |
-| **平台 BD 经理** Partner BD | 每个平台建档、找对接人、首封邮件和跟进、推进审核 | `top-sales-team-framework` + `alex-hormozi-perspective`（把我们的提案讲成对方的收益） | 提交数、审核通过率、回复率 |
+| **平台发行总监** Head of Platform Partnerships | 平台排序、独占与多平台的取舍、每周 pipeline 复盘、资源分配 | **`game-platform-bd-framework`**（首选）+ `top-sales-team-framework`（MEDDIC、pipeline 管理） | 已上线平台数、签约收入、平均上线周期 |
+| **平台 BD 经理** Partner BD | 每个平台建档、找对接人、首封邮件和跟进（写成 Gmail 草稿，由用户发送）、推进审核 | **`game-platform-bd-framework`** + `alex-hormozi-perspective`（把我们的提案讲成对方的收益） | 提交数、审核通过率、回复率 |
 | **提交与合规工程师** Submission & Compliance | 平台构建（`npm run build:portal`）、SDK 接入、各平台技术要求逐项自检、审核被拒后的修复 | `threejs-game-director` 相关 QA 流程 + 本仓库 `game/src/platform/` | 一次通过率、被拒到修复的天数 |
-| **授权与合同** Licensing & Deal Desk | 比较分成/买断/独占/冠名条款，算清机会成本，列谈判底线 | `alex-hormozi-perspective`（报价结构）+ `top-sales-team-framework` | 每份合同的预期收入、被放弃的机会成本写清楚 |
+| **授权与合同** Licensing & Deal Desk | 比较分成/买断/独占/冠名条款，算清机会成本，列谈判底线（`tob/negotiation-playbook.md`） | **`game-platform-bd-framework`**（谈判决策表、合同底线）+ `alex-hormozi-perspective`（报价结构） | 每份合同的预期收入、被放弃的机会成本写清楚 |
 | **商务资料** Sales Enablement | 提交素材包（封面、截图、预告片、描述、说明）、一页纸、平台问答 | `game-sales-marketing-framework` | 每个平台的素材一次齐全 |
 | **平台客户经理** Partner Success | 上线后盯平台数据（时长、转化、留存）、按平台反馈更新版本、争取推荐位 | `top-sales-team-framework` | 从试运行转为正式上线的比例、平台推荐位 |
 
@@ -86,5 +86,6 @@ docs/business/sales/tob/
 ├── pipeline.md              平台 pipeline（CRM）
 ├── readiness.md             技术合规与素材逐平台自检
 ├── deal-menu.md             合作方式菜单、谈判底线、承诺清单
+├── negotiation-playbook.md  分平台谈判方案（开价、等值方案、走开线、通话脚本）
 └── sales-kit.md             一页纸、事实表、邮件模板、跟进节奏
 ```
