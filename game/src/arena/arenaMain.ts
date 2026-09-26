@@ -283,7 +283,10 @@ export async function runArena(ctx: AppContext): Promise<void> {
         const me = standings.find((s) => s.id === session.selfId());
         const earned = me && !testMode ? award(me.rank, me.kills, game.city.level) : { coins: 0, unlocked: null };
         ui.showResults(standings, session.selfId(), earned);
-        if (me?.rank === 1) portal.happy();
+        if (me?.rank === 1) {
+          portal.happy();
+          audio?.victory();
+        }
         // Played with real friends (other humans who were in the room from the start)?
         if (me && !testMode) {
           const friends = session.match.roster.filter((r) => r.kind === 'player' && r.id !== session.selfId()).length;
