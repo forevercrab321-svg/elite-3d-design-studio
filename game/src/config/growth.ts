@@ -60,6 +60,7 @@ export const cameraConfig = {
   fovPerMetre: 1.6,
   fovMax: 64,
   followSharpness: 6,
+  occludedSharpness: 24, // pull-in rate while scenery blocks the view (fast; easing out uses followSharpness)
   mouseYawPerPixel: 0.005,
   mousePitchPerPixel: 0.003,
   autoAlignDelay: 1.2, // s without mouse input before the camera swings behind the player

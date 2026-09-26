@@ -28,3 +28,9 @@ artifacts/
 *.3dm.rhl
 *.bak
 !.env.example
+dist-portal/
+dist-portal.zip
+dist-portal-*.zip
+
+# Marketing captures: regenerate with tools/capture-clip.mjs; commit only reviewed cuts
+renders/marketing/

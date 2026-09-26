@@ -160,3 +160,19 @@ Budgets (high tier, in match): Shanghai 1.09 M tris at spawn / 1.43 M at a large
 - **Balance:** a trailing machine gains up to +60% from objects (cube-root mass gap to the leader), and eating the leader pays a +25% bounty. In three AI rounds the gap between 1st and 2nd was 482/343 t in Shanghai and 794/324 t in New York; Paris still ran away (1668/16 t). Bot rounds vary a lot; humans will play differently.
 - **Story regression:** 24/24 PASS. Warehouse climax is at 180.6 s (target 176–282 s): machines can now drive under elevated roof bays.
 - **Budgets (high tier, including shadow and GTAO passes):** Shanghai 1.01 M at spawn / 1.34 M big; New York 1.34 / 1.65 M; Paris 0.94 / 1.26 M; draw calls 191–333. Vehicles use far LOD at 7 sizes.
+
+## 2026-09-24 — Camera occlusion audit (arena)
+
+Tool: `tools/.wip/camocc.mjs` (autopilot solo match, full 5 min, one sample every 2 s of match time, raycast from the camera to the followed machine through the whole scene). Static builds, before vs after commit `0e39aa0` (occlusion ray cast from the machine instead of the look-ahead point + fast pull-in).
+
+| City | Before | After |
+| --- | --- | --- |
+| Shanghai | 4/156 (2.6%) | 5/151 (3.3%) |
+| New York | 4/149 (2.7%) | 9/151 (6.0%) |
+| Paris | 9/151 (6.0%) | 2/151 (1.3%) |
+| **All** | **17/456 (3.7%)** | **16/453 (3.5%)** |
+
+- The view is blocked in about 3.5% of samples, and almost always by **small props and street furniture** (`OBJ_L_*` bricks, car paint, wood, signs; `ARCH_metals` lamp posts) crossing the line of sight — not by buildings. Building occluder proxies already work.
+- The camera fix makes **no measurable difference** (3.7% → 3.5% is within run-to-run noise; the per-city swings go both ways). It is kept because it is logically correct (the look-ahead point can sit inside a wall) and harmless.
+- The wall-filling frame seen in the first marketing capture was not reproduced by the audit; likely a brief moment next to a large edible object. The promo clip stays unpublished until a re-capture is reviewed.
+- Possible follow-up (not done): fade small props that sit between the camera and the player.

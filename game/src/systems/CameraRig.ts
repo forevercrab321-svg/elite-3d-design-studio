@@ -14,6 +14,7 @@ export class CameraRig {
   private readonly look = new THREE.Vector3();
   private readonly ray = new THREE.Raycaster();
   private readonly dir = new THREE.Vector3();
+  private readonly origin = new THREE.Vector3();
   distance = 1;
 
   constructor(readonly camera: THREE.PerspectiveCamera, private readonly occluders: THREE.Object3D[]) {}
@@ -42,20 +43,25 @@ export class CameraRig {
     this.look.set(x - sin * C.lookAheadPerMetre * diameter, C.lookHeightPerMetre * diameter + 0.1, z - cos * C.lookAheadPerMetre * diameter);
     this.desired.set(x + sin * dist, height, z + cos * dist);
 
-    // Keep the camera out of buildings: pull in along the look ray.
-    const dir = this.dir.copy(this.desired).sub(this.look);
+    // Keep the camera out of buildings. Cast from the machine itself (the look-ahead point sits
+    // inside the wall when the player drives up to one) and stop in front of the first hit.
+    const origin = this.origin.set(x, Math.max(0.15, diameter * 0.5), z);
+    const dir = this.dir.copy(this.desired).sub(origin);
     const len = dir.length();
-    this.ray.set(this.look, dir.normalize());
+    this.ray.set(origin, dir.normalize());
     this.ray.far = len;
     const hit = this.ray.intersectObjects(this.occluders, false)[0];
-    if (hit) this.desired.copy(this.look).addScaledVector(dir, Math.max(0.3, hit.distance - 0.3));
+    if (hit) this.desired.copy(origin).addScaledVector(dir, Math.max(0.3, hit.distance - Math.max(0.3, 0.1 * diameter)));
 
-    const k = snap ? 1 : 1 - Math.exp(-C.followSharpness * dt);
+    // Pull in fast when something blocks the view (a hidden player is worse than a quick move),
+    // ease back out at the normal rate.
+    const sharpness = hit ? C.occludedSharpness : C.followSharpness;
+    const k = snap ? 1 : 1 - Math.exp(-sharpness * dt);
     this.camera.position.lerp(this.desired, k);
     this.distance = this.camera.position.distanceTo(this.look);
     const fov = Math.min(C.fovMax, C.fovBase + C.fovPerMetre * diameter);
     if (Math.abs(this.camera.fov - fov) > 0.01) {
-      this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, fov, snap ? 1 : k);
+      this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, fov, snap ? 1 : 1 - Math.exp(-C.followSharpness * dt));
       this.camera.updateProjectionMatrix();
     }
     this.camera.lookAt(this.look);

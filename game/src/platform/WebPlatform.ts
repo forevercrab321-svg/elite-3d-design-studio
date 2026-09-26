@@ -38,4 +38,7 @@ export class WebPlatform implements Platform {
   invitedRoom(): string | null {
     return roomFromLocation();
   }
+  playerName(): Promise<string | null> {
+    return Promise.resolve(null);
+  }
 }

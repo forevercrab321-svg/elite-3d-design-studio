@@ -14,7 +14,7 @@
  * See the adapters for the SDK doc URLs and platform rules.
  */
 
-export type PlatformName = 'web' | 'crazygames' | 'poki';
+export type PlatformName = 'web' | 'crazygames' | 'poki' | 'gamedistribution';
 
 export type RewardedPlacement = 'revive' | 'double_coins';
 
@@ -42,6 +42,13 @@ export interface Platform {
   inviteLinkAsync(room: string): Promise<string>;
   /** Room code the player was invited to (from the invite link), or null. */
   invitedRoom(): string | null;
+  /**
+   * Optional: an ad break the portal wants tied to a player's click outside gameplay (called from
+   * the lobby Start button before the round starts). GameDistribution plays its pre-roll/mid-roll here.
+   */
+  userBreak?(): Promise<void>;
+  /** The portal account's display name (CrazyGames asks multiplayer games to show it), or null. Never rejects; bounded wait. */
+  playerName(): Promise<string | null>;
   onPause: (() => void) | null;
   onResume: (() => void) | null;
 }
@@ -49,8 +56,11 @@ export interface Platform {
 /** Query-param name used for room codes in invite links on every platform. */
 export const INVITE_PARAM = 'room';
 
-/** Minimum client-side gap between interstitials (ms). Platforms rate-limit too. */
-export const MIDROLL_MIN_GAP_MS = 90_000;
+/**
+ * Minimum client-side gap between interstitials (ms). Platforms rate-limit too; 3 minutes is the
+ * conservative end of the portals' guidance (CrazyGames QA checks ~3 min between midgame ads).
+ */
+export const MIDROLL_MIN_GAP_MS = 180_000;
 
 const CRAZY_HOST = /(^|\.)crazygames\.[a-z.]+$/i;
 const POKI_HOST = /(^|\.)(poki\.com|poki\.io|poki-gdn\.com)$/i;
@@ -87,11 +97,26 @@ function candidateHosts(): string[] {
 }
 
 /**
+ * Build-time portal target (tools/build-portal.mjs <target>):
+ *   ''                → decide at runtime from the host (our site, the generic portal zip)
+ *   'gamedistribution' → GameDistribution SDK build
+ *   'nosdk'           → no third-party SDK code at all (GamePix requires "GamePix SDK or none")
+ * Constant-folded by Vite, so the unused adapters' dynamic imports are dropped from the bundle.
+ */
+export const PORTAL_TARGET: string = (import.meta.env.VITE_PORTAL as string | undefined) ?? '';
+
+/** True in any zip we hand to a portal: they host the page, so we don't send players off-site. */
+export const PORTAL_BUILD: boolean = import.meta.env.VITE_PORTAL_BUILD === '1';
+
+/**
  * `?platform=crazygames|poki|web` wins (use it for local testing: CrazyGames'
  * SDK reports environment 'local' on localhost and shows demo ads; Poki's SDK
  * runs in debug mode off-portal). Otherwise hostname heuristics; default 'web'.
+ * A build-time PORTAL_TARGET overrides both.
  */
 export function detectPlatform(): PlatformName {
+  if (PORTAL_TARGET === 'gamedistribution') return 'gamedistribution';
+  if (PORTAL_TARGET === 'nosdk') return 'web';
   try {
     const q = new URLSearchParams(location.search).get('platform');
     if (q === 'crazygames' || q === 'poki' || q === 'web') return q;
@@ -104,11 +129,23 @@ export function detectPlatform(): PlatformName {
   return 'web';
 }
 
+/** Public web address of the game (invite links from portal iframes point here). */
+export const PUBLIC_GAME_URL: string = (import.meta.env.VITE_PUBLIC_GAME_URL as string | undefined) ?? 'https://grow-everything.vercel.app/game/';
+
 /** Build a clean invite URL for this page: the path plus ?room=<code> (and ?platform= if forced). */
 export function fallbackInviteUrl(room: string): string {
   try {
     // A clean link: the inviter's name, language or test flags must not travel with it.
-    const u = new URL(location.origin + location.pathname);
+    // Framed on a portal CDN (itch.io, Newgrounds…) the page's own URL is not shareable, so
+    // invites point at our public site; the room lives on the same backend either way.
+    const framed = (() => {
+      try {
+        return window.top !== window;
+      } catch {
+        return true;
+      }
+    })();
+    const u = new URL(framed ? PUBLIC_GAME_URL : location.origin + location.pathname);
     const keep = new URL(location.href).searchParams.get('platform');
     if (keep) u.searchParams.set('platform', keep);
     u.searchParams.set(INVITE_PARAM, room);
@@ -131,10 +168,13 @@ export function roomFromLocation(): string | null {
 export async function createPlatform(): Promise<Platform> {
   const name = detectPlatform();
   let platform: Platform;
-  if (name === 'crazygames') {
+  if (PORTAL_TARGET === 'gamedistribution') {
+    const { GameDistributionPlatform } = await import('./GameDistributionPlatform');
+    platform = new GameDistributionPlatform();
+  } else if (PORTAL_TARGET !== 'nosdk' && name === 'crazygames') {
     const { CrazyGamesPlatform } = await import('./CrazyGamesPlatform');
     platform = new CrazyGamesPlatform();
-  } else if (name === 'poki') {
+  } else if (PORTAL_TARGET !== 'nosdk' && name === 'poki') {
     const { PokiPlatform } = await import('./PokiPlatform');
     platform = new PokiPlatform();
   } else {

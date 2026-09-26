@@ -57,6 +57,8 @@ export interface PanelHooks {
   equipped(skin: string, horn: string, hat: string): void;
   /** The link to share (room invite, or the game) and the message that goes with it. */
   invite(): Promise<{ url: string; text: string }>;
+  /** Portal builds (CrazyGames/Poki) forbid outbound links and cross-promotion: copy + system share only. */
+  externalLinks: boolean;
   /** A share went out on `channel` (unlocks the share gift, analytics). */
   shared(channel: ShareChannel): void;
   previewHorn(horn: HornSound): void;
@@ -152,7 +154,7 @@ export class ArenaPanels {
     const { url, text } = await this.hooks.invite();
     const phone = isPhone();
     const canSystem = typeof navigator.share === 'function' && phone;
-    const apps = channels()
+    const apps = (this.hooks.externalLinks ? channels() : [])
       .map((c) => `<button class="app" data-ch="${c.id}" style="background:${c.color}"><i>${c.icon}</i>${c.label}</button>`)
       .join('');
     this.el.innerHTML = `<div class="card" role="dialog" aria-label="${L('邀请好友', 'Invite friends')}" style="width:min(560px,100%)">
@@ -169,13 +171,22 @@ export class ArenaPanels {
     (this.el.querySelector('.x') as HTMLButtonElement).onclick = () => this.close();
     const tip = this.el.querySelector('.tip') as HTMLElement;
     const say = (t: string) => (tip.textContent = t);
-    const message = `${text} ${url}`;
+    // Each channel gets its own utm_medium so the dashboard can tell WeChat from TikTok.
+    const tagged = (ch: ShareChannel) => {
+      try {
+        const u = new URL(url);
+        if (u.searchParams.get('utm_source') === 'invite') u.searchParams.set('utm_medium', ch);
+        return u.toString();
+      } catch {
+        return url;
+      }
+    };
     this.el.querySelectorAll<HTMLButtonElement>('[data-ch]').forEach((b) => {
       b.onclick = async () => {
         const id = b.dataset.ch as ShareChannel;
         if (id === 'system') {
           try {
-            await navigator.share({ title: 'GROW EVERYTHING', text, url });
+            await navigator.share({ title: 'GROW EVERYTHING', text, url: tagged('system') });
             this.hooks.shared('system');
           } catch {
             /* dismissed: no gift */
@@ -183,7 +194,7 @@ export class ArenaPanels {
           return;
         }
         if (id === 'copy') {
-          if (await copyText(message)) {
+          if (await copyText(`${text} ${tagged('copy')}`)) {
             say(L('✓ 已复制，粘贴发给好友即可', '✓ Copied — paste it to a friend'));
             this.hooks.shared('copy');
           }
@@ -193,15 +204,15 @@ export class ArenaPanels {
         if (!c) return;
         if (c.intent) {
           say(L(`✓ 已打开 ${c.label}，确认发送即可`, `✓ Opened ${c.label} — just hit send`));
-          openOut(c.intent(url, text));
+          openOut(c.intent(tagged(id), text));
           this.hooks.shared(id);
           return;
         }
-        const copied = await copyText(message);
+        const copied = await copyText(`${text} ${tagged(id)}`);
         if (id === 'wechat' && !phone) {
           // Desktop: WeChat has no web share; scan the QR code with the phone.
           const qr = this.el.querySelector('.qr') as HTMLElement;
-          (qr.querySelector('.code') as HTMLElement).innerHTML = qrSvg(url);
+          (qr.querySelector('.code') as HTMLElement).innerHTML = qrSvg(tagged(id));
           qr.hidden = false;
           say(copied ? L('✓ 链接已复制；也可以用手机微信扫码', '✓ Link copied — or scan the code with WeChat') : '');
           this.hooks.shared(id);

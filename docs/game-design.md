@@ -78,3 +78,9 @@ The Creative Director extended the brief: an online competitive mode on world-ci
 - **Rewards:** combos, golden crates, power-up crates (⚡ speed, 🧲 magnet, 🛡 shield), first blood, leader bounty, catch-up gain for trailing machines, landmark finisher bonus, coins, next-city unlock; the host can start a rematch from the results. **Penalties:** crash stun and mass loss, death costs a life and 55% of mass.
 - **Levels:** 1 Shanghai: shikumen lanes, Shanghai taxis and scooters, Oriental Pearl Tower. 2 New York: brownstones, lofts with water towers, yellow cabs, hot-dog carts, Empire State Building. 3 Paris: Haussmann blocks with zinc mansards, cafés, kiosks, Eiffel Tower. Bonus: Scrap City.
 - **Map plan (all cities):** 192 m district; 20 m boulevards cross at a 30 m landmark plaza, 14 m streets form the outer grid. Spawns sit at the four boulevard ends facing the landmark. Starter scrap rings every spawn; houses need a 6.5 m machine, blocks 9.5 m, landmark bases 10.5 m; upper landmark parts fall and topple when a base goes.
+
+### Warm-up while waiting for friends (2026-09-25, Creative Director request)
+- A host **alone in a room friends can join** (online / claude.ai / local tabs — not solo) sees the Start button as **"Warm up vs AI · restarts when a friend joins"**; the round is flagged `wu` in the match state and always fills with AI.
+- During the warm-up a bar under the timer offers **Invite** (share sheet) and **Leave warm-up** (back to the lobby at any time).
+- When a friend opens the invite link, the host sees them in the lobby within ~0.5 s and **starts a fresh real round for everyone** (new epoch, everyone back to 5 kg, countdown); both see "<name> joined! New round". A friend arriving in a *real* round (2+ humans) still drops in and takes over an AI machine as before.
+- Tests: `tools/.wip/warmup.mjs` (13/13), `dropin.mjs` updated to a two-human round (10/10).

@@ -2,8 +2,10 @@ import { arenaConfig as A } from '../config/arena';
 import { HATS, HORNS, SKINS } from '../config/cosmetics';
 import { VEHICLE_ORDER, type VehicleLook } from '../config/vehicles';
 import type { Net, NetPeer } from '../net/Net';
+import { L } from '../i18n';
 import { CITIES, cityById } from '../world/cities';
 import type { ArenaGame, EatenEvent, RosterEntry, Standing, WireState } from './ArenaGame';
+import { cleanName } from './nameFilter';
 
 /**
  * Lobby, match flow and host authority on top of a Net.
@@ -31,6 +33,13 @@ export interface MatchState {
   standings?: Standing[];
   /** Host, while playing: base64 bitset of absorbed objects (late joiners and drift repair). */
   abs?: string;
+  /**
+   * Warm-up: the host was alone in an online room and plays the AI while waiting for invited
+   * friends. The first friend to arrive restarts the round as a real match for everyone.
+   */
+  wu?: boolean;
+  /** Names of the friends whose arrival ended a warm-up (announced when the real match starts). */
+  wj?: string;
 }
 
 export interface LobbyPlayer {
@@ -130,7 +139,7 @@ export class ArenaSession {
       .peers()
       .filter((p) => p.presence.j === true)
       .slice(0, A.maxPlayers)
-      .map((p) => ({ id: p.id, name: this.net.nameOf(p), vehicle: asVehicle(p.presence.v), skin: shortId(p.presence.k), horn: shortId(p.presence.hn), hat: shortId(p.presence.ht), ready: p.presence.r === true, isMe: p.isMe, guest: p.guest }));
+      .map((p) => ({ id: p.id, name: cleanName(this.net.nameOf(p), `${L('玩家', 'Player')}${p.id.replace(/\W/g, '').slice(-3).toUpperCase()}`), vehicle: asVehicle(p.presence.v), skin: shortId(p.presence.k), horn: shortId(p.presence.hn), hat: shortId(p.presence.ht), ready: p.presence.r === true, isMe: p.isMe, guest: p.guest }));
   }
 
   spectators(): NetPeer[] {
@@ -163,7 +172,7 @@ export class ArenaSession {
 
   // ── Lobby actions ─────────────────────────────────────────────────────────
   setNickname(n: string): void {
-    this.nickname = n.trim().slice(0, 16) || this.nickname;
+    this.nickname = cleanName(n, this.nickname);
     this.publishLobbyPresence();
   }
 
@@ -207,8 +216,19 @@ export class ArenaSession {
   canStart(): boolean {
     const players = this.lobbyPlayers();
     if (!this.isHost() || this.match.ph !== 'lobby' || !players.length) return false;
-    // Everyone but the host must be ready (a solo host can always start).
-    return players.every((p) => p.isMe || p.ready) && (players.length > 1 || this.bots);
+    // Everyone but the host must be ready (a solo host can always start; alone in an online
+    // room that start is a warm-up against the AI).
+    return players.every((p) => p.isMe || p.ready) && (players.length > 1 || this.bots || this.warmupReady());
+  }
+
+  /** Host alone in a room friends can join: Start begins a warm-up vs AI instead of waiting idle. */
+  warmupReady(): boolean {
+    return this.net.kind !== 'solo' && this.lobbyPlayers().length === 1;
+  }
+
+  /** Host: leave the warm-up round (back to the lobby) at any time. */
+  leaveWarmup(): void {
+    if (this.match.wu) this.toLobby();
   }
 
   /** Host, from the results card: same city, same joined players, new round (no ready check). */
@@ -222,12 +242,13 @@ export class ArenaSession {
     this.launch();
   }
 
-  private launch(): void {
+  private launch(joined?: string): void {
     // Drop the finished round first: host duties must never run the new epoch on the old game.
     if (this.game) this.endGame();
     const players = this.lobbyPlayers();
+    const warmup = this.warmupReady();
     const roster: RosterEntry[] = players.map((p, i) => ({ id: p.id, slot: i, kind: 'player', name: p.name, vehicle: p.vehicle, skin: p.skin, horn: p.horn, hat: p.hat }));
-    if (this.bots) {
+    if (this.bots || warmup) {
       const seedNames = [...BOT_NAMES];
       for (let slot = roster.length; slot < A.maxPlayers; slot++) {
         const name = seedNames.splice(Math.floor(Math.random() * seedNames.length), 1)[0];
@@ -239,14 +260,26 @@ export class ArenaSession {
         roster.push({ id: `bot-${slot}`, slot, kind: 'bot', name, vehicle: VEHICLE_ORDER[(slot + 1) % VEHICLE_ORDER.length], skin, horn, hat });
       }
     }
-    this.match = { ep: this.match.ep + 1, ph: 'countdown', host: this.net.selfId() ?? '', city: this.city, seed: Math.floor(Math.random() * 1e9), bots: this.bots, roster, t: 0 };
+    this.match = { ep: this.match.ep + 1, ph: 'countdown', host: this.net.selfId() ?? '', city: this.city, seed: Math.floor(Math.random() * 1e9), bots: this.bots, roster, t: 0, wu: warmup || undefined, wj: joined };
     this.net.emit('match', this.match);
+  }
+
+  /** Host during a warm-up: a friend arrived → start a fresh real round with everyone here. */
+  private endWarmupIfJoined(): boolean {
+    const m = this.match;
+    if (!m.wu || m.ph === 'lobby') return false;
+    const inRound = new Set(m.roster.map((r) => r.id));
+    const newcomers = this.lobbyPlayers().filter((p) => !inRound.has(p.id));
+    if (!newcomers.length) return false;
+    this.launch(newcomers.map((p) => p.name).join(L('、', ', ')));
+    this.hooks.changed();
+    return true;
   }
 
   /** Host: back to the lobby (from results, or to abort). */
   toLobby(): void {
     if (!this.isHost()) return;
-    this.match = { ...this.match, ep: this.match.ep + 1, ph: 'lobby', roster: [], t: 0, standings: undefined, city: this.city, bots: this.bots };
+    this.match = { ...this.match, ep: this.match.ep + 1, ph: 'lobby', roster: [], t: 0, standings: undefined, city: this.city, bots: this.bots, wu: undefined, wj: undefined };
     this.net.emit('match', this.match);
   }
 
@@ -316,6 +349,13 @@ export class ArenaSession {
       this.grantTimer = 0;
       this.net.emit('grant', { ep: this.match.ep, g: this.grantQueue.splice(0, 80).map(([o, a]) => [o, this.slotOf(a)]) });
     }
+    if (this.match.wu) {
+      this.admitTimer += dt;
+      if (this.admitTimer >= 0.5) {
+        this.admitTimer = 0;
+        if (this.endWarmupIfJoined()) return;
+      }
+    }
     const m = this.match;
     if (m.ph === 'playing' && g) {
       this.refillTimer += dt;
@@ -331,7 +371,7 @@ export class ArenaSession {
         }
       }
     }
-    if ((m.ph === 'countdown' || m.ph === 'playing') && g) {
+    if ((m.ph === 'countdown' || m.ph === 'playing') && g && !m.wu) {
       this.admitTimer += dt;
       if (this.admitTimer >= 1) {
         this.admitTimer = 0;

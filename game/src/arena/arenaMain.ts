@@ -16,9 +16,10 @@ import { ArenaBot } from './ArenaBot';
 import { ArenaGame } from './ArenaGame';
 import { ArenaSession, type MatchState } from './ArenaSession';
 import { ArenaUi } from './ArenaUi';
+import { cleanName } from './nameFilter';
 import { addCoins, award, progress, unlockGift } from './progress';
 import type { GiftRule } from '../config/cosmetics';
-import { createPlatform } from '../platform/Platform';
+import { createPlatform, PORTAL_BUILD, PUBLIC_GAME_URL } from '../platform/Platform';
 import type { CrazyGamesPlatform } from '../platform/CrazyGamesPlatform';
 
 /**
@@ -28,9 +29,11 @@ import type { CrazyGamesPlatform } from '../platform/CrazyGamesPlatform';
  */
 export async function runArena(ctx: AppContext): Promise<void> {
   const { renderer, lib, input, quality, testMode, params } = ctx;
-  const nickname = params.get('name') ?? savedName() ?? `${L('玩家', 'Player')}${Math.floor(Math.random() * 900 + 100)}`;
   // Portal SDK (CrazyGames / Poki) or our own site; never throws, bounded wait.
   const portal = await createPlatform();
+  // Name: ?name= › the one typed here before › the portal account (CrazyGames asks multiplayer games to show it) › random.
+  const randomName = `${L('玩家', 'Player')}${Math.floor(Math.random() * 900 + 100)}`;
+  const nickname = cleanName(params.get('name') ?? savedName() ?? (await portal.playerName()), randomName);
   const platform = portal.name;
   let net: Net | null = null;
   const want = params.get('net');
@@ -120,6 +123,7 @@ export async function runArena(ctx: AppContext): Promise<void> {
   ui.installPanels({
     equipped: (skin, horn, hat) => session.setCosmetics(skin, horn, hat),
     invite: () => inviteInfo(),
+    externalLinks: portal.name === 'web' && !PORTAL_BUILD,
     shared: (channel) => {
       track('share_click', { channel });
       gift('share');
@@ -186,12 +190,19 @@ export async function runArena(ctx: AppContext): Promise<void> {
       if (room) clean.searchParams.set('room', room);
       url = clean.toString();
     }
+    // Attribution: invited players arrive tagged (the share sheet adds the channel as utm_medium).
+    if (url.startsWith(location.origin) || url.startsWith(PUBLIC_GAME_URL)) {
+      const u = new URL(url);
+      u.searchParams.set('utm_source', 'invite');
+      url = u.toString();
+    }
     const text = room
       ? L(`来 GROW EVERYTHING 和我一起吞掉整座城市！房间 ${room}，点链接直接加入 👉`, `Come eat the city with me in GROW EVERYTHING! Room ${room} — tap to join 👉`)
       : L('来玩 GROW EVERYTHING：从一个易拉罐吃到整座城市，最多 4 人联机！👉', 'Play GROW EVERYTHING: start as a can, end up eating the whole city — up to 4 players! 👉');
     return { url, text };
   };
   ui.onShare = () => void ui.panels.showShare();
+  if (portal.userBreak) ui.onBeforeStart = () => portal.userBreak?.() ?? Promise.resolve();
 
   ui.onEmote = (id) => {
     game?.emote(id);

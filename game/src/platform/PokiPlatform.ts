@@ -17,7 +17,7 @@
  *    requested outside gameplay: we stop gameplay before a break and restart
  *    it afterwards if the game was playing.
  *  - commercialBreak(): Poki decides whether an ad actually plays; we add a
- *    90 s client-side minimum gap. rewardedBreak() resets that timer (Poki
+ *    180 s client-side minimum gap. rewardedBreak() resets that timer (Poki
  *    does the same server-side).
  *  - Pause/mute in the onStart callback (ad actually started), resume after the
  *    promise settles. rewardedBreak() resolves true only if the reward is earned.
@@ -169,6 +169,11 @@ export class PokiPlatform implements Platform {
       }
     }
     return roomFromLocation();
+  }
+
+  /** Poki exposes no public display name to games; players type their own (filtered). */
+  playerName(): Promise<string | null> {
+    return Promise.resolve(null);
   }
 
   /** Poki forbids raw external links; route any outbound link through this. */

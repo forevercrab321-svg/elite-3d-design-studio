@@ -83,6 +83,9 @@ const CSS = `
 #arena .feed div { font-size: 12px; font-weight: 700; padding: 5px 10px; border-radius: 8px; background: rgba(16,18,20,.55); animation: feed 5s forwards; }
 #arena .feed .kill { border-left: 3px solid #ff6b5a; } #arena .feed .bonus { border-left: 3px solid #ffd35a; } #arena .feed .bad { border-left: 3px solid #ff6b8a; }
 @keyframes feed { 0% { opacity: 0; transform: translateX(10px); } 6% { opacity: 1; transform: none; } 85% { opacity: 1; } 100% { opacity: 0; } }
+#arena .warm { position: absolute; top: 84px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 8px 10px 8px 14px; border-radius: 12px; background: rgba(40,28,10,.82); border: 1px solid #ffb347; font-size: 13px; font-weight: 800; letter-spacing: .03em; white-space: nowrap; pointer-events: auto; z-index: 3; }
+#arena .warm .btn { padding: 7px 11px; font-size: 12px; }
+#arena .warm .ws { display: none; }
 #arena .center { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); text-align: center; text-shadow: 0 3px 14px rgba(0,0,0,.6); }
 #arena .center b { display: block; font-size: 96px; font-weight: 900; line-height: 1; }
 #arena .center span { font-size: 15px; font-weight: 800; letter-spacing: .24em; }
@@ -112,6 +115,9 @@ const CSS = `
 #arena .notice { position: absolute; bottom: 10%; left: 50%; transform: translateX(-50%); z-index: 4; padding: 10px 16px; border-radius: 12px; background: rgba(40,16,30,.92); border: 1px solid #ff7eb6; font-size: 14px; font-weight: 800; letter-spacing: .04em; white-space: nowrap; animation: feed 4.2s forwards; }
 #arena .revive { position: absolute; top: calc(40% + 80px); left: 50%; transform: translateX(-50%); white-space: nowrap; }
 #arena .res .earn .btn { margin-left: 10px; padding: 8px 12px; font-size: 12px; }
+/* ?clip=1 — clean frame for marketing captures: mass HUD, banners and name tags only. */
+body.ge-clip #arena .board, body.ge-clip #arena .map, body.ge-clip #arena .emotes, body.ge-clip #arena .feed, body.ge-clip #arena .combo, body.ge-clip #hud .legend, body.ge-clip .ge-full, body.ge-clip .ge-dash { display: none !important; }
+body.ge-clip #arena .timer { top: auto; bottom: 28px; }
 body:has(#arena .lobby:not([hidden])) .ge-dash, body:has(#arena .res:not([hidden])) .ge-dash { display: none; }
 /* Phones play in landscape: HUD hugs the corners, thumbs own the bottom corners. */
 @media (pointer: coarse), (max-height: 520px) {
@@ -122,6 +128,7 @@ body:has(#arena .lobby:not([hidden])) .ge-dash, body:has(#arena .res:not([hidden
   #arena .combo { left: calc(168px + env(safe-area-inset-left)); bottom: auto; top: calc(8px + env(safe-area-inset-top)); font-size: 14px; }
   #arena .center b { font-size: 56px; } #arena .center span { font-size: 12px; }
   #arena .emotes { left: 50%; right: auto; transform: translateX(-50%); bottom: calc(8px + env(safe-area-inset-bottom)); flex-direction: row; } #arena .emotes button { width: 42px; height: 42px; font-size: 22px; }
+  #arena .warm { top: calc(52px + env(safe-area-inset-top)); font-size: 11px; padding: 4px 5px 4px 10px; gap: 6px; } #arena .warm .btn { padding: 5px 8px; font-size: 11px; } #arena .warm .wl { display: none; } #arena .warm .ws { display: inline; }
   #arena .tag { font-size: 10px; }
   #arena .res .card { padding: 14px 18px; max-height: 92vh; overflow-y: auto; } #arena .res h2 { font-size: 22px; } #arena .res table { margin-top: 8px; font-size: 11px; } #arena .res td, #arena .res th { padding: 4px 6px; }
 }
@@ -148,9 +155,13 @@ export class ArenaUi {
   private readonly tags = new Map<string, HTMLElement>();
   private lastFeedAt = 0;
   private mapAt = 0;
+  /** Epoch whose "friend joined, new round" notice was already shown. */
+  private joinedNoticeEp = -1;
   onStory: (() => void) | null = null;
   onEmote: ((id: number) => void) | null = null;
   onShare: (() => void) | null = null;
+  /** Runs before a Start click starts the round (portal ad break tied to the click); never rejects. */
+  onBeforeStart: (() => Promise<void>) | null = null;
   /** Rewarded ads (platform SDK): null / false hides the ad buttons. */
   adsAvailable = false;
   onRevive: (() => void) | null = null;
@@ -170,6 +181,7 @@ export class ArenaUi {
     this.el.id = 'arena';
     this.el.innerHTML = `<div class="lobby"></div><div class="overlay" hidden></div><div class="res" hidden></div>`;
     document.body.appendChild(this.el);
+    if (new URLSearchParams(location.search).get('clip') === '1') document.body.classList.add('ge-clip');
     this.lobby = this.el.querySelector('.lobby') as HTMLElement;
     this.overlay = this.el.querySelector('.overlay') as HTMLElement;
     this.results = this.el.querySelector('.res') as HTMLElement;
@@ -221,7 +233,7 @@ export class ArenaUi {
         <div class="actions">
           <button class="btn" data-a="join">${me ? L('离开 · 观战', 'Leave · spectate') : L('加入比赛', 'Join')}</button>
           ${me && !host ? `<button class="btn" data-a="ready">${s.ready ? L('取消准备', 'Not ready') : L('准备', 'Ready')}</button>` : ''}
-          ${host ? `<label class="tog"><input type="checkbox" id="arena-bots" ${s.bots ? 'checked' : ''}> ${L('AI 对手补位', 'Fill with AI')}</label><button class="btn primary" data-a="start" ${s.canStart() ? '' : 'disabled'}>${L('开始比赛', 'Start')}</button>` : `<span class="chip">${L('等待房主开始', 'Waiting for the host')}</span>`}
+          ${host ? `<label class="tog"><input type="checkbox" id="arena-bots" ${s.bots ? 'checked' : ''}> ${L('AI 对手补位', 'Fill with AI')}</label><button class="btn primary" data-a="start" ${s.canStart() ? '' : 'disabled'}>${s.warmupReady() ? L('先和 AI 热身 · 好友来了自动重开', 'Warm up vs AI · restarts when a friend joins') : L('开始比赛', 'Start')}</button>` : `<span class="chip">${L('等待房主开始', 'Waiting for the host')}</span>`}
         </div>
       </div>`;
     // Cities.
@@ -296,7 +308,7 @@ export class ArenaUi {
         const a = (el as HTMLElement).dataset.a;
         if (a === 'join') s.setJoined(!me);
         else if (a === 'ready') s.setReady(!s.ready);
-        else if (a === 'start') s.start();
+        else if (a === 'start') void (this.onBeforeStart?.() ?? Promise.resolve()).catch(() => undefined).then(() => s.start());
         else if (a === 'story') this.onStory?.();
         else if (a === 'shop') return this.panels?.showShop();
         else if (a === 'settings') return this.panels?.showSettings();
@@ -320,10 +332,17 @@ export class ArenaUi {
     if (s.match.ph === 'lobby') return;
     if (!this.overlay.dataset.built) {
       this.overlay.dataset.built = '1';
-      this.overlay.innerHTML = `<div class="timer"><b class="hex">5:00</b><span></span></div><div class="board"></div><div class="feed"></div><div class="center"></div><button class="btn primary revive" hidden>📺 ${L('看广告复活 · 保留 75% 质量', 'Watch an ad: revive with 75% mass')}</button><div class="combo"></div><div class="tags"></div><canvas class="map" width="368" height="368" aria-label="minimap"></canvas><div class="emotes" aria-label="emotes"><button data-e="1" title="1">😂</button><button data-e="3" title="3">👋</button><button data-e="4" title="4">🐷</button><button data-e="6" title="H">📯</button></div>`;
+      this.overlay.innerHTML = `<div class="timer"><b class="hex">5:00</b><span></span></div><div class="board"></div><div class="feed"></div><div class="warm" hidden><span class="wl">🔥 ${L('热身中 · 等好友加入，好友一来自动重新开局', 'Warm-up · a friend joining restarts the round')}</span><span class="ws">🔥 ${L('热身中 · 好友来了自动重开', 'Warm-up · restarts when a friend joins')}</span><button class="btn primary" data-w="invite">📣 ${L('邀请', 'Invite')}</button><button class="btn" data-w="leave">${L('退出热身', 'Leave')}</button></div><div class="center"></div><button class="btn primary revive" hidden>📺 ${L('看广告复活 · 保留 75% 质量', 'Watch an ad: revive with 75% mass')}</button><div class="combo"></div><div class="tags"></div><canvas class="map" width="368" height="368" aria-label="minimap"></canvas><div class="emotes" aria-label="emotes"><button data-e="1" title="1">😂</button><button data-e="3" title="3">👋</button><button data-e="4" title="4">🐷</button><button data-e="6" title="H">📯</button></div>`;
       this.overlay.querySelectorAll<HTMLButtonElement>('.emotes button').forEach((b) => (b.onclick = () => this.onEmote?.(Number(b.dataset.e))));
       g.onFeed = (text, tone) => this.feed(text, tone);
       (this.overlay.querySelector('.revive') as HTMLButtonElement).onclick = () => this.onRevive?.();
+      (this.overlay.querySelector('[data-w="invite"]') as HTMLButtonElement).onclick = () => this.onShare?.();
+      (this.overlay.querySelector('[data-w="leave"]') as HTMLButtonElement).onclick = () => this.session.leaveWarmup();
+    }
+    (this.overlay.querySelector('.warm') as HTMLElement).hidden = !(s.match.wu && s.isHost() && s.match.ph !== 'results');
+    if (s.match.wj && this.joinedNoticeEp !== s.match.ep) {
+      this.joinedNoticeEp = s.match.ep;
+      this.notice(L(`${s.match.wj} 加入了！正式开局`, `${s.match.wj} joined! New round`));
     }
     (this.overlay.querySelector('.revive') as HTMLElement).hidden = !(this.adsAvailable && g.canRevive());
     const left = Math.max(0, A.roundSeconds - g.matchTime);
@@ -340,7 +359,7 @@ export class ArenaUi {
       r.innerHTML = `<span class="rk">${i + 1}</span><i style="background:#${SLOT_COLORS[a.slot % 4].toString(16).padStart(6, '0')}"></i><span class="nm"></span><span class="ms hex"></span><span class="lv2"></span>`;
       (r.querySelector('.nm') as HTMLElement).textContent = (i === 0 && !a.eliminated ? '👑 ' : '') + a.name + (a === g.local ? L('（你）', ' (you)') : '');
       (r.querySelector('.ms') as HTMLElement).textContent = massText(a.mass);
-      (r.querySelector('.lv2') as HTMLElement).textContent = `${'♥'.repeat(a.lives)}${'♡'.repeat(Math.max(0, A.lives - a.lives))} · 吞 ${a.kills} · ${a.vehicle.nameZh}${a.eliminated ? ' · 出局' : !a.alive ? ' · 重生中' : ''}`;
+      (r.querySelector('.lv2') as HTMLElement).textContent = `${'♥'.repeat(a.lives)}${'♡'.repeat(Math.max(0, A.lives - a.lives))} · ${L('吞', 'ate')} ${a.kills} · ${L(a.vehicle.nameZh, a.vehicle.name)}${a.eliminated ? L(' · 出局', ' · out') : !a.alive ? L(' · 重生中', ' · respawning') : ''}`;
       board.appendChild(r);
     });
     // Centre message.
@@ -351,6 +370,7 @@ export class ArenaUi {
     else if (me && me.eliminated) center.innerHTML = `<span>${L('已出局 · 观战中（点击切换视角）', 'Eliminated · spectating (tap to switch)')}</span>`;
     else if (me && !me.alive && !isFinite(me.respawnAt)) center.innerHTML = `<span>${L('广告播放中…', 'Ad playing…')}</span>`;
     else if (me && !me.alive) center.innerHTML = `<b>${Math.max(0, me.respawnAt - g.matchTime).toFixed(1)}</b><span>${L('重生中', 'RESPAWNING')}</span>`;
+    else if (!me && s.match.wu) center.innerHTML = `<span>${L('房主正在热身 · 马上为你重新开局…', 'The host is warming up · a new round starts for you now…')}</span>`;
     else if (!me) center.innerHTML = `<span>${g.phase === 'playing' && A.roundSeconds - g.matchTime > A.dropInCutoffSeconds ? L('观战中 · 有空位会自动加入', 'Spectating · you join as soon as a slot frees up') : L('观战中 · 下一局可加入', 'Spectating · join next round')}</span>`;
     else center.textContent = '';
     const combo = this.overlay.querySelector('.combo') as HTMLElement;
