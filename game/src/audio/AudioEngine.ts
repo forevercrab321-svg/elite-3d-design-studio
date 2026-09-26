@@ -11,6 +11,15 @@ import { THEMES, type MusicTheme } from './themes';
 import type { HornSound } from '../config/cosmetics';
 import { loadSettings } from '../settings';
 
+/**
+ * Level trims for file tracks (public/music/*.mp3, normalised to about -14 LUFS). Measured in the
+ * offline render (tools/render-music.mjs, raw): the procedural themes sit at about -36 LUFS and the
+ * synth fanfare at about -24 LUFS at the output, so a full Suno mix is brought down to match and
+ * never buries the sound effects.
+ */
+const FILE_TRACK_GAIN = 0.5;
+const VICTORY_TRACK_GAIN = 0.4;
+
 export class AudioEngine {
   private ctx: AudioContext | null = null;
   private master!: GainNode;
@@ -27,8 +36,11 @@ export class AudioEngine {
   /** City theme (null = the original industrial loop) and an optional file track override. */
   private theme: MusicTheme | null = null;
   private themeId = '';
-  private track: HTMLAudioElement | null = null;
-  private trackNode: MediaElementAudioSourceNode | null = null;
+  /** File BGM decoded to a buffer so it loops sample-accurately (an <audio loop> leaves the MP3
+   *  encoder gap at every seam). `trackReq` guards against a stale decode after a theme switch. */
+  private trackSrc: AudioBufferSourceNode | null = null;
+  private trackGain: GainNode | null = null;
+  private trackReq = 0;
   private trackLive = false;
   /** music/victory.mp3 when present (a Suno jingle); otherwise the synth fanfare plays. */
   private victoryTrack: HTMLAudioElement | null = null;
@@ -89,30 +101,38 @@ export class AudioEngine {
   /** Last stretch of a round: the loop speeds up a little. */
   setTension(on: boolean): void {
     this.tension = on ? 1.1 : 1;
-    if (this.track) this.track.playbackRate = this.tension;
+    if (this.trackSrc && this.ctx) this.trackSrc.playbackRate.setTargetAtTime(this.tension, this.ctx.currentTime, 0.3);
   }
 
   private loadTrack(id: string): void {
-    this.track?.pause();
-    this.trackNode?.disconnect();
-    this.track = null;
-    this.trackNode = null;
+    const req = ++this.trackReq;
+    this.trackSrc?.stop();
+    this.trackSrc?.disconnect();
+    this.trackSrc = null;
     this.trackLive = false;
+    const ctx = this.ctx;
+    if (!ctx) return;
     const base = (import.meta as unknown as { env?: { BASE_URL?: string } }).env?.BASE_URL ?? './';
-    const el = new Audio();
-    el.loop = true;
-    el.preload = 'auto';
-    el.crossOrigin = 'anonymous';
-    el.addEventListener('canplaythrough', () => {
-      if (this.track !== el || !this.ctx) return;
-      this.trackNode = this.ctx.createMediaElementSource(el);
-      this.trackNode.connect(this.music);
-      this.trackLive = true; // the sequencer stays quiet while a real track plays
-      void el.play().catch(() => (this.trackLive = false));
-    }, { once: true });
-    el.addEventListener('error', () => (this.trackLive = false), { once: true });
-    el.src = `${base}music/${id}.mp3`;
-    this.track = el;
+    fetch(`${base}music/${id}.mp3`)
+      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
+      .then((data) => ctx.decodeAudioData(data))
+      .then((buf) => {
+        if (req !== this.trackReq || this.ctx !== ctx) return;
+        if (!this.trackGain) {
+          this.trackGain = ctx.createGain();
+          this.trackGain.gain.value = FILE_TRACK_GAIN;
+          this.trackGain.connect(this.music);
+        }
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        src.loop = true;
+        src.playbackRate.value = this.tension;
+        src.connect(this.trackGain);
+        src.start();
+        this.trackSrc = src;
+        this.trackLive = true; // the sequencer stays quiet while a real track plays
+      })
+      .catch(() => undefined); // no file (or undecodable): the procedural theme keeps playing
   }
 
   private loadVictory(): void {
@@ -122,7 +142,9 @@ export class AudioEngine {
     el.crossOrigin = 'anonymous';
     el.addEventListener('canplaythrough', () => {
       if (!this.ctx || this.victoryTrack) return;
-      this.ctx.createMediaElementSource(el).connect(this.sfx);
+      const g = this.ctx.createGain();
+      g.gain.value = VICTORY_TRACK_GAIN;
+      this.ctx.createMediaElementSource(el).connect(g).connect(this.sfx);
       this.victoryTrack = el;
     }, { once: true });
     el.src = `${base}music/victory.mp3`;
@@ -137,10 +159,6 @@ export class AudioEngine {
   setAdHold(on: boolean): void {
     this.adHold = on;
     this.applyMaster();
-    if (this.track) {
-      if (on) this.track.pause();
-      else if (this.trackLive) void this.track.play().catch(() => undefined);
-    }
   }
 
   setVolumes(music: number, sfx: number): void {
@@ -507,7 +525,8 @@ export class AudioEngine {
     const ctx = this.ctx;
     if (!ctx) return;
     const t0 = ctx.currentTime + 0.05;
-    const dur = 3.6;
+    // Duck the BGM for the jingle: the file's length when one is loaded, else the synth fanfare's.
+    const dur = this.victoryTrack && Number.isFinite(this.victoryTrack.duration) ? this.victoryTrack.duration + 0.2 : 3.6;
     this.music.gain.cancelScheduledValues(t0);
     this.music.gain.setTargetAtTime(0.03 * this.vol.music, t0, 0.05);
     this.music.gain.setTargetAtTime(0.22 * this.vol.music, t0 + dur, 0.4);
