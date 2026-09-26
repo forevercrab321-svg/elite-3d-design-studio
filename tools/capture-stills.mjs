@@ -38,7 +38,7 @@ for (const city of cities) {
       return __ARENA__.session.match.ph;
     }, t);
     if (ph === 'lobby') break;
-    await p.screenshot({ path: `${out}/${city}-${t}s.png` });
+    await p.screenshot({ path: `${out}/${city}-${t}s.png`, timeout: 240000 });
     console.log(`${city} t=${t}s`);
   }
   await p.close();
