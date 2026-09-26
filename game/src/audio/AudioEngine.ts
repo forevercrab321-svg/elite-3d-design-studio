@@ -11,6 +11,15 @@ import { THEMES, type MusicTheme } from './themes';
 import type { HornSound } from '../config/cosmetics';
 import { loadSettings } from '../settings';
 
+/**
+ * Level trims for file tracks (public/music/*.mp3, normalised to about -14 LUFS). Measured in the
+ * offline render (tools/render-music.mjs, raw): the procedural themes sit at about -36 LUFS and the
+ * synth fanfare at about -24 LUFS at the output, so a full Suno mix is brought down to match and
+ * never buries the sound effects.
+ */
+const FILE_TRACK_GAIN = 0.5;
+const VICTORY_TRACK_GAIN = 0.4;
+
 export class AudioEngine {
   private ctx: AudioContext | null = null;
   private master!: GainNode;
@@ -27,9 +36,14 @@ export class AudioEngine {
   /** City theme (null = the original industrial loop) and an optional file track override. */
   private theme: MusicTheme | null = null;
   private themeId = '';
-  private track: HTMLAudioElement | null = null;
-  private trackNode: MediaElementAudioSourceNode | null = null;
+  /** File BGM decoded to a buffer so it loops sample-accurately (an <audio loop> leaves the MP3
+   *  encoder gap at every seam). `trackReq` guards against a stale decode after a theme switch. */
+  private trackSrc: AudioBufferSourceNode | null = null;
+  private trackGain: GainNode | null = null;
+  private trackReq = 0;
   private trackLive = false;
+  /** music/victory.mp3 when present (a Suno jingle); otherwise the synth fanfare plays. */
+  private victoryTrack: HTMLAudioElement | null = null;
   private tension = 1;
   /** Player volume settings (0–1), applied on top of the mix levels. */
   private vol = loadSettings();
@@ -69,6 +83,7 @@ export class AudioEngine {
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     this.startMotor();
     if (this.themeId) this.loadTrack(this.themeId);
+    this.loadVictory();
     this.nextStepTime = ctx.currentTime + 0.1;
     this.timer = window.setInterval(() => this.schedule(), 25);
   }
@@ -86,30 +101,53 @@ export class AudioEngine {
   /** Last stretch of a round: the loop speeds up a little. */
   setTension(on: boolean): void {
     this.tension = on ? 1.1 : 1;
-    if (this.track) this.track.playbackRate = this.tension;
+    if (this.trackSrc && this.ctx) this.trackSrc.playbackRate.setTargetAtTime(this.tension, this.ctx.currentTime, 0.3);
   }
 
   private loadTrack(id: string): void {
-    this.track?.pause();
-    this.trackNode?.disconnect();
-    this.track = null;
-    this.trackNode = null;
+    const req = ++this.trackReq;
+    this.trackSrc?.stop();
+    this.trackSrc?.disconnect();
+    this.trackSrc = null;
     this.trackLive = false;
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const base = (import.meta as unknown as { env?: { BASE_URL?: string } }).env?.BASE_URL ?? './';
+    fetch(`${base}music/${id}.mp3`)
+      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
+      .then((data) => ctx.decodeAudioData(data))
+      .then((buf) => {
+        if (req !== this.trackReq || this.ctx !== ctx) return;
+        if (!this.trackGain) {
+          this.trackGain = ctx.createGain();
+          this.trackGain.gain.value = FILE_TRACK_GAIN;
+          this.trackGain.connect(this.music);
+        }
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        src.loop = true;
+        src.playbackRate.value = this.tension;
+        src.connect(this.trackGain);
+        src.start();
+        this.trackSrc = src;
+        this.trackLive = true; // the sequencer stays quiet while a real track plays
+      })
+      .catch(() => undefined); // no file (or undecodable): the procedural theme keeps playing
+  }
+
+  private loadVictory(): void {
     const base = (import.meta as unknown as { env?: { BASE_URL?: string } }).env?.BASE_URL ?? './';
     const el = new Audio();
-    el.loop = true;
     el.preload = 'auto';
     el.crossOrigin = 'anonymous';
     el.addEventListener('canplaythrough', () => {
-      if (this.track !== el || !this.ctx) return;
-      this.trackNode = this.ctx.createMediaElementSource(el);
-      this.trackNode.connect(this.music);
-      this.trackLive = true; // the sequencer stays quiet while a real track plays
-      void el.play().catch(() => (this.trackLive = false));
+      if (!this.ctx || this.victoryTrack) return;
+      const g = this.ctx.createGain();
+      g.gain.value = VICTORY_TRACK_GAIN;
+      this.ctx.createMediaElementSource(el).connect(g).connect(this.sfx);
+      this.victoryTrack = el;
     }, { once: true });
-    el.addEventListener('error', () => (this.trackLive = false), { once: true });
-    el.src = `${base}music/${id}.mp3`;
-    this.track = el;
+    el.src = `${base}music/victory.mp3`;
   }
 
   setMuted(m: boolean): void {
@@ -121,10 +159,6 @@ export class AudioEngine {
   setAdHold(on: boolean): void {
     this.adHold = on;
     this.applyMaster();
-    if (this.track) {
-      if (on) this.track.pause();
-      else if (this.trackLive) void this.track.play().catch(() => undefined);
-    }
   }
 
   setVolumes(music: number, sfx: number): void {
@@ -482,6 +516,78 @@ export class AudioEngine {
     this.env(v.gain, t, 0.12, 0.05, 0.28);
   }
 
+  /**
+   * Victory fanfare for finishing 1st (~3.5 s): the BGM ducks, a toy-brass "da-da-da-DAAA"
+   * climbs a C-major arpeggio, a music-box sparkle runs up and a final chord rings with a clap.
+   * A file at music/victory.mp3 (e.g. a Suno jingle) plays instead when present.
+   */
+  victory(): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const t0 = ctx.currentTime + 0.05;
+    // Duck the BGM for the jingle: the file's length when one is loaded, else the synth fanfare's.
+    const dur = this.victoryTrack && Number.isFinite(this.victoryTrack.duration) ? this.victoryTrack.duration + 0.2 : 3.6;
+    this.music.gain.cancelScheduledValues(t0);
+    this.music.gain.setTargetAtTime(0.03 * this.vol.music, t0, 0.05);
+    this.music.gain.setTargetAtTime(0.22 * this.vol.music, t0 + dur, 0.4);
+    if (this.victoryTrack) {
+      this.victoryTrack.currentTime = 0;
+      void this.victoryTrack.play().catch(() => this.playVictorySynth(t0));
+      return;
+    }
+    this.playVictorySynth(t0);
+  }
+
+  private playVictorySynth(t0: number): void {
+    const ctx = this.ctx!;
+    const C5 = 523.25;
+    const tone = (semi: number, at: number, len: number, level: number, wave: OscillatorType, detune = 0) => {
+      const f = ctx.createBiquadFilter();
+      f.type = 'lowpass';
+      f.frequency.setValueAtTime(3200, at);
+      f.frequency.exponentialRampToValueAtTime(1200, at + len);
+      const g = ctx.createGain();
+      f.connect(g).connect(this.sfx);
+      for (const d of detune ? [-detune, detune] : [0]) {
+        const o = ctx.createOscillator();
+        o.type = wave;
+        o.frequency.value = C5 * Math.pow(2, semi / 12);
+        o.detune.value = d;
+        o.connect(f);
+        o.start(at);
+        o.stop(at + len + 0.05);
+      }
+      g.gain.setValueAtTime(0.0001, at);
+      g.gain.exponentialRampToValueAtTime(level, at + 0.015);
+      g.gain.setTargetAtTime(level * 0.7, at + 0.05, 0.2);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + len);
+    };
+    // "da-da-da-DAAA": G C E | G(long) — toy brass (detuned square) with a triangle doubling.
+    const brass: [number, number, number][] = [[-5, 0, 0.14], [0, 0.16, 0.14], [4, 0.32, 0.14], [7, 0.48, 0.5], [4, 1.02, 0.12], [7, 1.16, 1.6]];
+    for (const [s, at, len] of brass) {
+      tone(s, t0 + at, len, 0.07, 'square', 7);
+      tone(s - 12, t0 + at, len, 0.08, 'triangle');
+    }
+    // Final chord under the long note.
+    for (const s of [-12, -5, 0, 4]) tone(s, t0 + 1.16, 1.9, 0.05, 'triangle');
+    // Music-box sparkle run.
+    [12, 16, 19, 24, 28, 31, 36].forEach((s, i) => tone(s, t0 + 1.16 + i * 0.06, 0.6, 0.035, 'sine'));
+    // Claps on the hits.
+    for (const at of [0.48, 1.16]) {
+      const src = ctx.createBufferSource();
+      src.buffer = this.noise;
+      const f = ctx.createBiquadFilter();
+      f.type = 'bandpass';
+      f.frequency.value = 1500;
+      const g = ctx.createGain();
+      src.connect(f).connect(g).connect(this.sfx);
+      g.gain.setValueAtTime(0.25, t0 + at);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + at + 0.12);
+      src.start(t0 + at, Math.random() * 0.5);
+      src.stop(t0 + at + 0.15);
+    }
+  }
+
   /** Short synth chord/arpeggio (semitones above A3) for unlocks, tiers and the win. */
   private chime(semis: number[], level: number): void {
     const ctx = this.ctx!;
@@ -619,7 +725,9 @@ export class AudioEngine {
     if (this.tier >= 2 && th.kick.includes(i)) voice(120, 'sine', 0.8, 0.28, { drop: 0.3 });
     if (this.tier >= 2 && th.snare.includes(i)) noise(1800, 0.35, 0.14);
     const bass = th.bass.pattern[i];
-    if (this.tier >= 3 && bass !== null && bass !== undefined) voice(note(bass), th.bass.wave, th.bass.level, 0.3);
+    if (this.tier >= 3 && bass !== null && bass !== undefined) voice(note(bass), th.bass.wave, th.bass.level, 0.3, th.bass.boing ? { drop: 0.86 } : {});
+    const bell = th.bell?.pattern[i];
+    if (this.tier >= 2 && th.bell && bell !== null && bell !== undefined) voice(note(bell), 'sine', th.bell.level, 0.9, { pluck: true });
     if (this.tier >= 4 && th.accent?.steps.includes(i)) for (const c of th.accent.chord) voice(note(c), th.accent.wave, th.accent.level, th.accent.decay);
   }
 }

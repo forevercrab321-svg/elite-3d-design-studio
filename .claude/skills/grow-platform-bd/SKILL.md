@@ -15,6 +15,7 @@ description: >
 ## 激活后先做什么
 
 1. **读现状**（每次都读，不凭记忆）：
+   - `docs/business/sales/strategy.md`：本季度销售战略（目标、渠道优先级、谈判原则、90 天路线图）
    - `docs/business/sales/tob/pipeline.md`：每个平台在哪个阶段、下一步、谁负责
    - `docs/business/sales/tob/readiness.md`：技术合规逐项状态
    - `docs/business/sales/platforms/<平台>.md`：平台条款与 MEDDIC 档案（带出处）
