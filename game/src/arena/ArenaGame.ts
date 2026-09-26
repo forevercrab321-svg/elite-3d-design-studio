@@ -159,7 +159,7 @@ export class ArenaGame {
   readonly camera = new THREE.PerspectiveCamera(56, 16 / 9, 0.03, 700);
   readonly world: World;
   readonly rig: CameraRig;
-  readonly hud = new Hud();
+  readonly hud = new Hud('<kbd>WASD</kbd> MOVE · <kbd>SPACE</kbd> DASH<br><kbd>DRAG</kbd> LOOK · <kbd>V</kbd> VIEW · <kbd>M</kbd> SOUND');
   readonly effects: Effects;
   readonly sun: THREE.DirectionalLight;
   readonly sky: THREE.Mesh;
@@ -410,8 +410,8 @@ export class ArenaGame {
       if (!playing) continue;
       if (a.kind === 'local') {
         // Camera-relative keyboard intents → world direction.
-        const sy = Math.sin(this.rig.yaw);
-        const cy = Math.cos(this.rig.yaw);
+        const sy = Math.sin(this.rig.controlYaw);
+        const cy = Math.cos(this.rig.controlYaw);
         this.moveActor(a, dt, -sy * intents.forward + cy * intents.right, -cy * intents.forward - sy * intents.right, intents.dash);
       } else if (a.bot) {
         const i = a.bot.intents(this, a);
@@ -438,7 +438,9 @@ export class ArenaGame {
       a.diameter += (a.targetDiameter - a.diameter) * (1 - Math.exp(-growthConfig.visualGrowthRate * dt));
       const top = this.topSpeed(a);
       const blink = this.matchTime < a.invulnerableUntil && Math.floor(this.time * 8) % 2 === 0;
-      a.model.root.visible = a.alive && !blink;
+      // First person hides my own machine (the camera sits in its cab).
+      const cab = a === this.local && this.firstPersonActive();
+      a.model.root.visible = a.alive && !blink && !cab;
       a.model.update(dt, a.diameter, a.speed, a.heading, a.x, a.z, a.turnVelocity * Math.min(1, Math.abs(a.speed) / top), this.city.groundHeight(a.x, a.z));
       a.eyes.place(a.tier);
       a.eyes.update(dt, a.speed, a.heading, a.diameter, a.jolt);
@@ -446,7 +448,7 @@ export class ArenaGame {
       a.hat?.update(dt, a.speed, a.jolt);
       a.jolt = Math.max(0, a.jolt - dt * 3);
       if (this.matchTime < a.stunUntil) this.sayFor(a, '💫', 0.2);
-      a.ring.visible = a.alive;
+      a.ring.visible = a.alive && !cab;
       a.ring.position.set(a.x, this.city.groundHeight(a.x, a.z) + 0.03, a.z);
       const magnet = this.matchTime < a.magnetUntil;
       const speedy = this.matchTime < a.speedUntil;
@@ -463,7 +465,9 @@ export class ArenaGame {
       const fx = -Math.sin(focus.heading);
       const fz = -Math.cos(focus.heading);
       this.effects.update(dt, 0, focus.x + fx * focus.diameter * 0.35, focus.diameter * 0.35, focus.z + fz * focus.diameter * 0.35);
-      this.rig.update(dt, focus.x, focus.z, focus.heading, Math.abs(focus.speed) / this.topSpeed(focus), focus.diameter);
+      if (focus === this.local && this.firstPersonActive())
+        this.rig.updateFirstPerson(dt, focus.x, this.city.groundHeight(focus.x, focus.z), focus.z, focus.heading, Math.abs(focus.speed) / this.topSpeed(focus), focus.diameter, focus.dashTime > 0);
+      else this.rig.update(dt, focus.x, focus.z, focus.heading, Math.abs(focus.speed) / this.topSpeed(focus), focus.diameter);
       this.effects.applyShake(this.camera, this.rig.distance);
     }
     this.updateSun();
@@ -474,6 +478,20 @@ export class ArenaGame {
   }
 
   /** The local machine, or — while it is down or out — the current leader. */
+  /** First-person view applies only while I am driving (spectating / respawning stays third person). */
+  firstPersonActive(): boolean {
+    return this.rig.mode === 'first' && !!this.local?.alive;
+  }
+
+  /** Switch between the follow camera and the cab view. */
+  setCameraMode(mode: 'third' | 'first'): void {
+    if (this.rig.mode === mode) return;
+    this.rig.mode = mode;
+    const a = this.local;
+    // Face the way the machine drives so neither view starts looking backwards.
+    if (a) this.rig.yaw = a.heading;
+  }
+
   cameraTarget(): Actor | null {
     if (this.local?.alive) return this.local;
     const alive = this.actors.filter((a) => a.alive).sort((a, b) => b.mass - a.mass);

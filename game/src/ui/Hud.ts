@@ -93,7 +93,8 @@ export class Hud {
   private objectiveKey = '';
   private endAnim: Animation | null = null;
 
-  constructor() {
+  /** `legend` replaces the controls line (the arena has a camera toggle instead of restart). */
+  constructor(legend?: string) {
     const style = document.createElement('style');
     style.textContent = CSS;
     document.head.appendChild(style);
@@ -113,6 +114,7 @@ export class Hud {
       <div class="toast"></div>
       <div class="end"></div>
       <div class="legend"><kbd>WASD</kbd> MOVE · <kbd>SPACE</kbd> DASH<br><kbd>DRAG</kbd> CAMERA · <kbd>M</kbd> SOUND · <kbd>R</kbd> RESTART</div>`;
+    if (legend) (this.el.querySelector('.legend') as HTMLElement).innerHTML = legend;
     document.body.appendChild(this.el);
     const q = (s: string) => this.el.querySelector(s) as HTMLElement;
     this.mass = q('.mass');

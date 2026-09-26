@@ -65,6 +65,20 @@ export const cameraConfig = {
   mousePitchPerPixel: 0.003,
   autoAlignDelay: 1.2, // s without mouse input before the camera swings behind the player
   autoAlignRate: 1.8,
+  // First-person camera (toggle V / 🎥): eye in the cab, FOV opens with speed.
+  fpEyeHeight: 0.62, // × diameter above the ground
+  fpEyeForward: 0.38, // × diameter ahead of the machine centre (front of the cab)
+  fpBasePitch: -0.12, // rad, slightly down so the intake and near pickups stay in view
+  fpFollowSharpness: 12, // steering yaw → heading
+  fpPositionSharpness: 30,
+  fpFovBase: 72,
+  fpFovSpeed: 10, // + degrees at top speed
+  fpFovDash: 8, // + degrees while dashing
+  fpFovSharpness: 5,
+  fpLookYawMax: 1.4, // rad look-around from a drag
+  fpLookPitchMax: 0.6,
+  fpLookReturnDelay: 1.0, // s after the last drag before the view eases back to straight ahead
+  fpLookReturnRate: 3,
 } as const;
 
 export const feelConfig = {

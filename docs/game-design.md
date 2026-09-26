@@ -84,3 +84,9 @@ The Creative Director extended the brief: an online competitive mode on world-ci
 - During the warm-up a bar under the timer offers **Invite** (share sheet) and **Leave warm-up** (back to the lobby at any time).
 - When a friend opens the invite link, the host sees them in the lobby within ~0.5 s and **starts a fresh real round for everyone** (new epoch, everyone back to 5 kg, countdown); both see "<name> joined! New round". A friend arriving in a *real* round (2+ humans) still drops in and takes over an AI machine as before.
 - Tests: `tools/.wip/warmup.mjs` (13/13), `dropin.mjs` updated to a two-human round (10/10).
+
+### Camera modes (2026-09-26, Creative Director request)
+- **Follow view** (default) and **first-person cab view**, toggled with **V** or the **🎥** button in the emote bar; the choice is remembered (`localStorage grow-arena-camera`).
+- First person: the eye sits at the front of the cab (0.62 × diameter up, 0.38 × diameter forward), my own machine and ring are hidden, keys/joystick steer relative to the heading, a drag looks around and eases back after 1 s, and the FOV opens from 72° by up to +10° with speed and +8° while dashing. Scale reads strongly: at 5 kg cars and buildings tower over the camera.
+- While respawning or spectating the camera falls back to the follow view. Values live in `cameraConfig` (`fp*`).
+- Test: `tools/.wip/camera.mjs` (13/13); screenshots `renders/review/game/camera-*.png`.
