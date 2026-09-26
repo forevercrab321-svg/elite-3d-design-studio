@@ -17,6 +17,7 @@ import { ArenaGame } from './ArenaGame';
 import { ArenaSession, type MatchState } from './ArenaSession';
 import { ArenaUi } from './ArenaUi';
 import { cleanName } from './nameFilter';
+import type { CameraMode } from '../systems/CameraRig';
 import { addCoins, award, progress, unlockGift } from './progress';
 import type { GiftRule } from '../config/cosmetics';
 import { createPlatform, PORTAL_BUILD, PUBLIC_GAME_URL } from '../platform/Platform';
@@ -33,6 +34,19 @@ export async function runArena(ctx: AppContext): Promise<void> {
   const portal = await createPlatform();
   // Name: ?name= › the one typed here before › the portal account (CrazyGames asks multiplayer games to show it) › random.
   const randomName = `${L('玩家', 'Player')}${Math.floor(Math.random() * 900 + 100)}`;
+  // Camera: follow view or first-person cab view (V / 🎥), remembered across visits.
+  let camMode: CameraMode = savedCameraMode();
+  const toggleCamera = (): void => {
+    camMode = camMode === 'first' ? 'third' : 'first';
+    try {
+      localStorage.setItem('grow-arena-camera', camMode);
+    } catch {
+      /* private mode */
+    }
+    game?.setCameraMode(camMode);
+    ui.notice(camMode === 'first' ? L('🎥 第一人称视角', '🎥 First-person view') : L('🎥 第三人称视角', '🎥 Follow view'));
+    track('camera_mode', { mode: camMode });
+  };
   const nickname = cleanName(params.get('name') ?? savedName() ?? (await portal.playerName()), randomName);
   const platform = portal.name;
   let net: Net | null = null;
@@ -93,6 +107,7 @@ export async function runArena(ctx: AppContext): Promise<void> {
         game?.dispose();
         const g = new ArenaGame(input, lib, city, state.seed, localId, state.roster, (): boolean => session.isHost());
         game = g;
+        g.setCameraMode(camMode);
         g.onEvent = (e) => audio?.handle(e);
         audio?.setTheme(city.id);
         track('match_start', { city: city.id, humans: state.roster.filter((r) => r.kind === 'player').length, bots: state.roster.filter((r) => r.kind === 'bot').length, player: localId !== null });
@@ -213,7 +228,9 @@ export async function runArena(ctx: AppContext): Promise<void> {
     const m = /^Digit([1-6])$/.exec(e.code);
     if (m) game.emote(Number(m[1]));
     else if (e.code === 'KeyH') game.emote(6);
+    else if (e.code === 'KeyV' && !(e.target instanceof HTMLInputElement)) toggleCamera();
   });
+  ui.onCamera = toggleCamera;
   ui.onStory = () => {
     location.hash = 'story';
     location.reload();
@@ -398,6 +415,14 @@ function newRoomCode(): string {
   let c = '';
   for (let i = 0; i < 5; i++) c += abc[Math.floor(Math.random() * abc.length)];
   return c;
+}
+
+function savedCameraMode(): CameraMode {
+  try {
+    return localStorage.getItem('grow-arena-camera') === 'first' ? 'first' : 'third';
+  } catch {
+    return 'third';
+  }
 }
 
 function savedName(): string | null {

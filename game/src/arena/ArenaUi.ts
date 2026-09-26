@@ -129,6 +129,7 @@ body:has(#arena .lobby:not([hidden])) .ge-dash, body:has(#arena .res:not([hidden
   #arena .center b { font-size: 56px; } #arena .center span { font-size: 12px; }
   #arena .emotes { left: 50%; right: auto; transform: translateX(-50%); bottom: calc(8px + env(safe-area-inset-bottom)); flex-direction: row; } #arena .emotes button { width: 42px; height: 42px; font-size: 22px; }
   #arena .warm { top: calc(52px + env(safe-area-inset-top)); font-size: 11px; padding: 4px 5px 4px 10px; gap: 6px; } #arena .warm .btn { padding: 5px 8px; font-size: 11px; } #arena .warm .wl { display: none; } #arena .warm .ws { display: inline; }
+  #arena .notice { bottom: auto; top: 30%; font-size: 12px; padding: 7px 12px; }
   #arena .tag { font-size: 10px; }
   #arena .res .card { padding: 14px 18px; max-height: 92vh; overflow-y: auto; } #arena .res h2 { font-size: 22px; } #arena .res table { margin-top: 8px; font-size: 11px; } #arena .res td, #arena .res th { padding: 4px 6px; }
 }
@@ -160,6 +161,8 @@ export class ArenaUi {
   onStory: (() => void) | null = null;
   onEmote: ((id: number) => void) | null = null;
   onShare: (() => void) | null = null;
+  /** Toggle follow / first-person camera (🎥 button; V on a keyboard). */
+  onCamera: (() => void) | null = null;
   /** Runs before a Start click starts the round (portal ad break tied to the click); never rejects. */
   onBeforeStart: (() => Promise<void>) | null = null;
   /** Rewarded ads (platform SDK): null / false hides the ad buttons. */
@@ -332,8 +335,9 @@ export class ArenaUi {
     if (s.match.ph === 'lobby') return;
     if (!this.overlay.dataset.built) {
       this.overlay.dataset.built = '1';
-      this.overlay.innerHTML = `<div class="timer"><b class="hex">5:00</b><span></span></div><div class="board"></div><div class="feed"></div><div class="warm" hidden><span class="wl">🔥 ${L('热身中 · 等好友加入，好友一来自动重新开局', 'Warm-up · a friend joining restarts the round')}</span><span class="ws">🔥 ${L('热身中 · 好友来了自动重开', 'Warm-up · restarts when a friend joins')}</span><button class="btn primary" data-w="invite">📣 ${L('邀请', 'Invite')}</button><button class="btn" data-w="leave">${L('退出热身', 'Leave')}</button></div><div class="center"></div><button class="btn primary revive" hidden>📺 ${L('看广告复活 · 保留 75% 质量', 'Watch an ad: revive with 75% mass')}</button><div class="combo"></div><div class="tags"></div><canvas class="map" width="368" height="368" aria-label="minimap"></canvas><div class="emotes" aria-label="emotes"><button data-e="1" title="1">😂</button><button data-e="3" title="3">👋</button><button data-e="4" title="4">🐷</button><button data-e="6" title="H">📯</button></div>`;
-      this.overlay.querySelectorAll<HTMLButtonElement>('.emotes button').forEach((b) => (b.onclick = () => this.onEmote?.(Number(b.dataset.e))));
+      this.overlay.innerHTML = `<div class="timer"><b class="hex">5:00</b><span></span></div><div class="board"></div><div class="feed"></div><div class="warm" hidden><span class="wl">🔥 ${L('热身中 · 等好友加入，好友一来自动重新开局', 'Warm-up · a friend joining restarts the round')}</span><span class="ws">🔥 ${L('热身中 · 好友来了自动重开', 'Warm-up · restarts when a friend joins')}</span><button class="btn primary" data-w="invite">📣 ${L('邀请', 'Invite')}</button><button class="btn" data-w="leave">${L('退出热身', 'Leave')}</button></div><div class="center"></div><button class="btn primary revive" hidden>📺 ${L('看广告复活 · 保留 75% 质量', 'Watch an ad: revive with 75% mass')}</button><div class="combo"></div><div class="tags"></div><canvas class="map" width="368" height="368" aria-label="minimap"></canvas><div class="emotes" aria-label="emotes"><button data-e="1" title="1">😂</button><button data-e="3" title="3">👋</button><button data-e="4" title="4">🐷</button><button data-e="6" title="H">📯</button><button class="cam" title="V" aria-label="${L('切换视角', 'Switch camera')}">🎥</button></div>`;
+      this.overlay.querySelectorAll<HTMLButtonElement>('.emotes button[data-e]').forEach((b) => (b.onclick = () => this.onEmote?.(Number(b.dataset.e))));
+      (this.overlay.querySelector('.emotes .cam') as HTMLButtonElement).onclick = () => this.onCamera?.();
       g.onFeed = (text, tone) => this.feed(text, tone);
       (this.overlay.querySelector('.revive') as HTMLButtonElement).onclick = () => this.onRevive?.();
       (this.overlay.querySelector('[data-w="invite"]') as HTMLButtonElement).onclick = () => this.onShare?.();
