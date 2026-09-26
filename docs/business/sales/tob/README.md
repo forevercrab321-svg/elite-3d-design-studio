@@ -1,6 +1,6 @@
 # ToB 作战计划：把 GROW EVERYTHING 卖给游戏平台
 
-> 2026-09-24 起生效 · 负责团队：`grow-platform-bd`（平台发行团队）
+> 2026-09-24 起生效 · 负责团队：`grow-platform-bd`（平台发行团队） · 上层战略：`../strategy.md`
 > 用户指令：**先做 ToB，ToC 暂停。** 先把游戏卖给各大游戏平台。
 > 原来的「7 天 1000 用户」冲刺（`../sprint-1000-users.md`）里的 TikTok、达人、社群动作全部暂停；平台上线后，如果需要帮平台冲 Basic Launch 的数据门槛，再由用户决定是否恢复。
 
