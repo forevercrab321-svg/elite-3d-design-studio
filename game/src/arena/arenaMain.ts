@@ -277,7 +277,10 @@ export async function runArena(ctx: AppContext): Promise<void> {
     if (!g?.reviveHold()) return;
     track('ad_revive', {});
     void portal.rewarded('revive').then((ok) => {
-      if (game === g) g.reviveRelease(ok);
+      if (game === g) {
+        g.reviveRelease(ok);
+        if (!ok) g.hud.toast(L('广告暂不可用，按正常时间复活', 'No ad available: respawning as usual'));
+      }
       track('ad_revive_result', { ok });
     });
   };
@@ -413,7 +416,9 @@ export async function runArena(ctx: AppContext): Promise<void> {
         shownResultsEp = session.match.ep;
         const standings = session.match.standings ?? game.standings();
         const me = standings.find((s) => s.id === session.selfId());
-        const earned = me && !testMode ? award(me.rank, me.kills, game.city.level, game.hunt ? HALLOWEEN.coinsByRank : undefined) : { coins: 0, unlocked: null };
+        // One award per round, even if the page reloads while the results beacon repeats.
+        const roundKey = `${net instanceof SupabaseNet ? net.room : 'solo'}:${session.match.ep}:${session.match.seed ?? ''}`;
+        const earned = me && !testMode ? award(me.rank, me.kills, game.city.level, game.hunt ? HALLOWEEN.coinsByRank : undefined, roundKey, standings.length) : { coins: 0, unlocked: null };
         ui.showResults(standings, session.selfId(), earned);
         if (me?.rank === 1) {
           portal.happy();
@@ -426,7 +431,10 @@ export async function runArena(ctx: AppContext): Promise<void> {
           if (friends >= 3) gift('friend3');
         }
         // Natural break: an interstitial while the results card is up (rate-limited in the adapter).
-        if (!testMode) window.setTimeout(() => void portal.midroll(), 1500);
+        // Not with other people in the room: the host's Rematch would start the next round while
+        // this player is still watching the ad.
+        const otherHumans = session.match.roster.some((r) => r.kind === 'player' && r.id !== session.selfId());
+        if (!testMode && !otherHumans) window.setTimeout(() => void portal.midroll(), 1500);
         const mine = standings.find((x) => x.id === session.selfId());
         track('match_end', { city: game.city.id, rank: mine?.rank ?? null, mass: mine ? Math.round(mine.mass) : null, kills: mine?.kills ?? null, deaths: mine?.deaths ?? null, seconds: Math.round(game.matchTime), landmark: game.climaxLeft() === 0 });
         if (session.isHost()) void submitMatch(session, game, standings);

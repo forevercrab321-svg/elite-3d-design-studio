@@ -21,13 +21,18 @@ export interface Progress {
   hat: string;
   /** Friend gifts earned so far (see GiftRule). */
   gifts: GiftRule[];
+  /** Key of the last awarded round (room:epoch:seed): a reload during results must not pay twice. */
+  lastAward?: string;
 }
 
 const KEY = 'grow-arena-progress-v1';
+/** Fallback when browser storage is blocked (third-party iframe, private mode): keep this session's progress in memory. */
+let memory: Progress | null = null;
 
 export function progress(): Progress {
   try {
     const raw = localStorage.getItem(KEY);
+    if (!raw && memory) return structuredClone(memory);
     if (raw) {
       const p = JSON.parse(raw) as Partial<Progress>;
       const owned = Array.isArray(p.owned) ? p.owned.filter((x): x is string => typeof x === 'string') : [];
@@ -41,15 +46,18 @@ export function progress(): Progress {
         horn: typeof p.horn === 'string' && isOwned(owned, p.horn) ? p.horn : 'clown',
         hat: typeof p.hat === 'string' && isOwned(owned, p.hat) ? p.hat : 'none',
         gifts: Array.isArray(p.gifts) ? p.gifts.filter((g): g is GiftRule => g === 'share' || g === 'friend1' || g === 'friend3') : [],
+        lastAward: typeof p.lastAward === 'string' ? p.lastAward : undefined,
       };
     }
   } catch {
-    /* storage unavailable: play without saved progress */
+    /* storage unavailable: play with this session's in-memory progress */
+    if (memory) return structuredClone(memory);
   }
   return { coins: 0, unlocked: 1, wins: 0, played: 0, owned: [], skin: 'stock', horn: 'clown', hat: 'none', gifts: [] };
 }
 
 function save(p: Progress): void {
+  memory = structuredClone(p);
   try {
     localStorage.setItem(KEY, JSON.stringify(p));
   } catch {
@@ -58,9 +66,15 @@ function save(p: Progress): void {
 }
 
 /** Record a finished round; returns what was earned for the results card. */
-export function award(rank: number, kills: number, cityLevel: number, byRank: readonly number[] = A.coinsByRank): { coins: number; unlocked: string | null } {
+export function award(rank: number, kills: number, cityLevel: number, byRank: readonly number[] = A.coinsByRank, roundKey?: string, players = 8): { coins: number; unlocked: string | null } {
   const p = progress();
+  if (roundKey && p.lastAward === roundKey) return { coins: 0, unlocked: null };
+  // Standings come from the room host: never trust them blindly (NaN or huge values would wipe or inflate the wallet).
+  const n = Math.max(1, Math.floor(players) || 1);
+  rank = Math.min(n, Math.max(1, Math.floor(Number(rank)) || n));
+  kills = Math.min(3 * Math.max(1, n - 1), Math.max(0, Math.floor(Number(kills)) || 0));
   const coins = (byRank[rank - 1] ?? 10) + kills * A.coinsPerKill;
+  if (roundKey) p.lastAward = roundKey;
   p.coins += coins;
   p.played++;
   let unlocked: string | null = null;
@@ -128,6 +142,7 @@ export function equip(id: string): void {
 /** Rewarded-ad bonus: add coins earned outside a normal round. */
 export function addCoins(n: number): void {
   const p = progress();
+  if (!Number.isFinite(n)) return;
   p.coins += Math.max(0, Math.round(n));
   save(p);
 }

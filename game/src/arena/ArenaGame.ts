@@ -881,6 +881,8 @@ export class ArenaGame {
 
   /** Rewarded revive (once per match): only while waiting to respawn with lives left. */
   private revived = false;
+  /** Respawn time the revive ad interrupted (restored when the ad fails). */
+  private reviveRespawnAt = 0;
   canRevive(): boolean {
     const me = this.local;
     return !!me && !this.revived && this.phase === 'playing' && !me.alive && !me.eliminated && isFinite(me.respawnAt) && this.matchTime < me.respawnAt - 0.3 && me.deathMass > growthConfig.startMass * 2;
@@ -890,6 +892,7 @@ export class ArenaGame {
   reviveHold(): boolean {
     if (!this.canRevive()) return false;
     this.revived = true;
+    this.reviveRespawnAt = this.local!.respawnAt;
     this.local!.respawnAt = Infinity;
     return true;
   }
@@ -899,7 +902,8 @@ export class ArenaGame {
     const me = this.local;
     if (!me || me.alive || me.eliminated) return;
     if (granted) this.setMass(me, Math.max(me.mass, me.deathMass * A.reviveMassKeep));
-    me.respawnAt = this.matchTime;
+    // No ad (no fill / error): the normal respawn delay still applies.
+    me.respawnAt = granted ? this.matchTime : Math.max(this.matchTime, this.reviveRespawnAt);
   }
 
   /** Show a bubble over a machine for `secs` (everyone renders their own). */

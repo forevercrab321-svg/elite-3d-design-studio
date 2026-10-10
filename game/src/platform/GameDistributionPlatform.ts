@@ -149,10 +149,19 @@ export class GameDistributionPlatform implements Platform {
   }
 
   /** Called from the lobby Start click: plays the pre-roll / the mid-roll owed since the last round. */
-  async userBreak(): Promise<void> {
-    if (!this.breakDue || !this.ready) return;
+  private breakInFlight: Promise<void> | null = null;
+  userBreak(): Promise<void> {
+    // A second Start click while the break plays waits for that same break (no round under the ad).
+    if (this.breakInFlight) return this.breakInFlight;
+    if (!this.breakDue || !this.ready) return Promise.resolve();
     this.breakDue = false;
-    await this.runAd('interstitial');
+    this.breakInFlight = this.runAd('interstitial').then(
+      () => undefined,
+      () => undefined,
+    ).finally(() => {
+      this.breakInFlight = null;
+    });
+    return this.breakInFlight;
   }
 
   loadingFinished(): void {
