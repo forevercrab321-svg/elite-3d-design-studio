@@ -252,7 +252,15 @@ export class HubUi {
     const r = this.resolve;
     this.resolve = null;
     // Let "Starting…" paint before the room is built (that work blocks the page for a moment).
-    requestAnimationFrame(() => requestAnimationFrame(() => r(c)));
+    // rAF can be paused in a throttled cross-origin iframe: a timer makes sure the click always goes through.
+    let sent = false;
+    const go = () => {
+      if (sent) return;
+      sent = true;
+      r(c);
+    };
+    requestAnimationFrame(() => requestAnimationFrame(go));
+    setTimeout(go, 150);
   }
 
   private create(pub: boolean): void {

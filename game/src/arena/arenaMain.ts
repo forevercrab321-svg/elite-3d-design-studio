@@ -131,8 +131,16 @@ export async function runArena(ctx: AppContext): Promise<void> {
       const code = choice ? choice.code : (linked ?? newRoomCode()).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) || newRoomCode();
       const url = new URL(location.href);
       url.searchParams.set('room', code);
-      history.replaceState(null, '', url);
-      net = await SupabaseNet.connect(code, nickname);
+      try {
+        history.replaceState(null, '', url);
+      } catch {
+        /* a framed page may not be allowed to rewrite its URL */
+      }
+      // Any failure here falls back to playing offline vs AI, never a dead screen.
+      net = await SupabaseNet.connect(code, nickname).catch((e: unknown) => {
+        console.warn('[net] offline fallback', e);
+        return null;
+      });
       const reload = (performance.getEntriesByType?.('navigation')[0] as PerformanceNavigationTiming | undefined)?.type === 'reload';
       if (linked && !choice && !reload) track('room_join', { source: 'link' });
     }
@@ -351,15 +359,24 @@ export async function runArena(ctx: AppContext): Promise<void> {
   // "warming up", and the first stranger to join restarts it as a real match).
   if (choice?.warmup) {
     const since = Date.now();
+    let starting = false;
     const iv = window.setInterval(() => {
       const waited = Date.now() - since;
-      if (session.match.ph !== 'lobby' || waited > 15_000) {
-        disposeHub?.();
-        return window.clearInterval(iv);
-      }
-      if ((session.net.connected() || waited > 3000) && session.isHost() && session.warmupReady() && session.canStart()) {
-        window.clearInterval(iv);
-        void (ui.onBeforeStart?.() ?? Promise.resolve()).catch(() => undefined).then(() => session.start());
+      if (session.match.ph !== 'lobby' || waited > 60_000) return window.clearInterval(iv);
+      // Last resort: show the lobby (with its Start button) rather than a "Starting…" that never ends.
+      if (waited > 15_000) disposeHub?.();
+      // Offline (no backend, or it failed) is a plain game vs AI; online alone is a warm-up room.
+      const ready = session.net.kind === 'solo' || ((session.net.connected() || waited > 3000) && session.warmupReady());
+      if (!starting && ready && session.isHost() && session.canStart()) {
+        starting = true;
+        // Retried on the next ticks if the start did not happen (the interval keeps running until the round exists).
+        const brk = Promise.race([ui.onBeforeStart?.() ?? Promise.resolve(), new Promise((r) => setTimeout(r, 5000))]);
+        void brk
+          .catch(() => undefined)
+          .then(() => session.start())
+          .finally(() => {
+            starting = false;
+          });
       }
     }, 250);
   }

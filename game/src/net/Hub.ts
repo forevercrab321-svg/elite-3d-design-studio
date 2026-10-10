@@ -279,6 +279,11 @@ export class HubPresence implements HubLike {
     const now = Date.now();
     if (this.beatBusy && now - this.beatBusy > HUB_TIMING.rpcTimeoutMs) this.beatBusy = 0;
     if (this.pollBusy && now - this.pollBusy > HUB_TIMING.rpcTimeoutMs) this.pollBusy = 0;
+    // Never "Connecting…" forever: no answer at all (hung requests) counts as unreachable too.
+    if (this.status !== 'error' && now - Math.max(this.lastOk, this.startedAt) > HUB_TIMING.errorAfterMs && (this.failures > 0 || !this.snap)) {
+      this.status = 'error';
+      this.changed();
+    }
     if (document.visibilityState !== 'visible') return; // hidden = not here; the row expires
     const self = this.safeSource();
     const sig = this.sigOf(self);
@@ -289,10 +294,6 @@ export class HubPresence implements HubLike {
     const wait = every && this.failures ? Math.min(HUB_TIMING.maxBackoffMs, every * 2 ** Math.min(4, this.failures)) : every;
     // The first poll waits for our first beat, so the count includes this page.
     if (every && !this.pollBusy && this.lastBeat && !this.beatBusy && now - this.lastPoll >= wait) void this.poll(now);
-    if (this.status !== 'error' && now - Math.max(this.lastOk, this.startedAt) > HUB_TIMING.errorAfterMs && this.failures > 0) {
-      this.status = 'error';
-      this.changed();
-    }
   }
 
   /** Snapshot cadence for what is on screen (0 = no counter on screen: do not poll). */
@@ -323,7 +324,11 @@ export class HubPresence implements HubLike {
     this.counters.polls++;
     let snap: Snapshot | null = null;
     try {
-      const r = await this.rpc('lobby_snapshot', {});
+      // A request that never settles is a failure too (it would otherwise keep the pill on "Connecting…").
+      const r = await Promise.race([
+        this.rpc('lobby_snapshot', {}),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), HUB_TIMING.rpcTimeoutMs)),
+      ]);
       snap = r.error ? null : parseSnapshot(r.data, Date.now());
     } catch {
       snap = null;
