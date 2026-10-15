@@ -22,7 +22,7 @@ import { ArenaUi } from './ArenaUi';
 import { HubUi, type HubChoice } from './HubUi';
 import { cleanName } from './nameFilter';
 import type { CameraMode } from '../systems/CameraRig';
-import { addCoins, award, progress, unlockGift } from './progress';
+import { addCoins, award, progress, unlockGift, useProgressStore } from './progress';
 import type { GiftRule } from '../config/cosmetics';
 import { createPlatform, PORTAL_BUILD, PUBLIC_GAME_URL } from '../platform/Platform';
 import { boot } from '../ui/boot';
@@ -37,6 +37,7 @@ export async function runArena(ctx: AppContext): Promise<void> {
   const { renderer, lib, input, quality, testMode, params } = ctx;
   // Portal SDK (CrazyGames / Poki) or our own site; never throws, bounded wait.
   const portal = await createPlatform();
+  if (portal.storage) useProgressStore(portal.storage);
   // Name: ?name= › the one typed here before › the portal account (CrazyGames asks multiplayer games to show it) › random.
   const randomName = `${L('玩家', 'Player')}${Math.floor(Math.random() * 900 + 100)}`;
   // Camera: follow view or first-person cab view (V / 🎥), remembered across visits.

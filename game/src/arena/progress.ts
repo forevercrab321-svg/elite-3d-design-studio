@@ -29,9 +29,29 @@ const KEY = 'grow-arena-progress-v1';
 /** Fallback when browser storage is blocked (third-party iframe, private mode): keep this session's progress in memory. */
 let memory: Progress | null = null;
 
+/** Where progress is kept: browser storage, or a portal's save (CrazyGames SDK Data module, synced to the player's account). */
+export interface ProgressStore {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+}
+let store: ProgressStore = { getItem: (k) => localStorage.getItem(k), setItem: (k, v) => localStorage.setItem(k, v) };
+
+/** Switch to a portal's save. The first time, carry over what this browser already earned. */
+export function useProgressStore(next: ProgressStore): void {
+  try {
+    if (next.getItem(KEY) === null) {
+      const local = localStorage.getItem(KEY);
+      if (local) next.setItem(KEY, local);
+    }
+  } catch {
+    /* browser storage blocked: nothing to carry over */
+  }
+  store = next;
+}
+
 export function progress(): Progress {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = store.getItem(KEY);
     if (!raw && memory) return structuredClone(memory);
     if (raw) {
       const p = JSON.parse(raw) as Partial<Progress>;
@@ -59,7 +79,7 @@ export function progress(): Progress {
 function save(p: Progress): void {
   memory = structuredClone(p);
   try {
-    localStorage.setItem(KEY, JSON.stringify(p));
+    store.setItem(KEY, JSON.stringify(p));
   } catch {
     /* ignore */
   }
