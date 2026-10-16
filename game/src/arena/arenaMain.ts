@@ -22,7 +22,7 @@ import { ArenaUi } from './ArenaUi';
 import { HubUi, type HubChoice } from './HubUi';
 import { cleanName } from './nameFilter';
 import type { CameraMode } from '../systems/CameraRig';
-import { addCoins, award, progress, unlockGift } from './progress';
+import { addCoins, award, progress, unlockGift, useProgressStore } from './progress';
 import type { GiftRule } from '../config/cosmetics';
 import { createPlatform, PORTAL_BUILD, PUBLIC_GAME_URL } from '../platform/Platform';
 import { boot } from '../ui/boot';
@@ -37,6 +37,7 @@ export async function runArena(ctx: AppContext): Promise<void> {
   const { renderer, lib, input, quality, testMode, params } = ctx;
   // Portal SDK (CrazyGames / Poki) or our own site; never throws, bounded wait.
   const portal = await createPlatform();
+  if (portal.storage) useProgressStore(portal.storage);
   // Name: ?name= › the one typed here before › the portal account (CrazyGames asks multiplayer games to show it) › random.
   const randomName = `${L('玩家', 'Player')}${Math.floor(Math.random() * 900 + 100)}`;
   // Camera: follow view or first-person cab view (V / 🎥), remembered across visits.
@@ -131,8 +132,16 @@ export async function runArena(ctx: AppContext): Promise<void> {
       const code = choice ? choice.code : (linked ?? newRoomCode()).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) || newRoomCode();
       const url = new URL(location.href);
       url.searchParams.set('room', code);
-      history.replaceState(null, '', url);
-      net = await SupabaseNet.connect(code, nickname);
+      try {
+        history.replaceState(null, '', url);
+      } catch {
+        /* a framed page may not be allowed to rewrite its URL */
+      }
+      // Any failure here falls back to playing offline vs AI, never a dead screen.
+      net = await SupabaseNet.connect(code, nickname).catch((e: unknown) => {
+        console.warn('[net] offline fallback', e);
+        return null;
+      });
       const reload = (performance.getEntriesByType?.('navigation')[0] as PerformanceNavigationTiming | undefined)?.type === 'reload';
       if (linked && !choice && !reload) track('room_join', { source: 'link' });
     }
@@ -277,7 +286,10 @@ export async function runArena(ctx: AppContext): Promise<void> {
     if (!g?.reviveHold()) return;
     track('ad_revive', {});
     void portal.rewarded('revive').then((ok) => {
-      if (game === g) g.reviveRelease(ok);
+      if (game === g) {
+        g.reviveRelease(ok);
+        if (!ok) g.hud.toast(L('广告暂不可用，按正常时间复活', 'No ad available: respawning as usual'));
+      }
       track('ad_revive_result', { ok });
     });
   };
@@ -348,15 +360,24 @@ export async function runArena(ctx: AppContext): Promise<void> {
   // "warming up", and the first stranger to join restarts it as a real match).
   if (choice?.warmup) {
     const since = Date.now();
+    let starting = false;
     const iv = window.setInterval(() => {
       const waited = Date.now() - since;
-      if (session.match.ph !== 'lobby' || waited > 15_000) {
-        disposeHub?.();
-        return window.clearInterval(iv);
-      }
-      if ((session.net.connected() || waited > 3000) && session.isHost() && session.warmupReady() && session.canStart()) {
-        window.clearInterval(iv);
-        void (ui.onBeforeStart?.() ?? Promise.resolve()).catch(() => undefined).then(() => session.start());
+      if (session.match.ph !== 'lobby' || waited > 60_000) return window.clearInterval(iv);
+      // Last resort: show the lobby (with its Start button) rather than a "Starting…" that never ends.
+      if (waited > 15_000) disposeHub?.();
+      // Offline (no backend, or it failed) is a plain game vs AI; online alone is a warm-up room.
+      const ready = session.net.kind === 'solo' || ((session.net.connected() || waited > 3000) && session.warmupReady());
+      if (!starting && ready && session.isHost() && session.canStart()) {
+        starting = true;
+        // Retried on the next ticks if the start did not happen (the interval keeps running until the round exists).
+        const brk = Promise.race([ui.onBeforeStart?.() ?? Promise.resolve(), new Promise((r) => setTimeout(r, 5000))]);
+        void brk
+          .catch(() => undefined)
+          .then(() => session.start())
+          .finally(() => {
+            starting = false;
+          });
       }
     }, 250);
   }
@@ -413,7 +434,9 @@ export async function runArena(ctx: AppContext): Promise<void> {
         shownResultsEp = session.match.ep;
         const standings = session.match.standings ?? game.standings();
         const me = standings.find((s) => s.id === session.selfId());
-        const earned = me && !testMode ? award(me.rank, me.kills, game.city.level, game.hunt ? HALLOWEEN.coinsByRank : undefined) : { coins: 0, unlocked: null };
+        // One award per round, even if the page reloads while the results beacon repeats.
+        const roundKey = `${net instanceof SupabaseNet ? net.room : 'solo'}:${session.match.ep}:${session.match.seed ?? ''}`;
+        const earned = me && !testMode ? award(me.rank, me.kills, game.city.level, game.hunt ? HALLOWEEN.coinsByRank : undefined, roundKey, standings.length) : { coins: 0, unlocked: null };
         ui.showResults(standings, session.selfId(), earned);
         if (me?.rank === 1) {
           portal.happy();
@@ -426,7 +449,10 @@ export async function runArena(ctx: AppContext): Promise<void> {
           if (friends >= 3) gift('friend3');
         }
         // Natural break: an interstitial while the results card is up (rate-limited in the adapter).
-        if (!testMode) window.setTimeout(() => void portal.midroll(), 1500);
+        // Not with other people in the room: the host's Rematch would start the next round while
+        // this player is still watching the ad.
+        const otherHumans = session.match.roster.some((r) => r.kind === 'player' && r.id !== session.selfId());
+        if (!testMode && !otherHumans) window.setTimeout(() => void portal.midroll(), 1500);
         const mine = standings.find((x) => x.id === session.selfId());
         track('match_end', { city: game.city.id, rank: mine?.rank ?? null, mass: mine ? Math.round(mine.mass) : null, kills: mine?.kills ?? null, deaths: mine?.deaths ?? null, seconds: Math.round(game.matchTime), landmark: game.climaxLeft() === 0 });
         if (session.isHost()) void submitMatch(session, game, standings);

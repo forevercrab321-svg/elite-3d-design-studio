@@ -24,6 +24,7 @@
  *  - Reward only on adFinished for 'rewarded'; adError ⇒ no reward.
  *  - SDK.environment 'disabled' (non-CrazyGames domain) ⇒ every call throws, so we go no-op.
  *    'local' (localhost) ⇒ demo ads, useful for testing with ?platform=crazygames.
+ *  - Player progress uses the Data module (`storage`), so it follows the CrazyGames account.
  *  - settings.muteAudio (platform-wide mute) is forwarded as a pause/resume-free
  *    `muteAudio` getter + listener — see `onMuteSettingChange`.
  */
@@ -91,6 +92,11 @@ interface CgSdk {
     leftRoom?(): unknown;
     addJoinRoomListener?(listener: (inviteParams: Record<string, string | number | boolean> | null) => void): unknown;
   };
+  /** SDK v3 Data module (docs.crazygames.com/sdk/data/): localStorage-like, synced to the CrazyGames account. */
+  data?: {
+    getItem?(key: string): string | null;
+    setItem?(key: string, value: string): void;
+  };
   /** SDK v3 user module (docs.crazygames.com/sdk/user/); getUser() resolves null for guests. */
   user?: {
     getUser?(): Promise<CgUser | null>;
@@ -127,6 +133,13 @@ export class CrazyGamesPlatform implements Platform {
 
   get adsAvailable(): boolean {
     return this.ready;
+  }
+
+  /** Progress (coins, cosmetics, unlocked cities) goes through the SDK Data module, as CrazyGames asks of games that save progress. */
+  get storage(): { getItem(key: string): string | null; setItem(key: string, value: string): void } | null {
+    const data = this.sdk?.data;
+    if (!data?.getItem || !data.setItem) return null;
+    return { getItem: (k) => data.getItem!(k), setItem: (k, v) => data.setItem!(k, v) };
   }
 
   /** CrazyGames site-wide "mute audio" setting; takes priority over in-game audio settings. */
