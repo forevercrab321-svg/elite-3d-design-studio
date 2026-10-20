@@ -54,6 +54,10 @@ const SDK_STUB = `(() => {
       settings: { muteAudio: false, disableChat: false }, addSettingsChangeListener: g('addSettingsChangeListener'),
       isInstantMultiplayer: false, inviteParams: null, updateRoom: g('updateRoom'), leftRoom: g('leftRoom'), addJoinRoomListener: g('addJoinRoomListener') },
     user: { getUser: async () => null, addAuthListener: g('addAuthListener') },
+    // Data module: localStorage-like save synced to the CrazyGames account (window.__cgData shows what was saved).
+    data: { getItem: (k) => { log('data.getItem', k); return (window.__cgData ??= {})[k] ?? null; },
+      setItem: (k, v) => { log('data.setItem', k); (window.__cgData ??= {})[k] = String(v); },
+      removeItem: (k) => { delete (window.__cgData ??= {})[k]; }, clear: () => { window.__cgData = {}; } },
   } };
 })();`;
 
@@ -93,6 +97,11 @@ for (const backend of scenarios) {
   const cdp = await ctx.newCDPSession(page);
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: cpu });
 
+  // Progress earned before the Data module existed: the game must carry it over on first launch.
+  await ctx.addInitScript(() => {
+    if (location.pathname.includes('/game/') && !localStorage.getItem('grow-arena-progress-v1'))
+      localStorage.setItem('grow-arena-progress-v1', JSON.stringify({ coins: 123, unlocked: 2, wins: 1, played: 3, owned: [], skin: 'stock', horn: 'clown', hat: 'none', gifts: [] }));
+  });
   await page.goto(`${base}/host.html`);
   mark('host page loaded');
   const frame = async () => {
@@ -250,6 +259,7 @@ for (const backend of scenarios) {
   await shot('after-context-restore');
   r.contextLoss = { lost, phase: await f.evaluate(() => window.__ARENA__.summary().phase) };
   r.cg = await f.evaluate(() => window.__cg ?? []);
+  r.cgData = await f.evaluate(() => { const v = window.__cgData?.['grow-arena-progress-v1']; return v ? JSON.parse(v) : null; });
   mark('done', { afterHide: r.afterHide, contextLoss: r.contextLoss });
   await ctx.close();
 }
@@ -258,6 +268,7 @@ server.close();
 writeFileSync(`${out}/report.json`, JSON.stringify(report, null, 1));
 for (const [k, v] of Object.entries(report.scenarios)) {
   console.log(`\n== ${k}: errors ${v.errors.length}, warnings ${v.warnings.length}, supabase requests ${v.requests.supabase}`);
+  console.log(`   Data module save: ${v.cgData ? `coins ${v.cgData.coins}, played ${v.cgData.played}, unlocked ${v.cgData.unlocked}` : 'NONE'}`);
   for (const e of [...new Set(v.errors)].slice(0, 12)) console.log('   ERR ' + e);
   for (const e of [...new Set(v.warnings)].slice(0, 8)) console.log('   WARN ' + e);
 }

@@ -102,9 +102,14 @@ export class RealtimeLink {
         if (mine()) this.hooks.receive(event, payload, this.count(payload));
       });
     }
-    channel.subscribe((status, err) => {
-      if (mine()) this.onChannelStatus(status, err);
-    });
+    try {
+      channel.subscribe((status, err) => {
+        if (mine()) this.onChannelStatus(status, err);
+      });
+    } catch (e) {
+      // e.g. "WebSocket not available" when the browser or host page blocks sockets: report, never throw.
+      this.onChannelStatus('CHANNEL_ERROR', e instanceof Error ? e : new Error(String(e)));
+    }
   }
 
   /** Unsubscribe and tear down every channel instance for `topic` (by instance, never by topic). */

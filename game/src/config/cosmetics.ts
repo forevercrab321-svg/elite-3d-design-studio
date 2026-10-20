@@ -77,7 +77,7 @@ export const HATS: HatDef[] = [
 export const GIFT_LABEL: Record<GiftRule, [zh: string, en: string]> = {
   share: ['🎁 分享邀请链接即送', '🎁 Free: share your invite link'],
   friend1: ['🎁 和 1 位好友打完一局即送', '🎁 Free: finish a match with a friend'],
-  friend3: ['🎁 4 位好友同房打完一局即送', '🎁 Free: finish a match as a squad of 4'],
+  friend3: ['🎁 4 人好友局打完一局即送', '🎁 Free: finish a match as a squad of 4'],
 };
 
 export const hatById = (id: string | undefined): HatDef => HATS.find((h) => h.id === id) ?? HATS[0];

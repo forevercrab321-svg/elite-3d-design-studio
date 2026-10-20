@@ -49,6 +49,8 @@ export interface Platform {
   userBreak?(): Promise<void>;
   /** The portal account's display name (CrazyGames asks multiplayer games to show it), or null. Never rejects; bounded wait. */
   playerName(): Promise<string | null>;
+  /** The portal's save storage for player progress (CrazyGames Data module), or null/absent to use browser storage. */
+  readonly storage?: { getItem(key: string): string | null; setItem(key: string, value: string): void } | null;
   onPause: (() => void) | null;
   onResume: (() => void) | null;
 
