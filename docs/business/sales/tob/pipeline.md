@@ -24,6 +24,10 @@
 
 <!-- 格式：日期 · 平台 · 做了什么 · 对方原话或门户状态 · 下一步 -->
 
+- 2026-10-21 · 变现方向（用户授权 Claude 决定）· 主线：C+ 定制版直销（$9,500，底价 $8,000，见 deal-menu.md 第 4 节）；被动收入：Playgama（包已就绪 `release/playgama/`）；GameDistribution 9/29 已拒，等有 CrazyGames 数据再申请复审 · 下一步：用户注册 Playgama 并上传；发出下面 6 封草稿
+- 2026-10-21 · Armor Games · 9/30 写好的回复一直没发出；已更新草稿：AI 使用说明、回合时长更正、已修的稳定性问题、新试玩链接，重新询问赞助或限时独占 · 未发送 · 用户确认后发送（Gmail 草稿，cityhunters2025）
+- 2026-10-21 · 定制版外联（Gamify、Flarie、CataBoom、Brame、Drimify）· 5 封 Gmail 草稿已建，收件人为空（联系邮箱未核实，需要从各家官网联系页取）· 未发送 · 用户填收件人、确认后发送
+
 - 2026-10-05 · YouTube Playables · 提交 Public Playables Interest Form（cityhunters2025@gmail.com）· 官方：合适才会联系，不合适不回信 · 等待；获批后做无联网单人版（见 platforms/youtube-playables.md）
 - 2026-10-05 · Steam · 电脑版安装包、商店图、商店文案完成；Steam 账号 cityhunters2025 已注册 · 用户暂缓 100 美元 Steam Direct 费用 · 有网页平台数据后再决定
 - 2026-10-04 · itch.io · 项目已改为 Public：https://forevercrab321-svg.itch.io/grow-everything ；旧上传文件已隐藏（未删除），公开页可正常游玩 · 门户：Public · 已完成：正文 Description（中英，含万圣节小镇 / The Hunt / 蛋之谷）；主题无标题开关，改用横幅 `release/itch/banner-960x240@2x.png`（Edit theme → Banner，居中）· agent 一次加载卡在 Connecting… 约 25 s，刷新后正常 · 下一步：补截图和封面
