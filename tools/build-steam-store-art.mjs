@@ -1,6 +1,6 @@
 // Steam store / library images composed from the press-kit art (in-game renders, no HUD text) with
 // the game title only — Steam capsules may carry the game name and art, nothing else.
-//   node tools/build-steam-store-art.mjs   → release/steam-store/*.png
+//   node tools/build-steam-store-art.mjs   → release/steam-store/*.png (+ Playgama covers in release/playgama/)
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { chromium } from 'playwright';
@@ -56,10 +56,22 @@ const jobs = [
     `<div class="bg" style="${region(art, 1920, 1080, 560, 60, 800, 800, 512, 512)}"></div><div class="shade" style="${top}"></div>
      ${title(54, 'left:24px;top:22px')}`],
   ['library_logo_1280x720', 1280, 720, title(190, 'left:60px;top:190px')],
+  // Playgama covers (1:1, 9:16, 16:9), written to release/playgama/.
+  ['../playgama/cover_1x1_1024', 1024, 1024,
+    `<div class="bg" style="${region(art, 1920, 1080, 500, 40, 960, 960, 1024, 1024)}"></div><div class="shade" style="${top}"></div>
+     ${title(108, 'left:48px;top:44px')}`],
+  ['../playgama/cover_9x16_1080x1920', 1080, 1920,
+    `<div class="bg" style="${region(art, 1920, 1080, 656, 0, 608, 1080, 1080, 1920)}"></div><div class="shade" style="${bottom}"></div>
+     ${title(150, 'left:64px;bottom:120px')}`],
+  ['../playgama/cover_16x9_1920x1080', 1920, 1080,
+    `<div class="bg" style="${region(art, 1920, 1080, 0, 0, 1920, 1080, 1920, 1080)}"></div><div class="shade" style="${top}"></div>
+     ${title(150, 'left:72px;top:60px')}`],
 ];
+// `node tools/build-steam-store-art.mjs playgama` renders only the jobs whose name contains "playgama".
+const only = process.argv[2];
 
 const browser = await chromium.launch();
-for (const [name, W, H, body] of jobs) {
+for (const [name, W, H, body] of jobs.filter(([n]) => !only || n.includes(only))) {
   const page = await browser.newPage({ viewport: { width: W, height: H } });
   await page.setContent(`<style>${css}</style><div class="c" style="width:${W}px;height:${H}px">${body}</div>`);
   await page.screenshot({ path: resolve(out, `${name}.png`), omitBackground: name.startsWith('library_logo') });
