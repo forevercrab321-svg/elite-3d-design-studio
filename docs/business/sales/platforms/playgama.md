@@ -22,3 +22,6 @@
 
 - 2026-10-21 · 账号 cityhunters2025 已注册；游戏已创建（引擎 Plain JS，AI agent：Claude Code）；build、简介（145 字符）、玩法说明、设备（Desktop/iOS/Android）、横屏、三张封面已填；已发布到沙盒，后台显示 Live、0/100 plays、还剩 2 个目标。表单里没有类型字段。
 - agent 试玩：Quick play vs AI 进入上海对局，驾驶、吃东西正常，页面无报错；没有出现广告（符合设计：插屏只在两局之间且间隔 ≥ 180 秒，激励广告只在复活、双倍金币时）。大厅一直显示 "Connecting…"，待查（可能是平台 CSP 拦截了 Supabase，或 agent 看的时间不到 12 秒）。
+- 2026-10-21 · agent 查明：Playgama 给游戏地址加 `csp=sandbox`，CSP 只允许 playgama.com / .net / .ai，Supabase 被拦（`players insert TypeError: Failed to fetch`），大厅 "Lobby unreachable"、建房后另一个标签页看不到。直接打开游戏地址则正常（1 online）。
+- 2026-10-21 · 处理：Playgama 包改成只和 AI 对战（构建时去掉 Supabase 配置），不显示大厅、房间、邀请。商店文案不写 "play with friends"。以后 Playgama 放行 `*.supabase.co`（https 和 wss）再恢复联机。
+- 沙盒目标（进入审核前）：100 次有效游玩；平均游玩时长 5:00（帮助里的表格写 5:20）；数据每天更新一次。

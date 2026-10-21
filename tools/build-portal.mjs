@@ -5,7 +5,7 @@
 //     gamedistribution  dist-portal-gamedistribution.zip — GD SDK; needs VITE_GD_GAME_ID in .env.local
 //     nosdk             dist-portal-nosdk.zip — no third-party SDK code (GamePix: "GamePix SDK or none")
 //     crazygames        dist-portal-crazygames.zip — CrazyGames SDK only (their terms forbid other portals' SDKs)
-//     playgama          dist-portal-playgama.zip — Playgama Bridge SDK + playgama-bridge-config.json
+//     playgama          dist-portal-playgama.zip — Playgama Bridge SDK + playgama-bridge-config.json, solo vs AI only
 // Online rooms need VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY in .env.local (anon key only).
 import { execSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -23,7 +23,10 @@ const hasEnv = (k) => new RegExp(`^${k}=\\S+`, 'm').test(envText) || !!process.e
 if (!hasEnv('VITE_SUPABASE_URL') || !hasEnv('VITE_SUPABASE_ANON_KEY')) console.warn('⚠ no Supabase config: this zip runs solo vs AI only (no online rooms, no telemetry)');
 if (target === 'gamedistribution' && !hasEnv('VITE_GD_GAME_ID')) console.warn('⚠ no VITE_GD_GAME_ID: GD ads will not serve until the game id is set');
 
-execSync('npx vite build -c vite.portal.config.mjs', { cwd: root, stdio: 'inherit', env: { ...process.env, VITE_PORTAL: target, VITE_PORTAL_BUILD: '1' } });
+// Playgama's sandbox CSP only allows playgama.* hosts, so Supabase is unreachable there: ship a
+// solo-vs-AI build (no lobby, rooms, invites or telemetry) until Playgama allows *.supabase.co.
+const offline = target === 'playgama' ? { VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '' } : {};
+execSync('npx vite build -c vite.portal.config.mjs', { cwd: root, stdio: 'inherit', env: { ...process.env, VITE_PORTAL: target, VITE_PORTAL_BUILD: '1', ...offline } });
 for (const f of ['robots.txt', 'manifest.webmanifest', 'og.png']) rmSync(resolve(out, f), { force: true });
 // Portal uploaders (and the browser agent that drives them) refuse SVG files; the PNG favicon covers it.
 for (const f of ['icons/icon.svg', 'icons/icon-maskable.svg']) rmSync(resolve(out, f), { force: true });
@@ -40,6 +43,7 @@ if (target === 'gamedistribution') {
   if (leaks.length) throw new Error(`gamedistribution build still references another portal SDK: ${leaks.join(', ')}`);
 }
 if (target === 'playgama') {
+  if (readdirSync(resolve(out, 'assets')).some((f) => /[a-z0-9]{20}\.supabase\.co/.test(readFileSync(resolve(out, 'assets', f), 'latin1')))) throw new Error('playgama build still points at Supabase (their CSP blocks it)');
   const leaks = readdirSync(resolve(out, 'assets')).filter((f) => /CrazyGames|Poki|GameDistribution/.test(f) || /sdk\.crazygames|CrazyGames\??\.SDK|updateRoom|poki-sdk|game-cdn\.poki|gamedistribution\.com/.test(readFileSync(resolve(out, 'assets', f), 'latin1')));
   if (leaks.length) throw new Error(`playgama build still references another portal SDK: ${leaks.join(', ')}`);
   // Bridge reads its config from next to index.html; our own loading screen stays, Bridge's logo goes.
