@@ -21,3 +21,10 @@ Sources: https://developers.google.com/youtube/gaming/playables · https://devel
 ## Form answers (reference)
 
 Developer: Zhuleli · Contact: cityhunters2025@gmail.com · Game: GROW EVERYTHING · Tech: three.js (WebGL), TypeScript, Vite · Genre: casual / arcade · Playable links: https://grow-everything.vercel.app , https://forevercrab321-svg.itch.io/grow-everything · Languages: English, Simplified Chinese · Size: ~8 MB.
+
+## 2026-10-23 · 没有回复时的做法（用户：YouTube 必须做）
+
+Playables 官方申请没有回复，不干等，三条线同时做：
+1. **通过发行商进 Playables**：Playgama Bridge 的平台列表里有 YouTube，问 Playgama 能否代我们把游戏发到 YouTube Playables；Mediacube 是 Playables 变现试点的发行商之一（https://mediacube.io/en/blog/youtube-playables-monetization ），可以联系代发。
+2. **自己的 YouTube 频道发 Shorts**：用游戏实录剪 15–30 秒的竖版短视频（越吃越大、吃掉地标、互吃反转），简介放游戏链接。第一条直接用 `release/crazygames/preview-portrait.mp4`。
+3. **YouTube 博主**：主攻 Roblox 版（博主最多的赛道），名单由 side agent 搜集，用户确认后再联系；分成用 Roblox 群组的定期分成。
