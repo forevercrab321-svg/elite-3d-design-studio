@@ -16,7 +16,15 @@
 | `src/server/Main.server.luau` | 回合流程、吃东西、长大、玩家互吃、排行榜、外观通行证 |
 | `src/client/Hud.client.luau` | 界面：倒计时、体型、吃到东西的提示和特效 |
 
-## 发布步骤（你来操作，约 10 分钟）
+## 已发布（2026-10-23）
+
+- 游戏：GROW EVERYTHING，Universe ID `10772505605`，Start Place ID `130986109157079`，目前 **Private**。
+- 第一次从 Studio 发布（Roblox 规定新游戏只能从 Studio 创建）。之后的更新用 Open Cloud 密钥自动发布：
+  - 密钥 grow-publish：只有这个游戏的 universe-places write 权限，2026-11-22 到期（60 天不用也会失效）。保存在用户 Mac 的 `~/.roblox-grow-key`，不进仓库、不进聊天。
+  - 发布命令（在用户 Mac 终端）：`curl -fsSL https://raw.githubusercontent.com/forevercrab321-svg/elite-3d-design-studio/claude/gifted-goldberg-mz9n2p/roblox/publish.sh | bash`
+  - 流程：改 `src/` → `rojo build default.project.json -o build/GrowEverything.rbxlx` → 推送 → 用户跑上面那行。
+
+## 第一次在 Studio 发布的步骤（已完成，留作记录）
 
 1. 注册或登录 https://www.roblox.com ，下载安装 Roblox Studio（https://create.roblox.com ）。
 2. 下载 `build/GrowEverything.rbxlx`，用 Roblox Studio 打开。
