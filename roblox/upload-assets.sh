@@ -22,6 +22,11 @@ if ! [[ "$USER_ID" =~ ^[0-9]+$ ]]; then
 fi
 if [ ! -s "$KEY_FILE" ]; then echo "没找到模型密钥：先在 Roblox 页面点 Copy Key To Clipboard，再运行 pbpaste > ~/.roblox-grow-assets-key"; exit 1; fi
 KEY="$(tr -d '\r\n' < "$KEY_FILE")"
+# Show what the key is allowed to do (name, owner, scopes; never the key itself).
+INTRO="$(curl -sS -X POST https://apis.roblox.com/api-keys/v1/introspect -H 'Content-Type: application/json' \
+  -d "{\"apiKey\":\"$KEY\"}")"
+echo "密钥检查：$(printf '%s' "$INTRO" | tr -d '\n' | sed 's/  */ /g' | head -c 700)"
+echo
 touch "$OUT"
 TMP="$(mktemp -d)"
 LIST="needed.txt"; [ "${2:-}" = "all" ] && LIST="names.txt"
