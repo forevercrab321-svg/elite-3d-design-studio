@@ -1,0 +1,760 @@
+<roblox version="4">
+  <Item class="Lighting" referent="0">
+    <Properties>
+      <string name="Name">Lighting</string>
+      <float name="Brightness">2</float>
+      <float name="ClockTime">16.5</float>
+      <bool name="GlobalShadows">true</bool>
+    </Properties>
+  </Item>
+  <Item class="ReplicatedStorage" referent="1">
+    <Properties>
+      <string name="Name">ReplicatedStorage</string>
+    </Properties>
+    <Item class="Folder" referent="2">
+      <Properties>
+        <string name="Name">Shared</string>
+      </Properties>
+      <Item class="ModuleScript" referent="3">
+        <Properties>
+          <string name="Name">Config</string>
+          <string name="Source"><![CDATA[--!strict
+-- GROW EVERYTHING (Roblox) — every balance value lives here.
+-- Units are studs (a default character is about 5 studs tall at scale 1).
+
+local Config = {}
+
+-- Rounds
+Config.ROUND_SECONDS = 300
+Config.INTERMISSION_SECONDS = 15
+Config.MIN_PLAYERS_TO_START = 1
+
+-- Growth: the character's scale is (mass / START_MASS) ^ (1/3), so mass grows like volume.
+Config.START_MASS = 10
+Config.MAX_SCALE = 40
+-- You can eat an object whose size (largest dimension, studs) is at most this × your height.
+Config.EAT_REACH = 0.8
+Config.CHARACTER_HEIGHT = 5
+-- Mass gained from an object of size x: REWARD_FACTOR × x^REWARD_EXP. The exponent is below 3
+-- (mass grows like volume), so each bite is worth less relative to you as you grow: early growth
+-- is fast, late growth needs buildings.
+Config.REWARD_FACTOR = 0.5
+Config.REWARD_EXP = 2.5
+-- Eating radius around the root part, in character heights.
+Config.EAT_RADIUS = 0.55
+Config.EAT_TICK = 0.1
+
+-- PvP: a player this many times bigger eats a smaller one and takes this share of its mass.
+Config.PVP_RATIO = 1.25
+Config.PVP_STEAL = 0.5
+
+-- Movement: speed grows slowly with size, the camera pulls back a lot.
+Config.BASE_WALKSPEED = 18
+Config.WALKSPEED_PER_SCALE = 1.5
+Config.MAX_WALKSPEED = 60
+Config.CAMERA_ZOOM_PER_SCALE = 14
+
+-- City layout (procedural): GRID × GRID blocks separated by roads.
+Config.GRID = 7
+Config.BLOCK = 90
+Config.ROAD = 26
+-- The landmark in the central block: edible from scale LANDMARK_SIZE / (EAT_REACH × height) ≈ 37.
+Config.LANDMARK_SIZE = 150
+
+-- Edible catalog. size = largest dimension in studs; count = how many per city; respawn = refill.
+export type PropKind = {
+	name: string,
+	dims: Vector3,
+	color: Color3,
+	material: Enum.Material,
+	count: number,
+	respawn: boolean,
+	where: string, -- "sidewalk" | "road" | "block"
+}
+
+Config.PROPS = {
+	{ name = "Can", dims = Vector3.new(0.5, 0.8, 0.5), color = Color3.fromRGB(200, 60, 50), material = Enum.Material.Metal, count = 260, respawn = true, where = "sidewalk" },
+	{ name = "Bottle", dims = Vector3.new(0.4, 1.1, 0.4), color = Color3.fromRGB(70, 160, 90), material = Enum.Material.Glass, count = 200, respawn = true, where = "sidewalk" },
+	{ name = "Box", dims = Vector3.new(1.4, 1.2, 1.4), color = Color3.fromRGB(180, 140, 90), material = Enum.Material.Cardboard, count = 160, respawn = true, where = "sidewalk" },
+	{ name = "Cone", dims = Vector3.new(1.0, 1.8, 1.0), color = Color3.fromRGB(240, 120, 30), material = Enum.Material.Plastic, count = 110, respawn = true, where = "road" },
+	{ name = "TrashCan", dims = Vector3.new(2.0, 3.0, 2.0), color = Color3.fromRGB(60, 90, 70), material = Enum.Material.Metal, count = 90, respawn = true, where = "sidewalk" },
+	{ name = "Bench", dims = Vector3.new(4.5, 2.2, 1.6), color = Color3.fromRGB(120, 80, 50), material = Enum.Material.Wood, count = 60, respawn = true, where = "sidewalk" },
+	{ name = "Car", dims = Vector3.new(4.5, 4.0, 9.5), color = Color3.fromRGB(60, 110, 200), material = Enum.Material.SmoothPlastic, count = 70, respawn = true, where = "road" },
+	{ name = "Van", dims = Vector3.new(5.5, 6.5, 12), color = Color3.fromRGB(235, 235, 235), material = Enum.Material.SmoothPlastic, count = 30, respawn = true, where = "road" },
+	{ name = "Bus", dims = Vector3.new(6.5, 8, 24), color = Color3.fromRGB(230, 180, 40), material = Enum.Material.SmoothPlastic, count = 16, respawn = true, where = "road" },
+	{ name = "House", dims = Vector3.new(26, 22, 26), color = Color3.fromRGB(200, 170, 140), material = Enum.Material.Brick, count = 40, respawn = false, where = "block" },
+	{ name = "Office", dims = Vector3.new(30, 60, 30), color = Color3.fromRGB(150, 170, 190), material = Enum.Material.Concrete, count = 22, respawn = false, where = "block" },
+	{ name = "Tower", dims = Vector3.new(34, 110, 34), color = Color3.fromRGB(110, 130, 160), material = Enum.Material.Glass, count = 8, respawn = false, where = "block" },
+} :: { PropKind }
+
+-- Monetization (create these in the Creator Hub, then paste the ids). 0 = not set up yet.
+-- Cosmetics only: nothing you can buy makes you bigger or faster.
+Config.GAMEPASS_VIP_TRAIL = 0
+
+-- Remote names (created by the server in ReplicatedStorage.Remotes).
+Config.REMOTES = { "Ate", "Eaten", "RoundState" }
+
+-- Respawning props come back this long after being eaten, somewhere else in the city.
+Config.RESPAWN_SECONDS = 20
+
+return Config
+]]></string>
+        </Properties>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="ServerScriptService" referent="4">
+    <Properties>
+      <string name="Name">ServerScriptService</string>
+    </Properties>
+    <Item class="Folder" referent="5">
+      <Properties>
+        <string name="Name">Server</string>
+      </Properties>
+      <Item class="ModuleScript" referent="6">
+        <Properties>
+          <string name="Name">City</string>
+          <string name="Source"><![CDATA[--!strict
+-- Procedural city: a GRID × GRID block layout with roads, sidewalk props, traffic, buildings in
+-- the block quadrants and the landmark in the central block. Every edible is a Model in the
+-- Edibles folder carrying Size (largest dimension, studs), Mass (reward) and Kind attributes.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+
+local City = {}
+
+local GRID = Config.GRID
+local BLOCK = Config.BLOCK
+local ROAD = Config.ROAD
+local TOTAL = GRID * BLOCK + (GRID + 1) * ROAD
+local HALF = TOTAL / 2
+local CENTER = math.floor(GRID / 2)
+local SIDEWALK_TOP = 0.4
+
+local rng = Random.new()
+local freeSlots: { Vector3 } = {}
+
+local function blockCenter(i: number, j: number): Vector3
+	local x = -HALF + ROAD + i * (BLOCK + ROAD) + BLOCK / 2
+	local z = -HALF + ROAD + j * (BLOCK + ROAD) + BLOCK / 2
+	return Vector3.new(x, 0, z)
+end
+
+local function part(parent: Instance, name: string, size: Vector3, cf: CFrame, color: Color3, material: Enum.Material): Part
+	local p = Instance.new("Part")
+	p.Name = name
+	p.Size = size
+	p.CFrame = cf
+	p.Color = color
+	p.Material = material
+	p.Anchored = true
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	p.Parent = parent
+	return p
+end
+
+function City.reward(size: number): number
+	return Config.REWARD_FACTOR * size ^ Config.REWARD_EXP
+end
+
+-- Static ground: asphalt everywhere, raised concrete sidewalks on the blocks.
+local function buildGround(folder: Folder)
+	part(folder, "Asphalt", Vector3.new(TOTAL, 2, TOTAL), CFrame.new(0, -1, 0), Color3.fromRGB(55, 58, 64), Enum.Material.Asphalt)
+	for i = 0, GRID - 1 do
+		for j = 0, GRID - 1 do
+			local c = blockCenter(i, j)
+			part(folder, "Block", Vector3.new(BLOCK, SIDEWALK_TOP, BLOCK), CFrame.new(c.X, SIDEWALK_TOP / 2, c.Z), Color3.fromRGB(175, 175, 168), Enum.Material.Concrete)
+		end
+	end
+	-- Edge walls keep players inside the city.
+	local wallH = 400
+	for _, d in { Vector3.new(1, 0, 0), Vector3.new(-1, 0, 0), Vector3.new(0, 0, 1), Vector3.new(0, 0, -1) } do
+		local size = if d.X ~= 0 then Vector3.new(4, wallH, TOTAL) else Vector3.new(TOTAL, wallH, 4)
+		local w = part(folder, "Wall", size, CFrame.new(d * (HALF + 2) + Vector3.new(0, wallH / 2, 0)), Color3.new(1, 1, 1), Enum.Material.ForceField)
+		w.Transparency = 1
+	end
+end
+
+-- Positions where a prop of this kind may stand (y is the surface height).
+local function sidewalkSpot(): (Vector3, number)
+	local c = blockCenter(rng:NextInteger(0, GRID - 1), rng:NextInteger(0, GRID - 1))
+	local edge = BLOCK / 2 - 2.5
+	local along = rng:NextNumber(-edge, edge)
+	local side = rng:NextInteger(1, 4)
+	local off = if side == 1 then Vector3.new(edge, 0, along) elseif side == 2 then Vector3.new(-edge, 0, along) elseif side == 3 then Vector3.new(along, 0, edge) else Vector3.new(along, 0, -edge)
+	return c + off, SIDEWALK_TOP
+end
+
+local function roadSpot(): (Vector3, number, number)
+	local k = rng:NextInteger(0, GRID)
+	local line = -HALF + ROAD / 2 + k * (BLOCK + ROAD)
+	local along = rng:NextNumber(-HALF + ROAD, HALF - ROAD)
+	local lane = (if rng:NextNumber() < 0.5 then -1 else 1) * ROAD / 4
+	if rng:NextNumber() < 0.5 then
+		return Vector3.new(line + lane, 0, along), 0, 0 -- driving along Z
+	end
+	return Vector3.new(along, 0, line + lane), 0, math.pi / 2 -- driving along X
+end
+
+local function makeProp(kind: Config.PropKind, edibles: Folder, position: Vector3, yaw: number): Model
+	local m = Instance.new("Model")
+	m.Name = kind.name
+	local dims = kind.dims
+	local base = CFrame.new(position + Vector3.new(0, dims.Y / 2, 0)) * CFrame.Angles(0, yaw, 0)
+	local body = part(m, "Body", dims, base, kind.color, kind.material)
+	-- A little shape language so things read at a glance (roofs on buildings, cabins on vehicles).
+	if kind.where == "block" then
+		part(m, "Roof", Vector3.new(dims.X + 1, 1.2, dims.Z + 1), base * CFrame.new(0, dims.Y / 2 + 0.6, 0), kind.color:Lerp(Color3.new(0, 0, 0), 0.35), Enum.Material.Slate)
+	elseif kind.where == "road" and dims.Z > dims.X * 1.5 then
+		part(m, "Cabin", Vector3.new(dims.X * 0.9, dims.Y * 0.45, dims.Z * 0.45), base * CFrame.new(0, dims.Y * 0.5, -dims.Z * 0.1), Color3.fromRGB(160, 200, 230), Enum.Material.Glass)
+	end
+	local size = math.max(dims.X, dims.Y, dims.Z)
+	for _, p in m:GetChildren() do
+		local bp = p :: BasePart
+		-- Small things never block anyone (they get eaten on contact); buildings and vehicles do.
+		bp.CanCollide = size >= 4
+	end
+	m.PrimaryPart = body
+	m:SetAttribute("Size", size)
+	m:SetAttribute("Mass", City.reward(size))
+	m:SetAttribute("Kind", kind.name)
+	m:SetAttribute("Respawn", kind.respawn)
+	m.Parent = edibles
+	return m
+end
+
+function City.spawn(kind: Config.PropKind, edibles: Folder): Model?
+	if kind.where == "sidewalk" then
+		local pos, top = sidewalkSpot()
+		return makeProp(kind, edibles, Vector3.new(pos.X, top, pos.Z), rng:NextNumber(0, math.pi * 2))
+	elseif kind.where == "road" then
+		local pos, top, yaw = roadSpot()
+		return makeProp(kind, edibles, Vector3.new(pos.X, top, pos.Z), yaw)
+	end
+	if #freeSlots == 0 then
+		return nil
+	end
+	local slot = table.remove(freeSlots, rng:NextInteger(1, #freeSlots)) :: Vector3
+	return makeProp(kind, edibles, slot, 0)
+end
+
+local function buildLandmark(edibles: Folder)
+	local m = Instance.new("Model")
+	m.Name = "Landmark"
+	local c = blockCenter(CENTER, CENTER)
+	local h = Config.LANDMARK_SIZE
+	local gold = Color3.fromRGB(230, 180, 60)
+	local base = part(m, "Base", Vector3.new(40, 10, 40), CFrame.new(c.X, SIDEWALK_TOP + 5, c.Z), Color3.fromRGB(140, 140, 150), Enum.Material.Concrete)
+	part(m, "Shaft", Vector3.new(14, h * 0.7, 14), CFrame.new(c.X, SIDEWALK_TOP + 10 + h * 0.35, c.Z), Color3.fromRGB(200, 70, 90), Enum.Material.SmoothPlastic)
+	local ball = part(m, "Ball", Vector3.new(30, 30, 30), CFrame.new(c.X, SIDEWALK_TOP + 10 + h * 0.62, c.Z), gold, Enum.Material.Neon)
+	ball.Shape = Enum.PartType.Ball
+	part(m, "Spire", Vector3.new(3, h * 0.25, 3), CFrame.new(c.X, SIDEWALK_TOP + 10 + h * 0.82, c.Z), gold, Enum.Material.Metal)
+	m.PrimaryPart = base
+	m:SetAttribute("Size", h)
+	m:SetAttribute("Mass", City.reward(h))
+	m:SetAttribute("Kind", "Landmark")
+	m:SetAttribute("Respawn", false)
+	m.Parent = edibles
+end
+
+-- (Re)build the whole city; returns the Edibles folder.
+function City.build(): Folder
+	local old = workspace:FindFirstChild("City")
+	if old then
+		old:Destroy()
+	end
+	local city = Instance.new("Folder")
+	city.Name = "City"
+	local ground = Instance.new("Folder")
+	ground.Name = "Ground"
+	ground.Parent = city
+	local edibles = Instance.new("Folder")
+	edibles.Name = "Edibles"
+	edibles.Parent = city
+	buildGround(ground)
+
+	freeSlots = {}
+	local q = BLOCK / 4
+	for i = 0, GRID - 1 do
+		for j = 0, GRID - 1 do
+			if not (i == CENTER and j == CENTER) then
+				local c = blockCenter(i, j)
+				for _, o in { Vector3.new(q, 0, q), Vector3.new(-q, 0, q), Vector3.new(q, 0, -q), Vector3.new(-q, 0, -q) } do
+					table.insert(freeSlots, Vector3.new(c.X + o.X, SIDEWALK_TOP, c.Z + o.Z))
+				end
+			end
+		end
+	end
+
+	for _, kind in Config.PROPS do
+		for _ = 1, kind.count do
+			City.spawn(kind, edibles)
+		end
+	end
+	buildLandmark(edibles)
+	city.Parent = workspace
+	return edibles
+end
+
+-- A random spot on a road, high enough to drop in safely.
+function City.spawnPoint(): Vector3
+	local pos = roadSpot()
+	return pos + Vector3.new(0, 6, 0)
+end
+
+function City.kind(name: string): Config.PropKind?
+	for _, k in Config.PROPS do
+		if k.name == name then
+			return k
+		end
+	end
+	return nil
+end
+
+return City
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="Script" referent="7">
+        <Properties>
+          <string name="Name">Main</string>
+          <token name="RunContext">0</token>
+          <string name="Source"><![CDATA[--!strict
+-- GROW EVERYTHING (Roblox) server: rounds, eating, growth, PvP and the cosmetic game pass.
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local MarketplaceService = game:GetService("MarketplaceService")
+
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local City = require(script.Parent:WaitForChild("City"))
+
+-- Remotes (server → client only; the client never decides what was eaten).
+local remotes = Instance.new("Folder")
+remotes.Name = "Remotes"
+for _, name in Config.REMOTES do
+	local ev = Instance.new("RemoteEvent")
+	ev.Name = name
+	ev.Parent = remotes
+end
+remotes.Parent = ReplicatedStorage
+local AteEvent = remotes:WaitForChild("Ate") :: RemoteEvent
+local EatenEvent = remotes:WaitForChild("Eaten") :: RemoteEvent
+local RoundEvent = remotes:WaitForChild("RoundState") :: RemoteEvent
+
+local mass: { [Player]: number } = {}
+local appliedScale: { [Player]: number } = {}
+local roundActive = false
+local edibles: Folder = City.build()
+
+local function scaleFor(m: number): number
+	return math.clamp((m / Config.START_MASS) ^ (1 / 3), 1, Config.MAX_SCALE)
+end
+
+local function reach(scale: number): number
+	return Config.EAT_REACH * Config.CHARACTER_HEIGHT * scale
+end
+
+local function rootOf(player: Player): BasePart?
+	local char = player.Character
+	return if char then char:FindFirstChild("HumanoidRootPart") :: BasePart? else nil
+end
+
+local function updateStats(player: Player)
+	local ls = player:FindFirstChild("leaderstats")
+	local size = ls and ls:FindFirstChild("Size") :: IntValue?
+	if size then
+		size.Value = math.floor(mass[player] or 0)
+	end
+	player:SetAttribute("Mass", mass[player] or 0)
+end
+
+-- Scale the character only when it changed noticeably (ScaleTo is not free).
+local function applyScale(player: Player, force: boolean?)
+	local char = player.Character
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	if not char or not hum then
+		return
+	end
+	local s = scaleFor(mass[player] or Config.START_MASS)
+	local last = appliedScale[player] or 1
+	if not force and math.abs(s - last) / last < 0.02 then
+		return
+	end
+	appliedScale[player] = s
+	pcall(function()
+		char:ScaleTo(s)
+	end)
+	hum.WalkSpeed = math.min(Config.MAX_WALKSPEED, Config.BASE_WALKSPEED + Config.WALKSPEED_PER_SCALE * (s - 1))
+	player.CameraMaxZoomDistance = 30 + Config.CAMERA_ZOOM_PER_SCALE * s
+	player:SetAttribute("Scale", s)
+end
+
+local function addMass(player: Player, amount: number)
+	mass[player] = (mass[player] or Config.START_MASS) + amount
+	updateStats(player)
+	applyScale(player)
+end
+
+local function resetPlayer(player: Player)
+	mass[player] = Config.START_MASS
+	appliedScale[player] = nil
+	updateStats(player)
+end
+
+local function placeAtSpawn(player: Player)
+	local root = rootOf(player)
+	if root then
+		root.CFrame = CFrame.new(City.spawnPoint())
+	end
+end
+
+-- Cosmetic game pass: a trail behind the player. Never affects size or speed.
+local function giveTrail(player: Player, char: Model)
+	if Config.GAMEPASS_VIP_TRAIL == 0 then
+		return
+	end
+	local ok, owns = pcall(MarketplaceService.UserOwnsGamePassAsync, MarketplaceService, player.UserId, Config.GAMEPASS_VIP_TRAIL)
+	if not ok or not owns then
+		return
+	end
+	local root = char:WaitForChild("HumanoidRootPart", 5) :: BasePart?
+	if not root then
+		return
+	end
+	local a0 = Instance.new("Attachment")
+	a0.Position = Vector3.new(0, 1, 0)
+	a0.Parent = root
+	local a1 = Instance.new("Attachment")
+	a1.Position = Vector3.new(0, -1, 0)
+	a1.Parent = root
+	local trail = Instance.new("Trail")
+	trail.Attachment0 = a0
+	trail.Attachment1 = a1
+	trail.Lifetime = 0.6
+	trail.Color = ColorSequence.new(Color3.fromRGB(255, 200, 60), Color3.fromRGB(255, 80, 160))
+	trail.Parent = root
+end
+
+local function onCharacter(player: Player, char: Model)
+	local hum = char:WaitForChild("Humanoid", 10) :: Humanoid?
+	if not hum then
+		return
+	end
+	-- Fresh character = fresh start (death by falling, being eaten, or a new round).
+	resetPlayer(player)
+	task.defer(function()
+		placeAtSpawn(player)
+		applyScale(player, true)
+	end)
+	giveTrail(player, char)
+	hum.Died:Connect(function()
+		resetPlayer(player)
+	end)
+end
+
+Players.PlayerAdded:Connect(function(player: Player)
+	local ls = Instance.new("Folder")
+	ls.Name = "leaderstats"
+	local size = Instance.new("IntValue")
+	size.Name = "Size"
+	size.Parent = ls
+	local wins = Instance.new("IntValue")
+	wins.Name = "Wins"
+	wins.Parent = ls
+	ls.Parent = player
+	resetPlayer(player)
+	player.CharacterAdded:Connect(function(char)
+		onCharacter(player, char)
+	end)
+	if player.Character then
+		onCharacter(player, player.Character)
+	end
+end)
+
+Players.PlayerRemoving:Connect(function(player: Player)
+	mass[player] = nil
+	appliedScale[player] = nil
+end)
+
+-- Eating ------------------------------------------------------------------------------------
+
+local function respawnLater(kindName: string)
+	local kind = City.kind(kindName)
+	if not kind or not kind.respawn then
+		return
+	end
+	task.delay(Config.RESPAWN_SECONDS, function()
+		if edibles.Parent then
+			City.spawn(kind, edibles)
+		end
+	end)
+end
+
+local function eatModel(player: Player, model: Model)
+	local size = model:GetAttribute("Size") :: number? or 0
+	local gain = model:GetAttribute("Mass") :: number? or 0
+	local kind = model:GetAttribute("Kind") :: string? or model.Name
+	local respawn = model:GetAttribute("Respawn") == true
+	local pos = model:GetPivot().Position
+	model:Destroy()
+	addMass(player, gain)
+	AteEvent:FireClient(player, kind, gain, pos, size)
+	if respawn then
+		respawnLater(kind)
+	end
+	if kind == "Landmark" then
+		RoundEvent:FireAllClients({ phase = "Landmark", name = player.DisplayName })
+	end
+end
+
+local overlap = OverlapParams.new()
+overlap.FilterType = Enum.RaycastFilterType.Include
+
+local function eatTick()
+	if not roundActive then
+		return
+	end
+	overlap.FilterDescendantsInstances = { edibles }
+	for player, m in mass do
+		local root = rootOf(player)
+		if root then
+			local s = scaleFor(m)
+			local r = Config.EAT_RADIUS * Config.CHARACTER_HEIGHT * s + 1
+			local limit = reach(s)
+			local seen: { [Model]: boolean } = {}
+			for _, p in workspace:GetPartBoundsInRadius(root.Position, r, overlap) do
+				local model = p:FindFirstAncestorOfClass("Model")
+				if model and model.Parent == edibles and not seen[model] then
+					seen[model] = true
+					local size = model:GetAttribute("Size") :: number?
+					if size and size <= limit then
+						eatModel(player, model)
+					end
+				end
+			end
+		end
+	end
+	-- PvP: a clearly bigger player swallows a smaller one on contact.
+	local list = Players:GetPlayers()
+	for _, a in list do
+		for _, b in list do
+			if a ~= b and mass[a] and mass[b] then
+				local ra, rb = rootOf(a), rootOf(b)
+				local sa, sb = scaleFor(mass[a]), scaleFor(mass[b])
+				if ra and rb and sa >= sb * Config.PVP_RATIO and (ra.Position - rb.Position).Magnitude <= Config.EAT_RADIUS * Config.CHARACTER_HEIGHT * sa + 2 then
+					local gain = (mass[b] - Config.START_MASS) * Config.PVP_STEAL + Config.START_MASS
+					EatenEvent:FireClient(b, a.DisplayName)
+					AteEvent:FireClient(a, b.DisplayName, gain, rb.Position, sb * Config.CHARACTER_HEIGHT)
+					resetPlayer(b)
+					b:LoadCharacter()
+					addMass(a, gain)
+				end
+			end
+		end
+	end
+end
+
+local acc = 0
+RunService.Heartbeat:Connect(function(dt)
+	acc += dt
+	if acc >= Config.EAT_TICK then
+		acc = 0
+		eatTick()
+	end
+end)
+
+-- Rounds ------------------------------------------------------------------------------------
+
+local function broadcast(phase: string, timeLeft: number, extra: { [string]: any }?)
+	local msg: { [string]: any } = { phase = phase, timeLeft = timeLeft }
+	if extra then
+		for k, v in extra do
+			msg[k] = v
+		end
+	end
+	RoundEvent:FireAllClients(msg)
+end
+
+task.spawn(function()
+	while true do
+		roundActive = false
+		for t = Config.INTERMISSION_SECONDS, 1, -1 do
+			broadcast("Intermission", t)
+			task.wait(1)
+		end
+		while #Players:GetPlayers() < Config.MIN_PLAYERS_TO_START do
+			broadcast("Waiting", 0)
+			task.wait(1)
+		end
+		edibles = City.build()
+		for _, player in Players:GetPlayers() do
+			player:LoadCharacter()
+		end
+		roundActive = true
+		for t = Config.ROUND_SECONDS, 1, -1 do
+			broadcast("Round", t)
+			task.wait(1)
+		end
+		roundActive = false
+		local best: Player? = nil
+		for player, m in mass do
+			if not best or m > (mass[best] or 0) then
+				best = player
+			end
+		end
+		if best then
+			local ls = best:FindFirstChild("leaderstats")
+			local wins = ls and ls:FindFirstChild("Wins") :: IntValue?
+			if wins then
+				wins.Value += 1
+			end
+		end
+		broadcast("End", 0, { winner = if best then best.DisplayName else "", size = if best then math.floor(mass[best] or 0) else 0 })
+		task.wait(5)
+	end
+end)
+]]></string>
+        </Properties>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="StarterPlayer" referent="8">
+    <Properties>
+      <string name="Name">StarterPlayer</string>
+    </Properties>
+    <Item class="StarterPlayerScripts" referent="9">
+      <Properties>
+        <string name="Name">StarterPlayerScripts</string>
+      </Properties>
+      <Item class="Folder" referent="10">
+        <Properties>
+          <string name="Name">Client</string>
+        </Properties>
+        <Item class="LocalScript" referent="11">
+          <Properties>
+            <string name="Name">Hud</string>
+            <string name="Source"><![CDATA[--!strict
+-- GROW EVERYTHING (Roblox) HUD: round timer, your size, bite toasts and a pop effect.
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local remotes = ReplicatedStorage:WaitForChild("Remotes")
+local AteEvent = remotes:WaitForChild("Ate") :: RemoteEvent
+local EatenEvent = remotes:WaitForChild("Eaten") :: RemoteEvent
+local RoundEvent = remotes:WaitForChild("RoundState") :: RemoteEvent
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "GrowHud"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local function label(name: string, pos: UDim2, anchor: Vector2, size: UDim2, textSize: number): TextLabel
+	local l = Instance.new("TextLabel")
+	l.Name = name
+	l.Position = pos
+	l.AnchorPoint = anchor
+	l.Size = size
+	l.BackgroundTransparency = 0.35
+	l.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+	l.TextColor3 = Color3.new(1, 1, 1)
+	l.Font = Enum.Font.GothamBold
+	l.TextSize = textSize
+	l.Text = ""
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 10)
+	corner.Parent = l
+	l.Parent = gui
+	return l
+end
+
+local status = label("Status", UDim2.new(0.5, 0, 0, 12), Vector2.new(0.5, 0), UDim2.fromOffset(320, 40), 22)
+local sizeLabel = label("Size", UDim2.new(0, 16, 1, -16), Vector2.new(0, 1), UDim2.fromOffset(220, 48), 24)
+local toast = label("Toast", UDim2.new(0.5, 0, 0.72, 0), Vector2.new(0.5, 0.5), UDim2.fromOffset(360, 44), 22)
+toast.Visible = false
+
+local function fmt(seconds: number): string
+	return string.format("%d:%02d", seconds // 60, seconds % 60)
+end
+
+local function refreshSize()
+	local m = player:GetAttribute("Mass") :: number? or 0
+	sizeLabel.Text = string.format("Size %s", if m >= 1000 then string.format("%.1fk", m / 1000) else tostring(math.floor(m)))
+end
+player:GetAttributeChangedSignal("Mass"):Connect(refreshSize)
+refreshSize()
+
+local toastToken = 0
+local function showToast(text: string, color: Color3?)
+	toastToken += 1
+	local mine = toastToken
+	toast.Text = text
+	toast.TextColor3 = color or Color3.new(1, 1, 1)
+	toast.Visible = true
+	task.delay(1.6, function()
+		if toastToken == mine then
+			toast.Visible = false
+		end
+	end)
+end
+
+-- A quick expanding bubble where something was eaten (local only, purely visual).
+local function pop(position: Vector3, size: number)
+	local p = Instance.new("Part")
+	p.Shape = Enum.PartType.Ball
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.Material = Enum.Material.Neon
+	p.Color = Color3.fromRGB(255, 210, 90)
+	p.Transparency = 0.3
+	local d = math.max(1, size)
+	p.Size = Vector3.new(d, d, d) * 0.5
+	p.Position = position
+	p.Parent = workspace
+	local t = TweenService:Create(p, TweenInfo.new(0.35), { Size = Vector3.new(d, d, d) * 1.4, Transparency = 1 })
+	t:Play()
+	t.Completed:Connect(function()
+		p:Destroy()
+	end)
+end
+
+AteEvent.OnClientEvent:Connect(function(kind: string, gain: number, position: Vector3, size: number)
+	pop(position, size)
+	if size >= 4 then
+		showToast(string.format("Ate %s! +%d", kind, math.floor(gain)), Color3.fromRGB(255, 220, 120))
+	end
+end)
+
+EatenEvent.OnClientEvent:Connect(function(by: string)
+	showToast(string.format("%s ate you! Start small again", by), Color3.fromRGB(255, 120, 120))
+end)
+
+RoundEvent.OnClientEvent:Connect(function(msg: { [string]: any })
+	local phase = msg.phase
+	if phase == "Round" then
+		status.Text = "Eat the city  " .. fmt(msg.timeLeft)
+	elseif phase == "Intermission" then
+		status.Text = "Next round in " .. tostring(msg.timeLeft)
+	elseif phase == "Waiting" then
+		status.Text = "Waiting for players…"
+	elseif phase == "Landmark" then
+		showToast(tostring(msg.name) .. " ATE THE LANDMARK!", Color3.fromRGB(255, 200, 60))
+	elseif phase == "End" then
+		status.Text = if msg.winner ~= "" then string.format("%s wins! (Size %d)", msg.winner, msg.size) else "Round over"
+	end
+end)
+]]></string>
+          </Properties>
+        </Item>
+      </Item>
+    </Item>
+  </Item>
+</roblox>
