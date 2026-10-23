@@ -17,10 +17,22 @@
       </Properties>
       <Item class="ModuleScript" referent="3">
         <Properties>
+          <string name="Name">AssetIds</string>
+          <string name="Source"><![CDATA[--!strict
+-- Roblox asset ids of the web game's uploaded models (roblox/upload-assets.sh prints NAME=ID lines;
+-- tools/roblox-assetids.mjs turns them into this file). A missing name falls back to primitives.
+return {} :: { [string]: number }
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="4">
+        <Properties>
           <string name="Name">Config</string>
           <string name="Source"><![CDATA[--!strict
 -- GROW EVERYTHING (Roblox) — every balance value lives here.
 -- Units are studs (a default character is about 5 studs tall at scale 1).
+
+local ModelInfo = require(script.Parent:WaitForChild("ModelInfo"))
 
 local Config = {}
 
@@ -61,11 +73,12 @@ Config.BLOCK = 90
 Config.ROAD = 26
 -- Landmarks (one per listed block, never respawn). Edible from scale size / (EAT_REACH × height):
 -- the Empire State at about 32, the Pearl Tower at about 37.
-export type Landmark = { name: string, style: string, size: number, block: { number } }
+-- model = the web game's assembled landmark (primitive builder `style` when it is not loaded).
+export type Landmark = { name: string, style: string, model: string, size: number, block: { number } }
 Config.LANDMARKS = {
-	{ name = "Oriental Pearl Tower", style = "pearl", size = 150, block = { 3, 3 } },
-	{ name = "Empire State Building", style = "empire", size = 130, block = { 1, 5 } },
-	{ name = "Eiffel Tower", style = "eiffel", size = 140, block = { 5, 1 } },
+	{ name = "Oriental Pearl Tower", style = "pearl", model = "Landmark_PearlTower", size = 150, block = { 3, 3 } },
+	{ name = "Empire State Building", style = "empire", model = "Landmark_EmpireState", size = 130, block = { 1, 5 } },
+	{ name = "Eiffel Tower", style = "eiffel", model = "Landmark_Eiffel", size = 140, block = { 5, 1 } },
 } :: { Landmark }
 
 -- Colour palettes: buildings and vehicles pick a random one so the city reads as a city.
@@ -78,37 +91,84 @@ Config.VEHICLE_COLORS = {
 	Color3.fromRGB(220, 60, 60), Color3.fromRGB(60, 110, 220), Color3.fromRGB(245, 245, 245),
 	Color3.fromRGB(250, 200, 40), Color3.fromRGB(40, 40, 46), Color3.fromRGB(70, 170, 110),
 }
--- Player machines: one bright body colour each.
+-- Player machines: the web game's four looks (Machine_<look>_T<tier>), one per player in join order.
+-- The tier upgrades as you grow: tier n from scale MACHINE_TIER_SCALES[n]. MACHINE_SIZE = largest
+-- dimension in studs at scale 1. MACHINE_YAW turns the imported model if it faces the wrong way.
+Config.MACHINE_LOOKS = { "collector", "dozer", "racer", "magnet" }
+Config.MACHINE_TIER_SCALES = { 1, 2, 4, 8, 16 }
+Config.MACHINE_SIZE = 5
+Config.MACHINE_YAW = 0
+-- Primitive fallback machines: one bright body colour each.
 Config.MACHINE_COLORS = {
 	Color3.fromRGB(255, 140, 40), Color3.fromRGB(60, 170, 255), Color3.fromRGB(120, 220, 90),
 	Color3.fromRGB(255, 90, 160), Color3.fromRGB(170, 110, 255), Color3.fromRGB(255, 215, 60),
 }
 
--- Edible catalog. size = largest dimension in studs; count = how many per city; respawn = refill.
+-- Edible catalog. Each kind uses one of the web game's models (Shared.ModelInfo; drawn by
+-- server/Models when its asset id is in Shared.AssetIds, primitives otherwise). size = largest
+-- dimension in studs (sets reward and when it becomes edible); dims follow the model's proportions.
+-- count = how many per city; respawn = refill after being eaten; where = sidewalk | road | block.
 export type PropKind = {
 	name: string,
+	model: string?,
+	size: number,
 	dims: Vector3,
 	color: Color3,
 	material: Enum.Material,
 	count: number,
 	respawn: boolean,
-	where: string, -- "sidewalk" | "road" | "block"
+	where: string,
 }
 
+local function kind(name: string, model: string?, size: number, count: number, where: string, color: Color3, material: Enum.Material): PropKind
+	local info = if model then ModelInfo[model] else nil
+	local dims = if info then info.size * (size / math.max(info.size.X, info.size.Y, info.size.Z)) else Vector3.new(size * 0.55, size, size * 0.55)
+	return { name = name, model = model, size = size, dims = dims, color = color, material = material, count = count, respawn = where ~= "block", where = where }
+end
+
+local rgb = Color3.fromRGB
+local M = Enum.Material
 Config.PROPS = {
-	{ name = "Can", dims = Vector3.new(0.5, 0.8, 0.5), color = Color3.fromRGB(200, 60, 50), material = Enum.Material.Metal, count = 260, respawn = true, where = "sidewalk" },
-	{ name = "Bottle", dims = Vector3.new(0.4, 1.1, 0.4), color = Color3.fromRGB(70, 160, 90), material = Enum.Material.Glass, count = 200, respawn = true, where = "sidewalk" },
-	{ name = "Box", dims = Vector3.new(1.4, 1.2, 1.4), color = Color3.fromRGB(180, 140, 90), material = Enum.Material.Cardboard, count = 160, respawn = true, where = "sidewalk" },
-	{ name = "Cone", dims = Vector3.new(1.0, 1.8, 1.0), color = Color3.fromRGB(240, 120, 30), material = Enum.Material.Plastic, count = 110, respawn = true, where = "road" },
-	{ name = "TrashCan", dims = Vector3.new(2.0, 3.0, 2.0), color = Color3.fromRGB(60, 90, 70), material = Enum.Material.Metal, count = 90, respawn = true, where = "sidewalk" },
-	{ name = "Tree", dims = Vector3.new(5, 9, 5), color = Color3.fromRGB(80, 160, 80), material = Enum.Material.Grass, count = 90, respawn = true, where = "sidewalk" },
-	{ name = "Bench", dims = Vector3.new(4.5, 2.2, 1.6), color = Color3.fromRGB(120, 80, 50), material = Enum.Material.Wood, count = 60, respawn = true, where = "sidewalk" },
-	{ name = "Car", dims = Vector3.new(4.5, 4.0, 9.5), color = Color3.fromRGB(60, 110, 200), material = Enum.Material.SmoothPlastic, count = 70, respawn = true, where = "road" },
-	{ name = "Van", dims = Vector3.new(5.5, 6.5, 12), color = Color3.fromRGB(235, 235, 235), material = Enum.Material.SmoothPlastic, count = 30, respawn = true, where = "road" },
-	{ name = "Bus", dims = Vector3.new(6.5, 8, 24), color = Color3.fromRGB(230, 180, 40), material = Enum.Material.SmoothPlastic, count = 16, respawn = true, where = "road" },
-	{ name = "House", dims = Vector3.new(26, 22, 26), color = Color3.fromRGB(200, 170, 140), material = Enum.Material.Brick, count = 40, respawn = false, where = "block" },
-	{ name = "Office", dims = Vector3.new(30, 60, 30), color = Color3.fromRGB(150, 170, 190), material = Enum.Material.Concrete, count = 22, respawn = false, where = "block" },
-	{ name = "Tower", dims = Vector3.new(34, 110, 34), color = Color3.fromRGB(110, 130, 160), material = Enum.Material.Glass, count = 8, respawn = false, where = "block" },
+	-- Sidewalk litter and street furniture.
+	kind("Can", "CAN", 0.8, 160, "sidewalk", rgb(200, 60, 50), M.Metal),
+	kind("Bottle", "BOTTLE", 1.1, 120, "sidewalk", rgb(70, 160, 90), M.Glass),
+	kind("Brick", "BRICK", 1.0, 70, "sidewalk", rgb(170, 80, 60), M.Brick),
+	kind("Box", "CARDBOARD_SMALL", 1.4, 100, "sidewalk", rgb(180, 140, 90), M.Cardboard),
+	kind("Trash Bag", "TRASH_BAG", 2.0, 60, "sidewalk", rgb(40, 40, 45), M.Plastic),
+	kind("Hydrant", "FIRE_HYDRANT", 2.2, 50, "sidewalk", rgb(200, 40, 40), M.Metal),
+	kind("Chair", "CHAIR", 2.6, 50, "sidewalk", rgb(120, 80, 50), M.Wood),
+	kind("Trash Can", "TRASH_CAN", 3.0, 60, "sidewalk", rgb(60, 90, 70), M.Metal),
+	kind("Cafe Table", "CAFE_TABLE", 3.2, 40, "sidewalk", rgb(60, 60, 64), M.Metal),
+	kind("Shopping Cart", "SHOPPING_CART", 3.4, 30, "sidewalk", rgb(180, 185, 190), M.Metal),
+	kind("Tree", nil, 9, 60, "sidewalk", rgb(80, 160, 80), M.Grass),
+	kind("Bench", "BENCH", 4.5, 50, "sidewalk", rgb(120, 80, 50), M.Wood),
+	kind("Bicycle", "BICYCLE", 5.5, 40, "sidewalk", rgb(40, 110, 200), M.Metal),
+	kind("Scooter", "SCOOTER", 5.5, 30, "sidewalk", rgb(220, 60, 60), M.SmoothPlastic),
+	kind("Vending Machine", "VENDING_MACHINE", 6.5, 30, "sidewalk", rgb(200, 40, 40), M.SmoothPlastic),
+	kind("Dumpster", "DUMPSTER", 7, 30, "sidewalk", rgb(40, 110, 70), M.Metal),
+	kind("Food Cart", "FOOD_CART", 8, 16, "sidewalk", rgb(240, 200, 60), M.SmoothPlastic),
+	kind("Advertising Column", "MORRIS_COLUMN", 9, 16, "sidewalk", rgb(40, 90, 60), M.Metal),
+	kind("Kiosk", "KIOSK", 10, 14, "sidewalk", rgb(40, 90, 60), M.Metal),
+	kind("Subway Entrance", "SUBWAY_ENTRANCE", 11, 10, "sidewalk", rgb(40, 90, 60), M.Metal),
+	-- Traffic.
+	kind("Cone", "TRAFFIC_CONE", 1.8, 90, "road", rgb(240, 120, 30), M.Plastic),
+	kind("Motorcycle", "MOTORCYCLE", 6, 24, "road", rgb(40, 40, 46), M.Metal),
+	kind("Car", "CAR_COMPACT", 11, 40, "road", rgb(60, 110, 200), M.SmoothPlastic),
+	kind("Taxi", "TAXI_NY", 12, 30, "road", rgb(250, 200, 40), M.SmoothPlastic),
+	kind("Van", "VAN", 14, 20, "road", rgb(235, 235, 235), M.SmoothPlastic),
+	kind("Delivery Truck", "DELIVERY_TRUCK", 18, 14, "road", rgb(235, 235, 235), M.SmoothPlastic),
+	kind("Bus", "BUS_NY", 26, 12, "road", rgb(230, 180, 40), M.SmoothPlastic),
+	-- Buildings from the three cities (one per block quadrant; never respawn).
+	kind("Shikumen House", "B_SHIKUMEN", 28, 10, "block", rgb(150, 150, 155), M.Brick),
+	kind("Brownstone", "B_BROWNSTONE", 34, 10, "block", rgb(140, 80, 60), M.Brick),
+	kind("Paris Cafe", "B_PARIS_CAFE", 34, 10, "block", rgb(230, 220, 200), M.Limestone),
+	kind("Haussmann Building", "B_HAUSSMANN", 52, 10, "block", rgb(230, 220, 200), M.Limestone),
+	kind("Shanghai Apartments", "B_SH_MID", 58, 8, "block", rgb(200, 200, 205), M.Concrete),
+	kind("New York Loft", "B_NY_LOFT", 72, 8, "block", rgb(170, 100, 80), M.Brick),
+	kind("Peace Hotel", "PEACE_HOTEL", 80, 4, "block", rgb(200, 190, 170), M.Limestone),
+	kind("Customs House", "CUSTOMS_HOUSE", 82, 3, "block", rgb(200, 190, 170), M.Limestone),
+	kind("Flatiron Building", "FLATIRON", 80, 3, "block", rgb(220, 210, 190), M.Limestone),
+	kind("Times Square Tower", "TIMES_TOWER", 100, 3, "block", rgb(110, 130, 160), M.Glass),
 } :: { PropKind }
 
 -- Monetization (create these in the Creator Hub, then paste the ids). 0 = not set up yet.
@@ -125,28 +185,202 @@ return Config
 ]]></string>
         </Properties>
       </Item>
+      <Item class="ModuleScript" referent="5">
+        <Properties>
+          <string name="Name">ModelInfo</string>
+          <string name="Source"><![CDATA[--!strict
+-- GENERATED by tools/roblox-modelinfo.mjs from roblox/assets/manifest.json — do not edit by hand.
+-- size: bounding box in metres (web game units); meshes: per MeshPart name {hex colour, material, transparency}.
+
+export type MeshInfo = { c: string, m: string, t: number }
+export type Info = { group: string, size: Vector3, meshes: { [string]: MeshInfo } }
+
+return {
+	Machine_collector_T1 = { group = "machine", size = Vector3.new(0.89, 0.86, 0.996), meshes = { ["Body_Shell_0"] = { c = "#e8781a", m = "SmoothPlastic", t = 0 }, ["Roller_Core_1"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Intake_Roller_MAT_darkTrim_2"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Intake_GlowStrip_3"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Lidar_Puck_4"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Lidar_Window_5"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Axle_Front_MAT_tread_6"] = { c = "#232325", m = "Plastic", t = 0 }, ["Axle_Front_MAT_Player_Gunmetal_7"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Axle_Front_MAT_steel_8"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Gunmetal_9"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_darkTrim_10"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier1_Parts_MAT_steel_11"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Hazard_12"] = { c = "#7e6426", m = "Plastic", t = 0 }, ["Tier1_Parts_MAT_lamps_13"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	Machine_collector_T2 = { group = "machine", size = Vector3.new(1, 0.935, 1.148), meshes = { ["Body_Shell_0"] = { c = "#e8781a", m = "SmoothPlastic", t = 0 }, ["Roller_Core_1"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Intake_Roller_MAT_darkTrim_2"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Intake_GlowStrip_3"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Lidar_Puck_4"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Lidar_Window_5"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Axle_Front_MAT_tread_6"] = { c = "#232325", m = "Plastic", t = 0 }, ["Axle_Front_MAT_Player_Gunmetal_7"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Axle_Front_MAT_steel_8"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Gunmetal_9"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_darkTrim_10"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier1_Parts_MAT_steel_11"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Hazard_12"] = { c = "#7e6426", m = "Plastic", t = 0 }, ["Tier1_Parts_MAT_lamps_13"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Axle_Rear_MAT_tread_14"] = { c = "#232325", m = "Plastic", t = 0 }, ["Axle_Rear_MAT_Player_Gunmetal_15"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Axle_Rear_MAT_steel_16"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Beacon_Dome_17"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Tier2_Parts_MAT_Player_Shell_18"] = { c = "#e8781a", m = "SmoothPlastic", t = 0 }, ["Tier2_Parts_MAT_Player_Gunmetal_19"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier2_Parts_MAT_darkTrim_20"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier2_Parts_MAT_steel_21"] = { c = "#a9afb5", m = "Metal", t = 0 } } },
+	Machine_collector_T3 = { group = "machine", size = Vector3.new(1, 0.97, 1.148), meshes = { ["Body_Shell_0"] = { c = "#e8781a", m = "SmoothPlastic", t = 0 }, ["Roller_Core_1"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Intake_Roller_MAT_darkTrim_2"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Intake_GlowStrip_3"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Lidar_Puck_4"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Lidar_Window_5"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Axle_Front_MAT_tread_6"] = { c = "#232325", m = "Plastic", t = 0 }, ["Axle_Front_MAT_Player_Gunmetal_7"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Axle_Front_MAT_steel_8"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Gunmetal_9"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_darkTrim_10"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier1_Parts_MAT_steel_11"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Hazard_12"] = { c = "#7e6426", m = "Plastic", t = 0 }, ["Tier1_Parts_MAT_lamps_13"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Axle_Rear_MAT_tread_14"] = { c = "#232325", m = "Plastic", t = 0 }, ["Axle_Rear_MAT_Player_Gunmetal_15"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Axle_Rear_MAT_steel_16"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Beacon_Dome_17"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Tier2_Parts_MAT_Player_Shell_18"] = { c = "#e8781a", m = "SmoothPlastic", t = 0 }, ["Tier2_Parts_MAT_Player_Gunmetal_19"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier2_Parts_MAT_darkTrim_20"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier2_Parts_MAT_steel_21"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Arm_L_Shoulder_22"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_L_Boom_23"] = { c = "#e8781a", m = "SmoothPlastic", t = 0 }, ["Arm_L_Ram_24"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Claw_Wrist_25"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_L_Claw_MAT_steel_26"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Arm_R_Shoulder_27"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_R_Boom_28"] = { c = "#e8781a", m = "SmoothPlastic", t = 0 }, ["Arm_R_Ram_29"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Claw_Wrist_30"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_R_Claw_MAT_steel_31"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["RollCage_Lights_32"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Tier3_Parts_MAT_Player_Gunmetal_33"] = { c = "#3a3f44", m = "Metal", t = 0 } } },
+	Machine_collector_T4 = { group = "machine", size = Vector3.new(1.34, 1.295, 1.291), meshes = { ["Body_Shell_0"] = { c = "#e8781a", m = "SmoothPlastic", t = 0 }, ["Roller_Core_1"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Intake_Roller_MAT_darkTrim_2"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Intake_GlowStrip_3"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Lidar_Puck_4"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Lidar_Window_5"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Axle_Front_MAT_tread_6"] = { c = "#232325", m = "Plastic", t = 0 }, ["Axle_Front_MAT_Player_Gunmetal_7"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Axle_Front_MAT_steel_8"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Gunmetal_9"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_darkTrim_10"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier1_Parts_MAT_steel_11"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Hazard_12"] = { c = "#7e6426", m = "Plastic", t = 0 }, ["Tier1_Parts_MAT_lamps_13"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Axle_Rear_MAT_tread_14"] = { c = "#232325", m = "Plastic", t = 0 }, ["Axle_Rear_MAT_Player_Gunmetal_15"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Axle_Rear_MAT_steel_16"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Beacon_Dome_17"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Tier2_Parts_MAT_Player_Shell_18"] = { c = "#e8781a", m = "SmoothPlastic", t = 0 }, ["Tier2_Parts_MAT_Player_Gunmetal_19"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier2_Parts_MAT_darkTrim_20"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier2_Parts_MAT_steel_21"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Arm_L_Shoulder_22"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_L_Boom_23"] = { c = "#e8781a", m = "SmoothPlastic", t = 0 }, ["Arm_L_Ram_24"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Claw_Wrist_25"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_L_Claw_MAT_steel_26"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Arm_R_Shoulder_27"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_R_Boom_28"] = { c = "#e8781a", m = "SmoothPlastic", t = 0 }, ["Arm_R_Ram_29"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Claw_Wrist_30"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_R_Claw_MAT_steel_31"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["RollCage_Lights_32"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Tier3_Parts_MAT_Player_Gunmetal_33"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Jaw_L_Plate_34"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["CrusherJaw_L_MAT_steel_35"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Jaw_R_Plate_36"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["CrusherJaw_R_MAT_steel_37"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Cyclone_Drum_38"] = { c = "#e8781a", m = "SmoothPlastic", t = 0 }, ["Tier4_Parts_MAT_tread_39"] = { c = "#232325", m = "Plastic", t = 0 }, ["Tier4_Parts_MAT_Player_Gunmetal_40"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier4_Parts_MAT_steel_41"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier4_Parts_MAT_Player_Hazard_42"] = { c = "#7e6426", m = "Plastic", t = 0 }, ["Tier4_Parts_MAT_darkTrim_43"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier4_Parts_MAT_lamps_44"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	Machine_collector_T5 = { group = "machine", size = Vector3.new(1.34, 1.295, 1.291), meshes = { ["Body_Shell_0"] = { c = "#e8781a", m = "SmoothPlastic", t = 0 }, ["Roller_Core_1"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Intake_Roller_MAT_darkTrim_2"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Intake_GlowStrip_3"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Lidar_Puck_4"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Lidar_Window_5"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Axle_Front_MAT_tread_6"] = { c = "#232325", m = "Plastic", t = 0 }, ["Axle_Front_MAT_Player_Gunmetal_7"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Axle_Front_MAT_steel_8"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Gunmetal_9"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_darkTrim_10"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier1_Parts_MAT_steel_11"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Hazard_12"] = { c = "#7e6426", m = "Plastic", t = 0 }, ["Tier1_Parts_MAT_lamps_13"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Axle_Rear_MAT_tread_14"] = { c = "#232325", m = "Plastic", t = 0 }, ["Axle_Rear_MAT_Player_Gunmetal_15"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Axle_Rear_MAT_steel_16"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Beacon_Dome_17"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Tier2_Parts_MAT_Player_Shell_18"] = { c = "#e8781a", m = "SmoothPlastic", t = 0 }, ["Tier2_Parts_MAT_Player_Gunmetal_19"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier2_Parts_MAT_darkTrim_20"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier2_Parts_MAT_steel_21"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Arm_L_Shoulder_22"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_L_Boom_23"] = { c = "#e8781a", m = "SmoothPlastic", t = 0 }, ["Arm_L_Ram_24"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Claw_Wrist_25"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_L_Claw_MAT_steel_26"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Arm_R_Shoulder_27"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_R_Boom_28"] = { c = "#e8781a", m = "SmoothPlastic", t = 0 }, ["Arm_R_Ram_29"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Claw_Wrist_30"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_R_Claw_MAT_steel_31"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["RollCage_Lights_32"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Tier3_Parts_MAT_Player_Gunmetal_33"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Jaw_L_Plate_34"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["CrusherJaw_L_MAT_steel_35"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Jaw_R_Plate_36"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["CrusherJaw_R_MAT_steel_37"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Cyclone_Drum_38"] = { c = "#e8781a", m = "SmoothPlastic", t = 0 }, ["Tier4_Parts_MAT_tread_39"] = { c = "#232325", m = "Plastic", t = 0 }, ["Tier4_Parts_MAT_Player_Gunmetal_40"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier4_Parts_MAT_steel_41"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier4_Parts_MAT_Player_Hazard_42"] = { c = "#7e6426", m = "Plastic", t = 0 }, ["Tier4_Parts_MAT_darkTrim_43"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier4_Parts_MAT_lamps_44"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	Machine_dozer_T1 = { group = "machine", size = Vector3.new(0.98, 0.86, 1.156), meshes = { ["Body_Shell_0"] = { c = "#d9a21b", m = "SmoothPlastic", t = 0 }, ["Roller_Core_1"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Intake_Roller_MAT_darkTrim_2"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Intake_GlowStrip_3"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Lidar_Puck_4"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Lidar_Window_5"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Axle_Front_MAT_tread_6"] = { c = "#232325", m = "Plastic", t = 0 }, ["Axle_Front_MAT_Player_Gunmetal_7"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Axle_Front_MAT_steel_8"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Gunmetal_9"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_darkTrim_10"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier1_Parts_MAT_steel_11"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Hazard_12"] = { c = "#7e6426", m = "Plastic", t = 0 }, ["Tier1_Parts_MAT_lamps_13"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	Machine_dozer_T2 = { group = "machine", size = Vector3.new(1, 0.935, 1.156), meshes = { ["Body_Shell_0"] = { c = "#d9a21b", m = "SmoothPlastic", t = 0 }, ["Roller_Core_1"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Intake_Roller_MAT_darkTrim_2"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Intake_GlowStrip_3"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Lidar_Puck_4"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Lidar_Window_5"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Axle_Front_MAT_tread_6"] = { c = "#232325", m = "Plastic", t = 0 }, ["Axle_Front_MAT_Player_Gunmetal_7"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Axle_Front_MAT_steel_8"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Gunmetal_9"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_darkTrim_10"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier1_Parts_MAT_steel_11"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Hazard_12"] = { c = "#7e6426", m = "Plastic", t = 0 }, ["Tier1_Parts_MAT_lamps_13"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Axle_Rear_MAT_tread_14"] = { c = "#232325", m = "Plastic", t = 0 }, ["Axle_Rear_MAT_Player_Gunmetal_15"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Axle_Rear_MAT_steel_16"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Beacon_Dome_17"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Tier2_Parts_MAT_Player_Shell_18"] = { c = "#d9a21b", m = "SmoothPlastic", t = 0 }, ["Tier2_Parts_MAT_Player_Gunmetal_19"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier2_Parts_MAT_darkTrim_20"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier2_Parts_MAT_steel_21"] = { c = "#a9afb5", m = "Metal", t = 0 } } },
+	Machine_dozer_T3 = { group = "machine", size = Vector3.new(1, 0.97, 1.156), meshes = { ["Body_Shell_0"] = { c = "#d9a21b", m = "SmoothPlastic", t = 0 }, ["Roller_Core_1"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Intake_Roller_MAT_darkTrim_2"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Intake_GlowStrip_3"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Lidar_Puck_4"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Lidar_Window_5"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Axle_Front_MAT_tread_6"] = { c = "#232325", m = "Plastic", t = 0 }, ["Axle_Front_MAT_Player_Gunmetal_7"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Axle_Front_MAT_steel_8"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Gunmetal_9"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_darkTrim_10"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier1_Parts_MAT_steel_11"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Hazard_12"] = { c = "#7e6426", m = "Plastic", t = 0 }, ["Tier1_Parts_MAT_lamps_13"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Axle_Rear_MAT_tread_14"] = { c = "#232325", m = "Plastic", t = 0 }, ["Axle_Rear_MAT_Player_Gunmetal_15"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Axle_Rear_MAT_steel_16"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Beacon_Dome_17"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Tier2_Parts_MAT_Player_Shell_18"] = { c = "#d9a21b", m = "SmoothPlastic", t = 0 }, ["Tier2_Parts_MAT_Player_Gunmetal_19"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier2_Parts_MAT_darkTrim_20"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier2_Parts_MAT_steel_21"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Arm_L_Shoulder_22"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_L_Boom_23"] = { c = "#d9a21b", m = "SmoothPlastic", t = 0 }, ["Arm_L_Ram_24"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Claw_Wrist_25"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_L_Claw_MAT_steel_26"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Arm_R_Shoulder_27"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_R_Boom_28"] = { c = "#d9a21b", m = "SmoothPlastic", t = 0 }, ["Arm_R_Ram_29"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Claw_Wrist_30"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_R_Claw_MAT_steel_31"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["RollCage_Lights_32"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Tier3_Parts_MAT_Player_Gunmetal_33"] = { c = "#3a3f44", m = "Metal", t = 0 } } },
+	Machine_dozer_T4 = { group = "machine", size = Vector3.new(1.34, 1.295, 1.291), meshes = { ["Body_Shell_0"] = { c = "#d9a21b", m = "SmoothPlastic", t = 0 }, ["Roller_Core_1"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Intake_Roller_MAT_darkTrim_2"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Intake_GlowStrip_3"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Lidar_Puck_4"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Lidar_Window_5"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Axle_Front_MAT_tread_6"] = { c = "#232325", m = "Plastic", t = 0 }, ["Axle_Front_MAT_Player_Gunmetal_7"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Axle_Front_MAT_steel_8"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Gunmetal_9"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_darkTrim_10"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier1_Parts_MAT_steel_11"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Hazard_12"] = { c = "#7e6426", m = "Plastic", t = 0 }, ["Tier1_Parts_MAT_lamps_13"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Axle_Rear_MAT_tread_14"] = { c = "#232325", m = "Plastic", t = 0 }, ["Axle_Rear_MAT_Player_Gunmetal_15"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Axle_Rear_MAT_steel_16"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Beacon_Dome_17"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Tier2_Parts_MAT_Player_Shell_18"] = { c = "#d9a21b", m = "SmoothPlastic", t = 0 }, ["Tier2_Parts_MAT_Player_Gunmetal_19"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier2_Parts_MAT_darkTrim_20"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier2_Parts_MAT_steel_21"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Arm_L_Shoulder_22"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_L_Boom_23"] = { c = "#d9a21b", m = "SmoothPlastic", t = 0 }, ["Arm_L_Ram_24"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Claw_Wrist_25"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_L_Claw_MAT_steel_26"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Arm_R_Shoulder_27"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_R_Boom_28"] = { c = "#d9a21b", m = "SmoothPlastic", t = 0 }, ["Arm_R_Ram_29"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Claw_Wrist_30"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_R_Claw_MAT_steel_31"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["RollCage_Lights_32"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Tier3_Parts_MAT_Player_Gunmetal_33"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Jaw_L_Plate_34"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["CrusherJaw_L_MAT_steel_35"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Jaw_R_Plate_36"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["CrusherJaw_R_MAT_steel_37"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Cyclone_Drum_38"] = { c = "#d9a21b", m = "SmoothPlastic", t = 0 }, ["Tier4_Parts_MAT_tread_39"] = { c = "#232325", m = "Plastic", t = 0 }, ["Tier4_Parts_MAT_Player_Gunmetal_40"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier4_Parts_MAT_steel_41"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier4_Parts_MAT_Player_Hazard_42"] = { c = "#7e6426", m = "Plastic", t = 0 }, ["Tier4_Parts_MAT_darkTrim_43"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier4_Parts_MAT_lamps_44"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	Machine_dozer_T5 = { group = "machine", size = Vector3.new(1.34, 1.295, 1.291), meshes = { ["Body_Shell_0"] = { c = "#d9a21b", m = "SmoothPlastic", t = 0 }, ["Roller_Core_1"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Intake_Roller_MAT_darkTrim_2"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Intake_GlowStrip_3"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Lidar_Puck_4"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Lidar_Window_5"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Axle_Front_MAT_tread_6"] = { c = "#232325", m = "Plastic", t = 0 }, ["Axle_Front_MAT_Player_Gunmetal_7"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Axle_Front_MAT_steel_8"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Gunmetal_9"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_darkTrim_10"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier1_Parts_MAT_steel_11"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Hazard_12"] = { c = "#7e6426", m = "Plastic", t = 0 }, ["Tier1_Parts_MAT_lamps_13"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Axle_Rear_MAT_tread_14"] = { c = "#232325", m = "Plastic", t = 0 }, ["Axle_Rear_MAT_Player_Gunmetal_15"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Axle_Rear_MAT_steel_16"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Beacon_Dome_17"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Tier2_Parts_MAT_Player_Shell_18"] = { c = "#d9a21b", m = "SmoothPlastic", t = 0 }, ["Tier2_Parts_MAT_Player_Gunmetal_19"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier2_Parts_MAT_darkTrim_20"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier2_Parts_MAT_steel_21"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Arm_L_Shoulder_22"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_L_Boom_23"] = { c = "#d9a21b", m = "SmoothPlastic", t = 0 }, ["Arm_L_Ram_24"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Claw_Wrist_25"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_L_Claw_MAT_steel_26"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Arm_R_Shoulder_27"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_R_Boom_28"] = { c = "#d9a21b", m = "SmoothPlastic", t = 0 }, ["Arm_R_Ram_29"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Claw_Wrist_30"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_R_Claw_MAT_steel_31"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["RollCage_Lights_32"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Tier3_Parts_MAT_Player_Gunmetal_33"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Jaw_L_Plate_34"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["CrusherJaw_L_MAT_steel_35"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Jaw_R_Plate_36"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["CrusherJaw_R_MAT_steel_37"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Cyclone_Drum_38"] = { c = "#d9a21b", m = "SmoothPlastic", t = 0 }, ["Tier4_Parts_MAT_tread_39"] = { c = "#232325", m = "Plastic", t = 0 }, ["Tier4_Parts_MAT_Player_Gunmetal_40"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier4_Parts_MAT_steel_41"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier4_Parts_MAT_Player_Hazard_42"] = { c = "#7e6426", m = "Plastic", t = 0 }, ["Tier4_Parts_MAT_darkTrim_43"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier4_Parts_MAT_lamps_44"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	Machine_racer_T1 = { group = "machine", size = Vector3.new(0.89, 0.88, 0.996), meshes = { ["Roller_Core_0"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Intake_Roller_MAT_darkTrim_1"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Intake_GlowStrip_2"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Lidar_Puck_3"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Lidar_Window_4"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Axle_Front_MAT_tread_5"] = { c = "#232325", m = "Plastic", t = 0 }, ["Axle_Front_MAT_Player_Gunmetal_6"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Axle_Front_MAT_steel_7"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Gunmetal_8"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Shell_9"] = { c = "#c4302b", m = "SmoothPlastic", t = 0 }, ["Tier1_Parts_MAT_darkTrim_10"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier1_Parts_MAT_steel_11"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Hazard_12"] = { c = "#7e6426", m = "Plastic", t = 0 }, ["Tier1_Parts_MAT_lamps_13"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	Machine_racer_T2 = { group = "machine", size = Vector3.new(1, 0.935, 1.148), meshes = { ["Roller_Core_0"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Intake_Roller_MAT_darkTrim_1"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Intake_GlowStrip_2"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Lidar_Puck_3"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Lidar_Window_4"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Axle_Front_MAT_tread_5"] = { c = "#232325", m = "Plastic", t = 0 }, ["Axle_Front_MAT_Player_Gunmetal_6"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Axle_Front_MAT_steel_7"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Gunmetal_8"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Shell_9"] = { c = "#c4302b", m = "SmoothPlastic", t = 0 }, ["Tier1_Parts_MAT_darkTrim_10"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier1_Parts_MAT_steel_11"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Hazard_12"] = { c = "#7e6426", m = "Plastic", t = 0 }, ["Tier1_Parts_MAT_lamps_13"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Axle_Rear_MAT_tread_14"] = { c = "#232325", m = "Plastic", t = 0 }, ["Axle_Rear_MAT_Player_Gunmetal_15"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Axle_Rear_MAT_steel_16"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Beacon_Dome_17"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Tier2_Parts_MAT_Player_Shell_18"] = { c = "#c4302b", m = "SmoothPlastic", t = 0 }, ["Tier2_Parts_MAT_Player_Gunmetal_19"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier2_Parts_MAT_darkTrim_20"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier2_Parts_MAT_steel_21"] = { c = "#a9afb5", m = "Metal", t = 0 } } },
+	Machine_racer_T3 = { group = "machine", size = Vector3.new(1, 0.97, 1.148), meshes = { ["Roller_Core_0"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Intake_Roller_MAT_darkTrim_1"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Intake_GlowStrip_2"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Lidar_Puck_3"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Lidar_Window_4"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Axle_Front_MAT_tread_5"] = { c = "#232325", m = "Plastic", t = 0 }, ["Axle_Front_MAT_Player_Gunmetal_6"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Axle_Front_MAT_steel_7"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Gunmetal_8"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Shell_9"] = { c = "#c4302b", m = "SmoothPlastic", t = 0 }, ["Tier1_Parts_MAT_darkTrim_10"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier1_Parts_MAT_steel_11"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Hazard_12"] = { c = "#7e6426", m = "Plastic", t = 0 }, ["Tier1_Parts_MAT_lamps_13"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Axle_Rear_MAT_tread_14"] = { c = "#232325", m = "Plastic", t = 0 }, ["Axle_Rear_MAT_Player_Gunmetal_15"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Axle_Rear_MAT_steel_16"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Beacon_Dome_17"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Tier2_Parts_MAT_Player_Shell_18"] = { c = "#c4302b", m = "SmoothPlastic", t = 0 }, ["Tier2_Parts_MAT_Player_Gunmetal_19"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier2_Parts_MAT_darkTrim_20"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier2_Parts_MAT_steel_21"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Arm_L_Shoulder_22"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_L_Boom_23"] = { c = "#c4302b", m = "SmoothPlastic", t = 0 }, ["Arm_L_Ram_24"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Claw_Wrist_25"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_L_Claw_MAT_steel_26"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Arm_R_Shoulder_27"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_R_Boom_28"] = { c = "#c4302b", m = "SmoothPlastic", t = 0 }, ["Arm_R_Ram_29"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Claw_Wrist_30"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_R_Claw_MAT_steel_31"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["RollCage_Lights_32"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Tier3_Parts_MAT_Player_Gunmetal_33"] = { c = "#3a3f44", m = "Metal", t = 0 } } },
+	Machine_racer_T4 = { group = "machine", size = Vector3.new(1.34, 1.295, 1.291), meshes = { ["Roller_Core_0"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Intake_Roller_MAT_darkTrim_1"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Intake_GlowStrip_2"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Lidar_Puck_3"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Lidar_Window_4"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Axle_Front_MAT_tread_5"] = { c = "#232325", m = "Plastic", t = 0 }, ["Axle_Front_MAT_Player_Gunmetal_6"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Axle_Front_MAT_steel_7"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Gunmetal_8"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Shell_9"] = { c = "#c4302b", m = "SmoothPlastic", t = 0 }, ["Tier1_Parts_MAT_darkTrim_10"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier1_Parts_MAT_steel_11"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Hazard_12"] = { c = "#7e6426", m = "Plastic", t = 0 }, ["Tier1_Parts_MAT_lamps_13"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Axle_Rear_MAT_tread_14"] = { c = "#232325", m = "Plastic", t = 0 }, ["Axle_Rear_MAT_Player_Gunmetal_15"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Axle_Rear_MAT_steel_16"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Beacon_Dome_17"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Tier2_Parts_MAT_Player_Shell_18"] = { c = "#c4302b", m = "SmoothPlastic", t = 0 }, ["Tier2_Parts_MAT_Player_Gunmetal_19"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier2_Parts_MAT_darkTrim_20"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier2_Parts_MAT_steel_21"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Arm_L_Shoulder_22"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_L_Boom_23"] = { c = "#c4302b", m = "SmoothPlastic", t = 0 }, ["Arm_L_Ram_24"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Claw_Wrist_25"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_L_Claw_MAT_steel_26"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Arm_R_Shoulder_27"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_R_Boom_28"] = { c = "#c4302b", m = "SmoothPlastic", t = 0 }, ["Arm_R_Ram_29"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Claw_Wrist_30"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_R_Claw_MAT_steel_31"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["RollCage_Lights_32"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Tier3_Parts_MAT_Player_Gunmetal_33"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Jaw_L_Plate_34"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["CrusherJaw_L_MAT_steel_35"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Jaw_R_Plate_36"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["CrusherJaw_R_MAT_steel_37"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Cyclone_Drum_38"] = { c = "#c4302b", m = "SmoothPlastic", t = 0 }, ["Tier4_Parts_MAT_tread_39"] = { c = "#232325", m = "Plastic", t = 0 }, ["Tier4_Parts_MAT_Player_Gunmetal_40"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier4_Parts_MAT_steel_41"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier4_Parts_MAT_Player_Hazard_42"] = { c = "#7e6426", m = "Plastic", t = 0 }, ["Tier4_Parts_MAT_darkTrim_43"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier4_Parts_MAT_lamps_44"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	Machine_racer_T5 = { group = "machine", size = Vector3.new(1.34, 1.295, 1.291), meshes = { ["Roller_Core_0"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Intake_Roller_MAT_darkTrim_1"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Intake_GlowStrip_2"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Lidar_Puck_3"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Lidar_Window_4"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Axle_Front_MAT_tread_5"] = { c = "#232325", m = "Plastic", t = 0 }, ["Axle_Front_MAT_Player_Gunmetal_6"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Axle_Front_MAT_steel_7"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Gunmetal_8"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Shell_9"] = { c = "#c4302b", m = "SmoothPlastic", t = 0 }, ["Tier1_Parts_MAT_darkTrim_10"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier1_Parts_MAT_steel_11"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Hazard_12"] = { c = "#7e6426", m = "Plastic", t = 0 }, ["Tier1_Parts_MAT_lamps_13"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Axle_Rear_MAT_tread_14"] = { c = "#232325", m = "Plastic", t = 0 }, ["Axle_Rear_MAT_Player_Gunmetal_15"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Axle_Rear_MAT_steel_16"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Beacon_Dome_17"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Tier2_Parts_MAT_Player_Shell_18"] = { c = "#c4302b", m = "SmoothPlastic", t = 0 }, ["Tier2_Parts_MAT_Player_Gunmetal_19"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier2_Parts_MAT_darkTrim_20"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier2_Parts_MAT_steel_21"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Arm_L_Shoulder_22"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_L_Boom_23"] = { c = "#c4302b", m = "SmoothPlastic", t = 0 }, ["Arm_L_Ram_24"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Claw_Wrist_25"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_L_Claw_MAT_steel_26"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Arm_R_Shoulder_27"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_R_Boom_28"] = { c = "#c4302b", m = "SmoothPlastic", t = 0 }, ["Arm_R_Ram_29"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Claw_Wrist_30"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_R_Claw_MAT_steel_31"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["RollCage_Lights_32"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Tier3_Parts_MAT_Player_Gunmetal_33"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Jaw_L_Plate_34"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["CrusherJaw_L_MAT_steel_35"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Jaw_R_Plate_36"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["CrusherJaw_R_MAT_steel_37"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Cyclone_Drum_38"] = { c = "#c4302b", m = "SmoothPlastic", t = 0 }, ["Tier4_Parts_MAT_tread_39"] = { c = "#232325", m = "Plastic", t = 0 }, ["Tier4_Parts_MAT_Player_Gunmetal_40"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier4_Parts_MAT_steel_41"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier4_Parts_MAT_Player_Hazard_42"] = { c = "#7e6426", m = "Plastic", t = 0 }, ["Tier4_Parts_MAT_darkTrim_43"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier4_Parts_MAT_lamps_44"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	Machine_magnet_T1 = { group = "machine", size = Vector3.new(0.89, 0.98, 0.996), meshes = { ["Body_Shell_0"] = { c = "#2f6fb8", m = "SmoothPlastic", t = 0 }, ["Roller_Core_1"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Intake_Roller_MAT_darkTrim_2"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Lidar_Puck_3"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Lidar_Window_4"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Axle_Front_MAT_tread_5"] = { c = "#232325", m = "Plastic", t = 0 }, ["Axle_Front_MAT_Player_Gunmetal_6"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Axle_Front_MAT_steel_7"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Gunmetal_8"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_darkTrim_9"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier1_Parts_MAT_steel_10"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Hazard_11"] = { c = "#7e6426", m = "Plastic", t = 0 }, ["Tier1_Parts_MAT_Player_IntakeGlow_12"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Tier1_Parts_MAT_lamps_13"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	Machine_magnet_T2 = { group = "machine", size = Vector3.new(1, 0.98, 1.148), meshes = { ["Body_Shell_0"] = { c = "#2f6fb8", m = "SmoothPlastic", t = 0 }, ["Roller_Core_1"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Intake_Roller_MAT_darkTrim_2"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Lidar_Puck_3"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Lidar_Window_4"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Axle_Front_MAT_tread_5"] = { c = "#232325", m = "Plastic", t = 0 }, ["Axle_Front_MAT_Player_Gunmetal_6"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Axle_Front_MAT_steel_7"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Gunmetal_8"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_darkTrim_9"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier1_Parts_MAT_steel_10"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Hazard_11"] = { c = "#7e6426", m = "Plastic", t = 0 }, ["Tier1_Parts_MAT_Player_IntakeGlow_12"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Tier1_Parts_MAT_lamps_13"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Axle_Rear_MAT_tread_14"] = { c = "#232325", m = "Plastic", t = 0 }, ["Axle_Rear_MAT_Player_Gunmetal_15"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Axle_Rear_MAT_steel_16"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Beacon_Dome_17"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Tier2_Parts_MAT_Player_Shell_18"] = { c = "#2f6fb8", m = "SmoothPlastic", t = 0 }, ["Tier2_Parts_MAT_Player_Gunmetal_19"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier2_Parts_MAT_darkTrim_20"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier2_Parts_MAT_steel_21"] = { c = "#a9afb5", m = "Metal", t = 0 } } },
+	Machine_magnet_T3 = { group = "machine", size = Vector3.new(1, 0.98, 1.148), meshes = { ["Body_Shell_0"] = { c = "#2f6fb8", m = "SmoothPlastic", t = 0 }, ["Roller_Core_1"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Intake_Roller_MAT_darkTrim_2"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Lidar_Puck_3"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Lidar_Window_4"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Axle_Front_MAT_tread_5"] = { c = "#232325", m = "Plastic", t = 0 }, ["Axle_Front_MAT_Player_Gunmetal_6"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Axle_Front_MAT_steel_7"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Gunmetal_8"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_darkTrim_9"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier1_Parts_MAT_steel_10"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Hazard_11"] = { c = "#7e6426", m = "Plastic", t = 0 }, ["Tier1_Parts_MAT_Player_IntakeGlow_12"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Tier1_Parts_MAT_lamps_13"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Axle_Rear_MAT_tread_14"] = { c = "#232325", m = "Plastic", t = 0 }, ["Axle_Rear_MAT_Player_Gunmetal_15"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Axle_Rear_MAT_steel_16"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Beacon_Dome_17"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Tier2_Parts_MAT_Player_Shell_18"] = { c = "#2f6fb8", m = "SmoothPlastic", t = 0 }, ["Tier2_Parts_MAT_Player_Gunmetal_19"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier2_Parts_MAT_darkTrim_20"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier2_Parts_MAT_steel_21"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Arm_L_Shoulder_22"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_L_Boom_23"] = { c = "#2f6fb8", m = "SmoothPlastic", t = 0 }, ["Arm_L_Ram_24"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Claw_Wrist_25"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_L_Claw_MAT_steel_26"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Arm_R_Shoulder_27"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_R_Boom_28"] = { c = "#2f6fb8", m = "SmoothPlastic", t = 0 }, ["Arm_R_Ram_29"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Claw_Wrist_30"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_R_Claw_MAT_steel_31"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["RollCage_Lights_32"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Tier3_Parts_MAT_Player_Gunmetal_33"] = { c = "#3a3f44", m = "Metal", t = 0 } } },
+	Machine_magnet_T4 = { group = "machine", size = Vector3.new(1.34, 1.295, 1.291), meshes = { ["Body_Shell_0"] = { c = "#2f6fb8", m = "SmoothPlastic", t = 0 }, ["Roller_Core_1"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Intake_Roller_MAT_darkTrim_2"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Lidar_Puck_3"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Lidar_Window_4"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Axle_Front_MAT_tread_5"] = { c = "#232325", m = "Plastic", t = 0 }, ["Axle_Front_MAT_Player_Gunmetal_6"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Axle_Front_MAT_steel_7"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Gunmetal_8"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_darkTrim_9"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier1_Parts_MAT_steel_10"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Hazard_11"] = { c = "#7e6426", m = "Plastic", t = 0 }, ["Tier1_Parts_MAT_Player_IntakeGlow_12"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Tier1_Parts_MAT_lamps_13"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Axle_Rear_MAT_tread_14"] = { c = "#232325", m = "Plastic", t = 0 }, ["Axle_Rear_MAT_Player_Gunmetal_15"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Axle_Rear_MAT_steel_16"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Beacon_Dome_17"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Tier2_Parts_MAT_Player_Shell_18"] = { c = "#2f6fb8", m = "SmoothPlastic", t = 0 }, ["Tier2_Parts_MAT_Player_Gunmetal_19"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier2_Parts_MAT_darkTrim_20"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier2_Parts_MAT_steel_21"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Arm_L_Shoulder_22"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_L_Boom_23"] = { c = "#2f6fb8", m = "SmoothPlastic", t = 0 }, ["Arm_L_Ram_24"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Claw_Wrist_25"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_L_Claw_MAT_steel_26"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Arm_R_Shoulder_27"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_R_Boom_28"] = { c = "#2f6fb8", m = "SmoothPlastic", t = 0 }, ["Arm_R_Ram_29"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Claw_Wrist_30"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_R_Claw_MAT_steel_31"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["RollCage_Lights_32"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Tier3_Parts_MAT_Player_Gunmetal_33"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Jaw_L_Plate_34"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["CrusherJaw_L_MAT_steel_35"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Jaw_R_Plate_36"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["CrusherJaw_R_MAT_steel_37"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Cyclone_Drum_38"] = { c = "#2f6fb8", m = "SmoothPlastic", t = 0 }, ["Tier4_Parts_MAT_tread_39"] = { c = "#232325", m = "Plastic", t = 0 }, ["Tier4_Parts_MAT_Player_Gunmetal_40"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier4_Parts_MAT_steel_41"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier4_Parts_MAT_Player_Hazard_42"] = { c = "#7e6426", m = "Plastic", t = 0 }, ["Tier4_Parts_MAT_darkTrim_43"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier4_Parts_MAT_lamps_44"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	Machine_magnet_T5 = { group = "machine", size = Vector3.new(1.34, 1.295, 1.291), meshes = { ["Body_Shell_0"] = { c = "#2f6fb8", m = "SmoothPlastic", t = 0 }, ["Roller_Core_1"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Intake_Roller_MAT_darkTrim_2"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Lidar_Puck_3"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Lidar_Window_4"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Axle_Front_MAT_tread_5"] = { c = "#232325", m = "Plastic", t = 0 }, ["Axle_Front_MAT_Player_Gunmetal_6"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Axle_Front_MAT_steel_7"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Gunmetal_8"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_darkTrim_9"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier1_Parts_MAT_steel_10"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier1_Parts_MAT_Player_Hazard_11"] = { c = "#7e6426", m = "Plastic", t = 0 }, ["Tier1_Parts_MAT_Player_IntakeGlow_12"] = { c = "#ff9a2a", m = "Neon", t = 0 }, ["Tier1_Parts_MAT_lamps_13"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Axle_Rear_MAT_tread_14"] = { c = "#232325", m = "Plastic", t = 0 }, ["Axle_Rear_MAT_Player_Gunmetal_15"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Axle_Rear_MAT_steel_16"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Beacon_Dome_17"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Tier2_Parts_MAT_Player_Shell_18"] = { c = "#2f6fb8", m = "SmoothPlastic", t = 0 }, ["Tier2_Parts_MAT_Player_Gunmetal_19"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier2_Parts_MAT_darkTrim_20"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier2_Parts_MAT_steel_21"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Arm_L_Shoulder_22"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_L_Boom_23"] = { c = "#2f6fb8", m = "SmoothPlastic", t = 0 }, ["Arm_L_Ram_24"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Claw_Wrist_25"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_L_Claw_MAT_steel_26"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Arm_R_Shoulder_27"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_R_Boom_28"] = { c = "#2f6fb8", m = "SmoothPlastic", t = 0 }, ["Arm_R_Ram_29"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Claw_Wrist_30"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Arm_R_Claw_MAT_steel_31"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["RollCage_Lights_32"] = { c = "#ffffff", m = "Neon", t = 0 }, ["Tier3_Parts_MAT_Player_Gunmetal_33"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Jaw_L_Plate_34"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["CrusherJaw_L_MAT_steel_35"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Jaw_R_Plate_36"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["CrusherJaw_R_MAT_steel_37"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Cyclone_Drum_38"] = { c = "#2f6fb8", m = "SmoothPlastic", t = 0 }, ["Tier4_Parts_MAT_tread_39"] = { c = "#232325", m = "Plastic", t = 0 }, ["Tier4_Parts_MAT_Player_Gunmetal_40"] = { c = "#3a3f44", m = "Metal", t = 0 }, ["Tier4_Parts_MAT_steel_41"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["Tier4_Parts_MAT_Player_Hazard_42"] = { c = "#7e6426", m = "Plastic", t = 0 }, ["Tier4_Parts_MAT_darkTrim_43"] = { c = "#1f2123", m = "SmoothPlastic", t = 0 }, ["Tier4_Parts_MAT_lamps_44"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	POWER_SPEED = { group = "object", size = Vector3.new(0.56, 0.47, 0.562), meshes = { ["paint_0"] = { c = "#3796e4", m = "Plastic", t = 0 }, ["steel_1"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["lamps_2"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	POWER_MAGNET = { group = "object", size = Vector3.new(0.56, 0.47, 0.562), meshes = { ["paint_0"] = { c = "#9d51e4", m = "Plastic", t = 0 }, ["steel_1"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["lamps_2"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	POWER_SHIELD = { group = "object", size = Vector3.new(0.56, 0.47, 0.562), meshes = { ["paint_0"] = { c = "#37c8ab", m = "Plastic", t = 0 }, ["steel_1"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["lamps_2"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	GOLD_CRATE = { group = "object", size = Vector3.new(0.51, 0.44, 0.512), meshes = { ["paint_0"] = { c = "#d8ac45", m = "Plastic", t = 0 }, ["steel_1"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["lamps_2"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	SCRAP = { group = "object", size = Vector3.new(0.096, 0.04, 0.066), meshes = { ["paint_0"] = { c = "#7d7f81", m = "Plastic", t = 0 }, ["steel_1"] = { c = "#a9afb5", m = "Metal", t = 0 } } },
+	CAN = { group = "object", size = Vector3.new(0.063, 0.12, 0.066), meshes = { ["aluminium_0"] = { c = "#b8402f", m = "Metal", t = 0 }, ["steel_1"] = { c = "#a9afb5", m = "Metal", t = 0 } } },
+	BOTTLE = { group = "object", size = Vector3.new(0.071, 0.26, 0.075), meshes = { ["glassTint_0"] = { c = "#2f6b4a", m = "Glass", t = 0.28 }, ["steel_1"] = { c = "#a9afb5", m = "Metal", t = 0 } } },
+	BRICK = { group = "object", size = Vector3.new(0.215, 0.065, 0.102), meshes = { ["propBrick_0"] = { c = "#4d2317", m = "Plastic", t = 0 } } },
+	CARDBOARD_SMALL = { group = "object", size = Vector3.new(0.3, 0.23, 0.256), meshes = { ["cardboard_0"] = { c = "#7a5024", m = "Plastic", t = 0 }, ["glossyPlastic_1"] = { c = "#b08a5a", m = "SmoothPlastic", t = 0 } } },
+	CARDBOARD_BOX = { group = "object", size = Vector3.new(0.55, 0.434, 0.456), meshes = { ["cardboard_0"] = { c = "#71491f", m = "Plastic", t = 0 }, ["glossyPlastic_1"] = { c = "#a47f50", m = "SmoothPlastic", t = 0 } } },
+	TRASH_BAG = { group = "object", size = Vector3.new(0.572, 0.603, 0.513), meshes = { ["glossyPlastic_0"] = { c = "#2b2d30", m = "SmoothPlastic", t = 0 } } },
+	TRAFFIC_CONE = { group = "object", size = Vector3.new(0.36, 0.7, 0.36), meshes = { ["tread_0"] = { c = "#232325", m = "Plastic", t = 0 }, ["plastic_1"] = { c = "#d9622b", m = "SmoothPlastic", t = 0 }, ["reflective_2"] = { c = "#2a2a2a", m = "Neon", t = 0 } } },
+	CHAIR = { group = "object", size = Vector3.new(0.466, 0.852, 0.505), meshes = { ["paint_0"] = { c = "#604f3d", m = "Plastic", t = 0 }, ["wood_1"] = { c = "#8a6440", m = "SmoothPlastic", t = 0 } } },
+	CAFE_TABLE = { group = "object", size = Vector3.new(0.766, 0.75, 0.766), meshes = { ["plastic_0"] = { c = "#5a5f63", m = "SmoothPlastic", t = 0 }, ["steel_1"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["tread_2"] = { c = "#232325", m = "Plastic", t = 0 } } },
+	TRASH_CAN = { group = "object", size = Vector3.new(0.618, 0.975, 0.625), meshes = { ["plastic_0"] = { c = "#3f5a45", m = "SmoothPlastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 } } },
+	BICYCLE = { group = "object", size = Vector3.new(0.58, 1.048, 1.794), meshes = { ["tread_0"] = { c = "#232325", m = "Plastic", t = 0 }, ["steel_1"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["paint_2"] = { c = "#29527a", m = "Plastic", t = 0 } } },
+	DUMPSTER = { group = "object", size = Vector3.new(2.02, 1.262, 1.168), meshes = { ["paint_0"] = { c = "#294f35", m = "Plastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 }, ["steel_2"] = { c = "#a9afb5", m = "Metal", t = 0 } } },
+	VENDING_MACHINE = { group = "object", size = Vector3.new(0.9, 1.85, 0.822), meshes = { ["paint_0"] = { c = "#91332e", m = "Plastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 }, ["screen_2"] = { c = "#dde8ff", m = "Neon", t = 0 }, ["steel_3"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["glassTint_4"] = { c = "#a33a35", m = "Glass", t = 0.28 }, ["clearGlass_5"] = { c = "#cfd8de", m = "Glass", t = 0.78 } } },
+	CAR_COMPACT = { group = "object", size = Vector3.new(1.819, 1.472, 4.11), meshes = { ["carPaint_0"] = { c = "#8a969e", m = "SmoothPlastic", t = 0 }, ["glass_1"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["tread_2"] = { c = "#232325", m = "Plastic", t = 0 }, ["steel_3"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["reflective_4"] = { c = "#2a2a2a", m = "Neon", t = 0 }, ["lamps_5"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	DELIVERY_TRUCK = { group = "object", size = Vector3.new(2.59, 3.34, 7.355), meshes = { ["carPaint_0"] = { c = "#e4e1d8", m = "SmoothPlastic", t = 0 }, ["glass_1"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["tread_2"] = { c = "#232325", m = "Plastic", t = 0 }, ["paint_3"] = { c = "#cbc9c1", m = "Plastic", t = 0 }, ["steel_4"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["lamps_5"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	SHOPPING_CART = { group = "object", size = Vector3.new(0.66, 0.968, 1.006), meshes = { ["steel_0"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 }, ["plastic_2"] = { c = "#b9bec2", m = "SmoothPlastic", t = 0 } } },
+	PALLET = { group = "object", size = Vector3.new(1.2, 0.144, 1), meshes = { ["timber_0"] = { c = "#a88455", m = "SmoothPlastic", t = 0 } } },
+	PALLET_STACK = { group = "object", size = Vector3.new(1.235, 0.91, 1.029), meshes = { ["timber_0"] = { c = "#a88455", m = "SmoothPlastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 } } },
+	MOTORCYCLE = { group = "object", size = Vector3.new(0.84, 1.071, 2.07), meshes = { ["tread_0"] = { c = "#232325", m = "Plastic", t = 0 }, ["steel_1"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["carPaint_2"] = { c = "#9b2a24", m = "SmoothPlastic", t = 0 }, ["lamps_3"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	UTILITY_BOX = { group = "object", size = Vector3.new(1.32, 1.435, 0.62), meshes = { ["concreteProp_0"] = { c = "#343a2f", m = "Plastic", t = 0 }, ["paint_1"] = { c = "#616c5e", m = "Plastic", t = 0 }, ["tread_2"] = { c = "#232325", m = "Plastic", t = 0 }, ["steel_3"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["reflective_4"] = { c = "#2a2a2a", m = "Neon", t = 0 } } },
+	JERSEY_BARRIER = { group = "object", size = Vector3.new(0.63, 0.913, 3), meshes = { ["concreteProp_0"] = { c = "#656158", m = "Plastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 }, ["steel_2"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["reflective_3"] = { c = "#2a2a2a", m = "Neon", t = 0 } } },
+	HOARDING = { group = "object", size = Vector3.new(2.7, 2.5, 0.325), meshes = { ["paint_0"] = { c = "#29503d", m = "Plastic", t = 0 }, ["timber_1"] = { c = "#1e331a", m = "SmoothPlastic", t = 0 }, ["concreteProp_2"] = { c = "#12291d", m = "Plastic", t = 0 } } },
+	VAN = { group = "object", size = Vector3.new(2.18, 2.513, 5.52), meshes = { ["carPaint_0"] = { c = "#e6e3dc", m = "SmoothPlastic", t = 0 }, ["glass_1"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["tread_2"] = { c = "#232325", m = "Plastic", t = 0 }, ["steel_3"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["lamps_4"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	GENERATOR = { group = "object", size = Vector3.new(1.46, 2.155, 3.121), meshes = { ["paint_0"] = { c = "#c19017", m = "Plastic", t = 0 }, ["steel_1"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["tread_2"] = { c = "#232325", m = "Plastic", t = 0 }, ["screen_3"] = { c = "#dde8ff", m = "Neon", t = 0 } } },
+	PIPE_STACK = { group = "object", size = Vector3.new(2.6, 1.25, 6.02), meshes = { ["paint_0"] = { c = "#60656a", m = "Plastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 }, ["timber_2"] = { c = "#494132", m = "SmoothPlastic", t = 0 } } },
+	SCAFFOLD = { group = "object", size = Vector3.new(2.633, 6.19, 1.25), meshes = { ["steel_0"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 }, ["timber_2"] = { c = "#6a5e48", m = "SmoothPlastic", t = 0 }, ["paint_3"] = { c = "#898f94", m = "Plastic", t = 0 } } },
+	CONTAINER = { group = "object", size = Vector3.new(2.44, 2.59, 6.125), meshes = { ["corrugated_0"] = { c = "#7b2c1f", m = "Plastic", t = 0 }, ["paint_1"] = { c = "#8a3324", m = "Plastic", t = 0 }, ["tread_2"] = { c = "#232325", m = "Plastic", t = 0 }, ["steel_3"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["reflective_4"] = { c = "#2a2a2a", m = "Neon", t = 0 } } },
+	SITE_CABIN = { group = "object", size = Vector3.new(3.35, 3.35, 7.3), meshes = { ["paint_0"] = { c = "#c1bcb0", m = "Plastic", t = 0 }, ["steel_1"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["glass_2"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["tread_3"] = { c = "#232325", m = "Plastic", t = 0 } } },
+	TIPPER_TRUCK = { group = "object", size = Vector3.new(2.78, 3.26, 8.35), meshes = { ["paint_0"] = { c = "#c19017", m = "Plastic", t = 0 }, ["glass_1"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["tread_2"] = { c = "#232325", m = "Plastic", t = 0 }, ["steel_3"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["lamps_4"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	EXCAVATOR = { group = "object", size = Vector3.new(3, 4.658, 9.33), meshes = { ["tread_0"] = { c = "#232325", m = "Plastic", t = 0 }, ["steel_1"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["paint_2"] = { c = "#c89318", m = "Plastic", t = 0 }, ["glass_3"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 } } },
+	PALLET_RACK = { group = "object", size = Vector3.new(2.7, 5.4, 1.2), meshes = { ["paint_0"] = { c = "#294f7a", m = "Plastic", t = 0 }, ["steel_1"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["timber_2"] = { c = "#1e323b", m = "SmoothPlastic", t = 0 }, ["cardboard_3"] = { c = "#1e323b", m = "Plastic", t = 0 }, ["glossyPlastic_4"] = { c = "#2f5a8a", m = "SmoothPlastic", t = 0 } } },
+	FUEL_TANK = { group = "object", size = Vector3.new(8.45, 9.13, 7.55), meshes = { ["concreteProp_0"] = { c = "#6d6a62", m = "Plastic", t = 0 }, ["paint_1"] = { c = "#c1bfb8", m = "Plastic", t = 0 }, ["steel_2"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["tread_3"] = { c = "#232325", m = "Plastic", t = 0 } } },
+	GARAGE_ROW = { group = "object", size = Vector3.new(16.3, 3.096, 6.929), meshes = { ["propBrick_0"] = { c = "#57372a", m = "Plastic", t = 0 }, ["steel_1"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["tread_2"] = { c = "#232325", m = "Plastic", t = 0 }, ["roofMetal_3"] = { c = "#626568", m = "Metal", t = 0 } } },
+	WH_PANEL_FRONT = { group = "object", size = Vector3.new(12, 11.5, 0.925), meshes = { ["concreteProp_0"] = { c = "#595d5c", m = "Plastic", t = 0 }, ["corrugated_1"] = { c = "#8f969a", m = "Plastic", t = 0 }, ["tread_2"] = { c = "#232325", m = "Plastic", t = 0 }, ["glass_3"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["paint_4"] = { c = "#a0a7ad", m = "Plastic", t = 0 }, ["lamps_5"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	WH_PANEL_BACK = { group = "object", size = Vector3.new(12, 11.5, 0.8), meshes = { ["concreteProp_0"] = { c = "#595d5c", m = "Plastic", t = 0 }, ["corrugated_1"] = { c = "#8f969a", m = "Plastic", t = 0 }, ["tread_2"] = { c = "#232325", m = "Plastic", t = 0 }, ["glass_3"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["steel_4"] = { c = "#a9afb5", m = "Metal", t = 0 } } },
+	WH_PANEL_END = { group = "object", size = Vector3.new(10, 11.5, 0.7), meshes = { ["concreteProp_0"] = { c = "#595d5c", m = "Plastic", t = 0 }, ["corrugated_1"] = { c = "#8f969a", m = "Plastic", t = 0 }, ["tread_2"] = { c = "#232325", m = "Plastic", t = 0 }, ["glass_3"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 } } },
+	WH_ROOF_END = { group = "object", size = Vector3.new(12, 5.601, 31.2), meshes = { ["roofMetal_0"] = { c = "#626568", m = "Metal", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 }, ["steel_2"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["corrugated_3"] = { c = "#8f969a", m = "Plastic", t = 0 } } },
+	WH_ROOF = { group = "object", size = Vector3.new(12, 5.601, 31.2), meshes = { ["roofMetal_0"] = { c = "#626568", m = "Metal", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 }, ["steel_2"] = { c = "#a9afb5", m = "Metal", t = 0 } } },
+	WH_SIGN = { group = "object", size = Vector3.new(18, 2.4, 0.51), meshes = { ["paint_0"] = { c = "#d0cbc1", m = "Plastic", t = 0 }, ["sign_1"] = { c = "#d5beb1", m = "SmoothPlastic", t = 0 }, ["steel_2"] = { c = "#a9afb5", m = "Metal", t = 0 } } },
+	TAXI_NY = { group = "object", size = Vector3.new(1.917, 1.68, 4.81), meshes = { ["carPaint_0"] = { c = "#f2b705", m = "SmoothPlastic", t = 0 }, ["glass_1"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["tread_2"] = { c = "#232325", m = "Plastic", t = 0 }, ["steel_3"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["reflective_4"] = { c = "#2a2a2a", m = "Neon", t = 0 }, ["screen_5"] = { c = "#dde8ff", m = "Neon", t = 0 }, ["lamps_6"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	TAXI_SH = { group = "object", size = Vector3.new(1.868, 1.68, 4.81), meshes = { ["carPaint_0"] = { c = "#3aa6b9", m = "SmoothPlastic", t = 0 }, ["glass_1"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["tread_2"] = { c = "#232325", m = "Plastic", t = 0 }, ["steel_3"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["reflective_4"] = { c = "#2a2a2a", m = "Neon", t = 0 }, ["screen_5"] = { c = "#dde8ff", m = "Neon", t = 0 }, ["lamps_6"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	TAXI_PA = { group = "object", size = Vector3.new(1.868, 1.68, 4.71), meshes = { ["carPaint_0"] = { c = "#1d1f22", m = "SmoothPlastic", t = 0 }, ["glass_1"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["tread_2"] = { c = "#232325", m = "Plastic", t = 0 }, ["steel_3"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["reflective_4"] = { c = "#2a2a2a", m = "Neon", t = 0 }, ["screen_5"] = { c = "#dde8ff", m = "Neon", t = 0 }, ["lamps_6"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	BUS_SH = { group = "object", size = Vector3.new(3, 3.425, 12.18), meshes = { ["carPaint_0"] = { c = "#2f7fbf", m = "SmoothPlastic", t = 0 }, ["glass_1"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["tread_2"] = { c = "#232325", m = "Plastic", t = 0 }, ["screen_3"] = { c = "#dde8ff", m = "Neon", t = 0 }, ["paint_4"] = { c = "#2971aa", m = "Plastic", t = 0 }, ["steel_5"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["lamps_6"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	BUS_NY = { group = "object", size = Vector3.new(3.05, 3.525, 12.38), meshes = { ["carPaint_0"] = { c = "#e8e6e0", m = "SmoothPlastic", t = 0 }, ["glass_1"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["tread_2"] = { c = "#232325", m = "Plastic", t = 0 }, ["screen_3"] = { c = "#dde8ff", m = "Neon", t = 0 }, ["paint_4"] = { c = "#cfcdc8", m = "Plastic", t = 0 }, ["steel_5"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["lamps_6"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	BUS_PA = { group = "object", size = Vector3.new(3, 3.425, 12.18), meshes = { ["carPaint_0"] = { c = "#4f8a5b", m = "SmoothPlastic", t = 0 }, ["glass_1"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["tread_2"] = { c = "#232325", m = "Plastic", t = 0 }, ["screen_3"] = { c = "#dde8ff", m = "Neon", t = 0 }, ["paint_4"] = { c = "#467a50", m = "Plastic", t = 0 }, ["steel_5"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["lamps_6"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	SCOOTER = { group = "object", size = Vector3.new(0.84, 1.071, 1.77), meshes = { ["tread_0"] = { c = "#232325", m = "Plastic", t = 0 }, ["steel_1"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["carPaint_2"] = { c = "#d9d4c7", m = "SmoothPlastic", t = 0 }, ["lamps_3"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	KIOSK = { group = "object", size = Vector3.new(2.976, 3.45, 2.883), meshes = { ["paint_0"] = { c = "#294633", m = "Plastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 }, ["screen_2"] = { c = "#dde8ff", m = "Neon", t = 0 }, ["wood_3"] = { c = "#8a6440", m = "SmoothPlastic", t = 0 }, ["roofMetal_4"] = { c = "#626568", m = "Metal", t = 0 }, ["steel_5"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["lamps_6"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	FOOD_CART = { group = "object", size = Vector3.new(2.305, 2.405, 2), meshes = { ["steel_0"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["paint_1"] = { c = "#29548d", m = "Plastic", t = 0 }, ["tread_2"] = { c = "#232325", m = "Plastic", t = 0 }, ["fabric_3"] = { c = "#2f5f9f", m = "Plastic", t = 0 } } },
+	BENCH = { group = "object", size = Vector3.new(1.8, 0.867, 0.604), meshes = { ["wood_0"] = { c = "#8a6440", m = "SmoothPlastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 } } },
+	B_SHIKUMEN = { group = "object", size = Vector3.new(12.9, 9.75, 10.742), meshes = { ["propBrick_0"] = { c = "#59554c", m = "Plastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 }, ["glass_2"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["concreteProp_3"] = { c = "#59554c", m = "Plastic", t = 0 }, ["citySign_4"] = { c = "#ffffff", m = "Neon", t = 0 }, ["steel_5"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["roofMetal_6"] = { c = "#626568", m = "Metal", t = 0 } } },
+	B_SH_MID = { group = "object", size = Vector3.new(16.79, 27.4, 15.8), meshes = { ["concreteProp_0"] = { c = "#757166", m = "Plastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 }, ["glass_2"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["citySign_3"] = { c = "#ffffff", m = "Neon", t = 0 }, ["wood_4"] = { c = "#8a6440", m = "SmoothPlastic", t = 0 }, ["steel_5"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["screen_6"] = { c = "#dde8ff", m = "Neon", t = 0 }, ["roofMetal_7"] = { c = "#626568", m = "Metal", t = 0 } } },
+	B_BROWNSTONE = { group = "object", size = Vector3.new(7.9, 14.9, 15.6), meshes = { ["propBrick_0"] = { c = "#3a2015", m = "Plastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 }, ["glass_2"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["roofMetal_3"] = { c = "#626568", m = "Metal", t = 0 }, ["steel_4"] = { c = "#a9afb5", m = "Metal", t = 0 } } },
+	B_NY_LOFT = { group = "object", size = Vector3.new(18.9, 35.7, 19.09), meshes = { ["propBrick_0"] = { c = "#4c291a", m = "Plastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 }, ["glass_2"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["citySign_3"] = { c = "#ffffff", m = "Neon", t = 0 }, ["wood_4"] = { c = "#8a6440", m = "SmoothPlastic", t = 0 }, ["steel_5"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["roofMetal_6"] = { c = "#626568", m = "Metal", t = 0 } } },
+	B_HAUSSMANN = { group = "object", size = Vector3.new(18.9, 25.95, 14.65), meshes = { ["concreteProp_0"] = { c = "#6f6756", m = "Plastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 }, ["glass_2"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["citySign_3"] = { c = "#ffffff", m = "Neon", t = 0 }, ["wood_4"] = { c = "#8a6440", m = "SmoothPlastic", t = 0 }, ["steel_5"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["roofMetal_6"] = { c = "#626568", m = "Metal", t = 0 }, ["propBrick_7"] = { c = "#6f6756", m = "Plastic", t = 0 } } },
+	B_PARIS_CAFE = { group = "object", size = Vector3.new(10.9, 15.45, 11.55), meshes = { ["concreteProp_0"] = { c = "#6f6756", m = "Plastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 }, ["glass_2"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["citySign_3"] = { c = "#ffffff", m = "Neon", t = 0 }, ["wood_4"] = { c = "#8a6440", m = "SmoothPlastic", t = 0 }, ["roofMetal_5"] = { c = "#626568", m = "Metal", t = 0 }, ["propBrick_6"] = { c = "#6f6756", m = "Plastic", t = 0 } } },
+	PEARL_LEG = { group = "object", size = Vector3.new(3.44, 24.482, 12.32), meshes = { ["concreteProp_0"] = { c = "#6d6a61", m = "Plastic", t = 0 }, ["steel_1"] = { c = "#a9afb5", m = "Metal", t = 0 } } },
+	PEARL_SPHERE_LOW = { group = "object", size = Vector3.new(10, 10, 10), meshes = { ["carPaint_0"] = { c = "#c2386a", m = "SmoothPlastic", t = 0 }, ["glass_1"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["steel_2"] = { c = "#a9afb5", m = "Metal", t = 0 } } },
+	PEARL_SHAFT = { group = "object", size = Vector3.new(4.455, 26, 4.918), meshes = { ["steel_0"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["carPaint_1"] = { c = "#c2386a", m = "SmoothPlastic", t = 0 } } },
+	PEARL_SPHERE_UP = { group = "object", size = Vector3.new(8, 8, 8), meshes = { ["carPaint_0"] = { c = "#c2386a", m = "SmoothPlastic", t = 0 }, ["glass_1"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["steel_2"] = { c = "#a9afb5", m = "Metal", t = 0 } } },
+	PEARL_TOP = { group = "object", size = Vector3.new(4.4, 36.25, 4.4), meshes = { ["steel_0"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["carPaint_1"] = { c = "#c2386a", m = "SmoothPlastic", t = 0 }, ["glass_2"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["lamps_3"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	ESB_PODIUM = { group = "object", size = Vector3.new(13.9, 13.6, 23.55), meshes = { ["concreteProp_0"] = { c = "#686254", m = "Plastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 }, ["glass_2"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["wood_3"] = { c = "#8a6440", m = "SmoothPlastic", t = 0 }, ["roofMetal_4"] = { c = "#626568", m = "Metal", t = 0 }, ["steel_5"] = { c = "#a9afb5", m = "Metal", t = 0 } } },
+	ESB_SHAFT_LOW = { group = "object", size = Vector3.new(16.6, 30.1, 14.6), meshes = { ["concreteProp_0"] = { c = "#686254", m = "Plastic", t = 0 }, ["glass_1"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["steel_2"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["roofMetal_3"] = { c = "#626568", m = "Metal", t = 0 } } },
+	ESB_SHAFT_HIGH = { group = "object", size = Vector3.new(12.6, 22.1, 10.6), meshes = { ["concreteProp_0"] = { c = "#686254", m = "Plastic", t = 0 }, ["glass_1"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["steel_2"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["roofMetal_3"] = { c = "#626568", m = "Metal", t = 0 } } },
+	ESB_CROWN = { group = "object", size = Vector3.new(9.09, 32.22, 7.74), meshes = { ["concreteProp_0"] = { c = "#686254", m = "Plastic", t = 0 }, ["glass_1"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["steel_2"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["screen_3"] = { c = "#dde8ff", m = "Neon", t = 0 }, ["lamps_4"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	EIFFEL_LEG = { group = "object", size = Vector3.new(6.829, 12.178, 6.838), meshes = { ["paint_0"] = { c = "#624f3c", m = "Plastic", t = 0 }, ["concreteProp_1"] = { c = "#35291c", m = "Plastic", t = 0 } } },
+	EIFFEL_DECK = { group = "object", size = Vector3.new(15.15, 6.491, 15.15), meshes = { ["paint_0"] = { c = "#624f3c", m = "Plastic", t = 0 }, ["glass_1"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["tread_2"] = { c = "#232325", m = "Plastic", t = 0 } } },
+	EIFFEL_MID = { group = "object", size = Vector3.new(12.368, 12.734, 12.35), meshes = { ["paint_0"] = { c = "#624f3c", m = "Plastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 } } },
+	EIFFEL_UPPER = { group = "object", size = Vector3.new(7.501, 30.124, 7.486), meshes = { ["paint_0"] = { c = "#624f3c", m = "Plastic", t = 0 } } },
+	EIFFEL_TOP = { group = "object", size = Vector3.new(3.2, 12.2, 3.2), meshes = { ["paint_0"] = { c = "#624f3c", m = "Plastic", t = 0 }, ["glass_1"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["steel_2"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["lamps_3"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	CUSTOMS_HOUSE = { group = "object", size = Vector3.new(24.4, 34, 19.4), meshes = { ["stone_0"] = { c = "#6d6759", m = "SmoothPlastic", t = 0 }, ["glass_1"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["tread_2"] = { c = "#232325", m = "Plastic", t = 0 }, ["screen_3"] = { c = "#dde8ff", m = "Neon", t = 0 }, ["roofMetal_4"] = { c = "#626568", m = "Metal", t = 0 }, ["steel_5"] = { c = "#a9afb5", m = "Metal", t = 0 } } },
+	PEACE_HOTEL = { group = "object", size = Vector3.new(16.4, 35, 14.4), meshes = { ["stone_0"] = { c = "#6d6759", m = "SmoothPlastic", t = 0 }, ["glass_1"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["tread_2"] = { c = "#232325", m = "Plastic", t = 0 }, ["copper_3"] = { c = "#5f9e8a", m = "SmoothPlastic", t = 0 }, ["steel_4"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["citySign_5"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	FLATIRON = { group = "object", size = Vector3.new(12.42, 29, 28.98), meshes = { ["stone_0"] = { c = "#6d6759", m = "SmoothPlastic", t = 0 }, ["glass_1"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["tread_2"] = { c = "#232325", m = "Plastic", t = 0 } } },
+	TIMES_TOWER = { group = "object", size = Vector3.new(11.8, 43, 11.8), meshes = { ["tread_0"] = { c = "#232325", m = "Plastic", t = 0 }, ["citySign_1"] = { c = "#ffffff", m = "Neon", t = 0 }, ["steel_2"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["glass_3"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 } } },
+	SUBWAY_ENTRANCE = { group = "object", size = Vector3.new(2.64, 3.195, 4.57), meshes = { ["tread_0"] = { c = "#232325", m = "Plastic", t = 0 }, ["concreteProp_1"] = { c = "#122c17", m = "Plastic", t = 0 }, ["copper_2"] = { c = "#5f9e8a", m = "SmoothPlastic", t = 0 }, ["screen_3"] = { c = "#dde8ff", m = "Neon", t = 0 }, ["citySign_4"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	FIRE_HYDRANT = { group = "object", size = Vector3.new(0.456, 0.755, 0.428), meshes = { ["paint_0"] = { c = "#b02222", m = "Plastic", t = 0 } } },
+	ARC_PIER = { group = "object", size = Vector3.new(6.5, 13.5, 10), meshes = { ["stone_0"] = { c = "#6d6759", m = "SmoothPlastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 } } },
+	ARC_ATTIC = { group = "object", size = Vector3.new(18.6, 9.5, 9.6), meshes = { ["stone_0"] = { c = "#6d6759", m = "SmoothPlastic", t = 0 } } },
+	MORRIS_COLUMN = { group = "object", size = Vector3.new(1.456, 3.675, 1.456), meshes = { ["copper_0"] = { c = "#5f9e8a", m = "SmoothPlastic", t = 0 }, ["paint_1"] = { c = "#28412b", m = "Plastic", t = 0 }, ["citySign_2"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	METRO_ENTRANCE = { group = "object", size = Vector3.new(3.383, 4.535, 4.752), meshes = { ["copper_0"] = { c = "#5f9e8a", m = "SmoothPlastic", t = 0 }, ["citySign_1"] = { c = "#ffffff", m = "Neon", t = 0 }, ["concreteProp_2"] = { c = "#122013", m = "Plastic", t = 0 }, ["tread_3"] = { c = "#232325", m = "Plastic", t = 0 }, ["lamps_4"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	CANDY = { group = "object", size = Vector3.new(0.072, 0.028, 0.028), meshes = { ["glossyPlastic_0"] = { c = "#c92a2a", m = "SmoothPlastic", t = 0 } } },
+	EYEBALL = { group = "object", size = Vector3.new(0.035, 0.035, 0.036), meshes = { ["bone_0"] = { c = "#e4d9bf", m = "SmoothPlastic", t = 0 }, ["slime_1"] = { c = "#ffffff", m = "Neon", t = 0 }, ["tread_2"] = { c = "#232325", m = "Plastic", t = 0 } } },
+	CANDY_CORN = { group = "object", size = Vector3.new(0.024, 0.044, 0.038), meshes = { ["plastic_0"] = { c = "#f2b705", m = "SmoothPlastic", t = 0 }, ["pumpkin_1"] = { c = "#d9621a", m = "SmoothPlastic", t = 0 }, ["bone_2"] = { c = "#e4d9bf", m = "SmoothPlastic", t = 0 } } },
+	CANDLE = { group = "object", size = Vector3.new(0.057, 0.164, 0.06), meshes = { ["plastic_0"] = { c = "#e9e1cf", m = "SmoothPlastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 }, ["lamps_2"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	LOLLIPOP = { group = "object", size = Vector3.new(0.09, 0.024, 0.26), meshes = { ["glossyPlastic_0"] = { c = "#d9342b", m = "SmoothPlastic", t = 0 }, ["bone_1"] = { c = "#e4d9bf", m = "SmoothPlastic", t = 0 } } },
+	BONE = { group = "object", size = Vector3.new(0.063, 0.036, 0.271), meshes = { ["bone_0"] = { c = "#e4d9bf", m = "SmoothPlastic", t = 0 } } },
+	SKULL = { group = "object", size = Vector3.new(0.14, 0.163, 0.199), meshes = { ["bone_0"] = { c = "#e4d9bf", m = "SmoothPlastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 } } },
+	SPIDER = { group = "object", size = Vector3.new(0.121, 0.059, 0.136), meshes = { ["tread_0"] = { c = "#232325", m = "Plastic", t = 0 }, ["lamps_1"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	BAT_PLUSH = { group = "object", size = Vector3.new(0.4, 0.208, 0.122), meshes = { ["fabric_0"] = { c = "#2e2238", m = "Plastic", t = 0 }, ["bone_1"] = { c = "#e4d9bf", m = "SmoothPlastic", t = 0 }, ["tread_2"] = { c = "#232325", m = "Plastic", t = 0 } } },
+	MINI_PUMPKIN = { group = "object", size = Vector3.new(0.32, 0.259, 0.32), meshes = { ["plastic_0"] = { c = "#e0661c", m = "SmoothPlastic", t = 0 }, ["wood_1"] = { c = "#8a6440", m = "SmoothPlastic", t = 0 } } },
+	CANDY_BUCKET = { group = "object", size = Vector3.new(0.306, 0.404, 0.308), meshes = { ["plastic_0"] = { c = "#e8661a", m = "SmoothPlastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 }, ["pumpkin_2"] = { c = "#d9621a", m = "SmoothPlastic", t = 0 }, ["bone_3"] = { c = "#e4d9bf", m = "SmoothPlastic", t = 0 }, ["velvet_4"] = { c = "#6e0c1c", m = "SmoothPlastic", t = 0 } } },
+	WITCH_HAT = { group = "object", size = Vector3.new(0.5, 0.522, 0.5), meshes = { ["fabric_0"] = { c = "#231c2c", m = "Plastic", t = 0 }, ["pumpkin_1"] = { c = "#d9621a", m = "SmoothPlastic", t = 0 }, ["steel_2"] = { c = "#a9afb5", m = "Metal", t = 0 } } },
+	TOMBSTONE = { group = "object", size = Vector3.new(0.872, 1.042, 0.405), meshes = { ["concreteProp_0"] = { c = "#53514b", m = "Plastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 }, ["copper_2"] = { c = "#5f9e8a", m = "SmoothPlastic", t = 0 } } },
+	TOMBSTONE_CROSS = { group = "object", size = Vector3.new(0.662, 1.413, 0.424), meshes = { ["concreteProp_0"] = { c = "#53514b", m = "Plastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 }, ["copper_2"] = { c = "#5f9e8a", m = "SmoothPlastic", t = 0 } } },
+	IRON_FENCE = { group = "object", size = Vector3.new(2.405, 1.705, 0.22), meshes = { ["concreteProp_0"] = { c = "#35312c", m = "Plastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 } } },
+	JACK_O_LANTERN = { group = "object", size = Vector3.new(0.607, 0.597, 0.616), meshes = { ["plastic_0"] = { c = "#e0661c", m = "SmoothPlastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 }, ["wood_2"] = { c = "#8a6440", m = "SmoothPlastic", t = 0 }, ["lamps_3"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	CAULDRON = { group = "object", size = Vector3.new(0.868, 0.855, 0.86), meshes = { ["tread_0"] = { c = "#232325", m = "Plastic", t = 0 }, ["slime_1"] = { c = "#ffffff", m = "Neon", t = 0 }, ["wood_2"] = { c = "#8a6440", m = "SmoothPlastic", t = 0 }, ["lamps_3"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	SKELETON = { group = "object", size = Vector3.new(0.605, 1.723, 0.643), meshes = { ["tread_0"] = { c = "#232325", m = "Plastic", t = 0 }, ["steel_1"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["bone_2"] = { c = "#e4d9bf", m = "SmoothPlastic", t = 0 } } },
+	BROOM_RACK = { group = "object", size = Vector3.new(1.347, 1.853, 0.602), meshes = { ["timber_0"] = { c = "#1a1011", m = "SmoothPlastic", t = 0 }, ["wood_1"] = { c = "#8a6440", m = "SmoothPlastic", t = 0 }, ["straw_2"] = { c = "#b3823c", m = "Plastic", t = 0 }, ["tread_3"] = { c = "#232325", m = "Plastic", t = 0 }, ["pumpkin_4"] = { c = "#d9621a", m = "SmoothPlastic", t = 0 }, ["steel_5"] = { c = "#a9afb5", m = "Metal", t = 0 } } },
+	BAT_SIGN = { group = "object", size = Vector3.new(1.151, 2.37, 0.174), meshes = { ["wood_0"] = { c = "#8a6440", m = "SmoothPlastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 }, ["timber_2"] = { c = "#3c2611", m = "SmoothPlastic", t = 0 }, ["bone_3"] = { c = "#e4d9bf", m = "SmoothPlastic", t = 0 }, ["lamps_4"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	CROW_POST = { group = "object", size = Vector3.new(0.769, 1.965, 0.404), meshes = { ["wood_0"] = { c = "#8a6440", m = "SmoothPlastic", t = 0 }, ["stone_1"] = { c = "#6d6759", m = "SmoothPlastic", t = 0 }, ["tread_2"] = { c = "#232325", m = "Plastic", t = 0 }, ["lamps_3"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	LANTERN_POST = { group = "object", size = Vector3.new(0.89, 3.03, 0.48), meshes = { ["stone_0"] = { c = "#6d6759", m = "SmoothPlastic", t = 0 }, ["wood_1"] = { c = "#8a6440", m = "SmoothPlastic", t = 0 }, ["tread_2"] = { c = "#232325", m = "Plastic", t = 0 }, ["plastic_3"] = { c = "#e0661c", m = "SmoothPlastic", t = 0 }, ["lamps_4"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	SPIDER_WEB = { group = "object", size = Vector3.new(2.181, 2.456, 0.16), meshes = { ["wood_0"] = { c = "#8a6440", m = "SmoothPlastic", t = 0 }, ["bone_1"] = { c = "#e4d9bf", m = "SmoothPlastic", t = 0 }, ["tread_2"] = { c = "#232325", m = "Plastic", t = 0 }, ["lamps_3"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	GRAVE_OBELISK = { group = "object", size = Vector3.new(0.95, 2.8, 0.95), meshes = { ["concreteProp_0"] = { c = "#53514b", m = "Plastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 }, ["bone_2"] = { c = "#e4d9bf", m = "SmoothPlastic", t = 0 }, ["copper_3"] = { c = "#5f9e8a", m = "SmoothPlastic", t = 0 } } },
+	COFFIN = { group = "object", size = Vector3.new(0.99, 0.598, 2.284), meshes = { ["timber_0"] = { c = "#482510", m = "SmoothPlastic", t = 0 }, ["velvet_1"] = { c = "#6e0c1c", m = "SmoothPlastic", t = 0 }, ["steel_2"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["bone_3"] = { c = "#e4d9bf", m = "SmoothPlastic", t = 0 } } },
+	SLIME_GHOST = { group = "object", size = Vector3.new(1.64, 2.105, 1.115), meshes = { ["slime_0"] = { c = "#ffffff", m = "Neon", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 }, ["lamps_2"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	SCARECROW = { group = "object", size = Vector3.new(1.88, 2.33, 0.653), meshes = { ["wood_0"] = { c = "#8a6440", m = "SmoothPlastic", t = 0 }, ["fabric_1"] = { c = "#5b4a3a", m = "Plastic", t = 0 }, ["straw_2"] = { c = "#b3823c", m = "Plastic", t = 0 }, ["velvet_3"] = { c = "#6e0c1c", m = "SmoothPlastic", t = 0 }, ["pumpkin_4"] = { c = "#d9621a", m = "SmoothPlastic", t = 0 }, ["tread_5"] = { c = "#232325", m = "Plastic", t = 0 }, ["lamps_6"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	VAMPIRE_COFFIN = { group = "object", size = Vector3.new(1.56, 1.879, 2.53), meshes = { ["stone_0"] = { c = "#6d6759", m = "SmoothPlastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 }, ["fabric_2"] = { c = "#8a0f22", m = "Plastic", t = 0 }, ["copper_3"] = { c = "#5f9e8a", m = "SmoothPlastic", t = 0 }, ["bone_4"] = { c = "#e4d9bf", m = "SmoothPlastic", t = 0 }, ["lamps_5"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	VAMPIRE = { group = "object", size = Vector3.new(1.86, 2.65, 1.2), meshes = { ["stone_0"] = { c = "#6d6759", m = "SmoothPlastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 }, ["bone_2"] = { c = "#e4d9bf", m = "SmoothPlastic", t = 0 }, ["fabric_3"] = { c = "#1c1622", m = "Plastic", t = 0 }, ["copper_4"] = { c = "#5f9e8a", m = "SmoothPlastic", t = 0 }, ["velvet_5"] = { c = "#6e0c1c", m = "SmoothPlastic", t = 0 }, ["lamps_6"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	WEREWOLF = { group = "object", size = Vector3.new(1.56, 3.503, 1.511), meshes = { ["stone_0"] = { c = "#6d6759", m = "SmoothPlastic", t = 0 }, ["fabric_1"] = { c = "#4a3a2c", m = "Plastic", t = 0 }, ["bone_2"] = { c = "#e4d9bf", m = "SmoothPlastic", t = 0 }, ["tread_3"] = { c = "#232325", m = "Plastic", t = 0 }, ["lamps_4"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	WITCH = { group = "object", size = Vector3.new(0.897, 2.174, 1.675), meshes = { ["fabric_0"] = { c = "#2e2238", m = "Plastic", t = 0 }, ["bone_1"] = { c = "#e4d9bf", m = "SmoothPlastic", t = 0 }, ["straw_2"] = { c = "#b3823c", m = "Plastic", t = 0 }, ["pumpkin_3"] = { c = "#d9621a", m = "SmoothPlastic", t = 0 }, ["steel_4"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["wood_5"] = { c = "#8a6440", m = "SmoothPlastic", t = 0 }, ["tread_6"] = { c = "#232325", m = "Plastic", t = 0 }, ["slime_7"] = { c = "#ffffff", m = "Neon", t = 0 }, ["lamps_8"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	BONE_PILE = { group = "object", size = Vector3.new(2.7, 1.519, 2.426), meshes = { ["concreteProp_0"] = { c = "#433f36", m = "Plastic", t = 0 }, ["bone_1"] = { c = "#e4d9bf", m = "SmoothPlastic", t = 0 }, ["tread_2"] = { c = "#232325", m = "Plastic", t = 0 } } },
+	CRYPT_GATE = { group = "object", size = Vector3.new(3.76, 3.59, 1.018), meshes = { ["concreteProp_0"] = { c = "#57544d", m = "Plastic", t = 0 }, ["pumpkin_1"] = { c = "#d9621a", m = "SmoothPlastic", t = 0 }, ["tread_2"] = { c = "#232325", m = "Plastic", t = 0 }, ["lamps_3"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	CRYPT = { group = "object", size = Vector3.new(4.433, 4.9, 6), meshes = { ["concreteProp_0"] = { c = "#57544d", m = "Plastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 }, ["stone_2"] = { c = "#6d6759", m = "SmoothPlastic", t = 0 }, ["copper_3"] = { c = "#5f9e8a", m = "SmoothPlastic", t = 0 }, ["lamps_4"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	GIANT_PUMPKIN = { group = "object", size = Vector3.new(3.968, 2.527, 4.932), meshes = { ["plastic_0"] = { c = "#e0661c", m = "SmoothPlastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 }, ["wood_2"] = { c = "#8a6440", m = "SmoothPlastic", t = 0 }, ["copper_3"] = { c = "#5f9e8a", m = "SmoothPlastic", t = 0 }, ["lamps_4"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	PUMPKIN_CARRIAGE = { group = "object", size = Vector3.new(2.56, 3.443, 5.518), meshes = { ["tread_0"] = { c = "#232325", m = "Plastic", t = 0 }, ["wood_1"] = { c = "#8a6440", m = "SmoothPlastic", t = 0 }, ["plastic_2"] = { c = "#e0661c", m = "SmoothPlastic", t = 0 }, ["lamps_3"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	GIANT_SPIDER = { group = "object", size = Vector3.new(4.77, 2.475, 4.562), meshes = { ["fabric_0"] = { c = "#26222a", m = "Plastic", t = 0 }, ["velvet_1"] = { c = "#6e0c1c", m = "SmoothPlastic", t = 0 }, ["bone_2"] = { c = "#e4d9bf", m = "SmoothPlastic", t = 0 }, ["lamps_3"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	WISHING_WELL = { group = "object", size = Vector3.new(2.8, 3.926, 2.642), meshes = { ["stone_0"] = { c = "#6d6759", m = "SmoothPlastic", t = 0 }, ["slime_1"] = { c = "#ffffff", m = "Neon", t = 0 }, ["wood_2"] = { c = "#8a6440", m = "SmoothPlastic", t = 0 }, ["shingle_3"] = { c = "#31262b", m = "Plastic", t = 0 }, ["tread_4"] = { c = "#232325", m = "Plastic", t = 0 }, ["copper_5"] = { c = "#5f9e8a", m = "SmoothPlastic", t = 0 }, ["bone_6"] = { c = "#e4d9bf", m = "SmoothPlastic", t = 0 } } },
+	GIANT_JACK = { group = "object", size = Vector3.new(10.582, 6.999, 13.153), meshes = { ["plastic_0"] = { c = "#e0661c", m = "SmoothPlastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 }, ["wood_2"] = { c = "#8a6440", m = "SmoothPlastic", t = 0 }, ["copper_3"] = { c = "#5f9e8a", m = "SmoothPlastic", t = 0 }, ["lamps_4"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	MAUSOLEUM = { group = "object", size = Vector3.new(8.867, 9.8, 12), meshes = { ["concreteProp_0"] = { c = "#57544d", m = "Plastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 }, ["stone_2"] = { c = "#6d6759", m = "SmoothPlastic", t = 0 }, ["copper_3"] = { c = "#5f9e8a", m = "SmoothPlastic", t = 0 }, ["lamps_4"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	GIANT_CAULDRON = { group = "object", size = Vector3.new(6.16, 6.956, 6.016), meshes = { ["stone_0"] = { c = "#6d6759", m = "SmoothPlastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 }, ["slime_2"] = { c = "#ffffff", m = "Neon", t = 0 }, ["wood_3"] = { c = "#8a6440", m = "SmoothPlastic", t = 0 }, ["bone_4"] = { c = "#e4d9bf", m = "SmoothPlastic", t = 0 }, ["lamps_5"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	SKULL_ROCK = { group = "object", size = Vector3.new(10.479, 10.059, 11.114), meshes = { ["stone_0"] = { c = "#6d6759", m = "SmoothPlastic", t = 0 }, ["bone_1"] = { c = "#e4d9bf", m = "SmoothPlastic", t = 0 }, ["tread_2"] = { c = "#232325", m = "Plastic", t = 0 }, ["slime_3"] = { c = "#ffffff", m = "Neon", t = 0 }, ["lamps_4"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	GIANT_OBELISK = { group = "object", size = Vector3.new(4.501, 13.3, 4.5), meshes = { ["concreteProp_0"] = { c = "#53514b", m = "Plastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 }, ["bone_2"] = { c = "#e4d9bf", m = "SmoothPlastic", t = 0 }, ["copper_3"] = { c = "#5f9e8a", m = "SmoothPlastic", t = 0 } } },
+	GIANT_SCARECROW = { group = "object", size = Vector3.new(9.4, 11.652, 3.263), meshes = { ["wood_0"] = { c = "#8a6440", m = "SmoothPlastic", t = 0 }, ["fabric_1"] = { c = "#5b4a3a", m = "Plastic", t = 0 }, ["straw_2"] = { c = "#b3823c", m = "Plastic", t = 0 }, ["velvet_3"] = { c = "#6e0c1c", m = "SmoothPlastic", t = 0 }, ["pumpkin_4"] = { c = "#d9621a", m = "SmoothPlastic", t = 0 }, ["tread_5"] = { c = "#232325", m = "Plastic", t = 0 }, ["lamps_6"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	COLOSSAL_PUMPKIN = { group = "object", size = Vector3.new(21.163, 13.512, 26.306), meshes = { ["plastic_0"] = { c = "#e0661c", m = "SmoothPlastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 }, ["wood_2"] = { c = "#8a6440", m = "SmoothPlastic", t = 0 }, ["copper_3"] = { c = "#5f9e8a", m = "SmoothPlastic", t = 0 }, ["lamps_4"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	HAUNTED_TREE = { group = "object", size = Vector3.new(12.873, 18.976, 14.356), meshes = { ["timber_0"] = { c = "#312112", m = "SmoothPlastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 }, ["pumpkin_2"] = { c = "#d9621a", m = "SmoothPlastic", t = 0 }, ["lamps_3"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	GIANT_SKELETON = { group = "object", size = Vector3.new(12.7, 15.109, 10.343), meshes = { ["bone_0"] = { c = "#e4d9bf", m = "SmoothPlastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 }, ["concreteProp_2"] = { c = "#736c5a", m = "Plastic", t = 0 }, ["lamps_3"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	WITCH_HAT_TOWER = { group = "object", size = Vector3.new(19, 19.836, 19), meshes = { ["fabric_0"] = { c = "#2e2238", m = "Plastic", t = 0 }, ["pumpkin_1"] = { c = "#d9621a", m = "SmoothPlastic", t = 0 }, ["steel_2"] = { c = "#a9afb5", m = "Metal", t = 0 } } },
+	SKULL_MOUNTAIN = { group = "object", size = Vector3.new(17.605, 23.623, 20.74), meshes = { ["stone_0"] = { c = "#6d6759", m = "SmoothPlastic", t = 0 }, ["bone_1"] = { c = "#e4d9bf", m = "SmoothPlastic", t = 0 }, ["tread_2"] = { c = "#232325", m = "Plastic", t = 0 }, ["slime_3"] = { c = "#ffffff", m = "Neon", t = 0 }, ["lamps_4"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	Landmark_PearlTower = { group = "landmark", size = Vector3.new(26.574, 95.832, 23.432), meshes = { ["concreteProp_0"] = { c = "#6d6a61", m = "Plastic", t = 0 }, ["steel_1"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["concreteProp_2"] = { c = "#6d6a61", m = "Plastic", t = 0 }, ["steel_3"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["concreteProp_4"] = { c = "#6d6a61", m = "Plastic", t = 0 }, ["steel_5"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["carPaint_6"] = { c = "#c2386a", m = "SmoothPlastic", t = 0 }, ["glass_7"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["steel_8"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["steel_9"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["carPaint_10"] = { c = "#c2386a", m = "SmoothPlastic", t = 0 }, ["carPaint_11"] = { c = "#c2386a", m = "SmoothPlastic", t = 0 }, ["glass_12"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["steel_13"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["steel_14"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["carPaint_15"] = { c = "#c2386a", m = "SmoothPlastic", t = 0 }, ["glass_16"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["lamps_17"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	Landmark_EmpireState = { group = "landmark", size = Vector3.new(37.2, 97.42, 14.6), meshes = { ["concreteProp_0"] = { c = "#686254", m = "Plastic", t = 0 }, ["tread_1"] = { c = "#232325", m = "Plastic", t = 0 }, ["glass_2"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["wood_3"] = { c = "#8a6440", m = "SmoothPlastic", t = 0 }, ["roofMetal_4"] = { c = "#626568", m = "Metal", t = 0 }, ["steel_5"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["concreteProp_6"] = { c = "#686254", m = "Plastic", t = 0 }, ["tread_7"] = { c = "#232325", m = "Plastic", t = 0 }, ["glass_8"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["wood_9"] = { c = "#8a6440", m = "SmoothPlastic", t = 0 }, ["roofMetal_10"] = { c = "#626568", m = "Metal", t = 0 }, ["steel_11"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["concreteProp_12"] = { c = "#686254", m = "Plastic", t = 0 }, ["glass_13"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["steel_14"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["roofMetal_15"] = { c = "#626568", m = "Metal", t = 0 }, ["concreteProp_16"] = { c = "#686254", m = "Plastic", t = 0 }, ["glass_17"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["steel_18"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["roofMetal_19"] = { c = "#626568", m = "Metal", t = 0 }, ["concreteProp_20"] = { c = "#686254", m = "Plastic", t = 0 }, ["glass_21"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["steel_22"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["screen_23"] = { c = "#dde8ff", m = "Neon", t = 0 }, ["lamps_24"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+	Landmark_Eiffel = { group = "landmark", size = Vector3.new(23.6, 68.588, 23.6), meshes = { ["paint_0"] = { c = "#624f3c", m = "Plastic", t = 0 }, ["concreteProp_1"] = { c = "#35291c", m = "Plastic", t = 0 }, ["paint_2"] = { c = "#624f3c", m = "Plastic", t = 0 }, ["concreteProp_3"] = { c = "#35291c", m = "Plastic", t = 0 }, ["paint_4"] = { c = "#624f3c", m = "Plastic", t = 0 }, ["concreteProp_5"] = { c = "#35291c", m = "Plastic", t = 0 }, ["paint_6"] = { c = "#624f3c", m = "Plastic", t = 0 }, ["concreteProp_7"] = { c = "#35291c", m = "Plastic", t = 0 }, ["paint_8"] = { c = "#624f3c", m = "Plastic", t = 0 }, ["glass_9"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["tread_10"] = { c = "#232325", m = "Plastic", t = 0 }, ["paint_11"] = { c = "#624f3c", m = "Plastic", t = 0 }, ["tread_12"] = { c = "#232325", m = "Plastic", t = 0 }, ["paint_13"] = { c = "#624f3c", m = "Plastic", t = 0 }, ["paint_14"] = { c = "#624f3c", m = "Plastic", t = 0 }, ["glass_15"] = { c = "#1b2328", m = "SmoothPlastic", t = 0 }, ["steel_16"] = { c = "#a9afb5", m = "Metal", t = 0 }, ["lamps_17"] = { c = "#ffffff", m = "Neon", t = 0 } } },
+} :: { [string]: Info }
+]]></string>
+        </Properties>
+      </Item>
     </Item>
   </Item>
-  <Item class="ServerScriptService" referent="4">
+  <Item class="ServerScriptService" referent="6">
     <Properties>
       <string name="Name">ServerScriptService</string>
     </Properties>
-    <Item class="Folder" referent="5">
+    <Item class="Folder" referent="7">
       <Properties>
         <string name="Name">Server</string>
       </Properties>
-      <Item class="ModuleScript" referent="6">
+      <Item class="ModuleScript" referent="8">
         <Properties>
           <string name="Name">City</string>
           <string name="Source"><![CDATA[--!strict
 -- Procedural city: a GRID × GRID block layout with roads and lane markings, lawns and sidewalks,
 -- street props, traffic, colourful buildings with window bands in the block quadrants, and three
 -- landmarks (Oriental Pearl Tower, Empire State Building, Eiffel Tower) on their own blocks.
+-- Props and landmarks use the web game's own models (server/Models) and fall back to primitives
+-- for any model that is not uploaded yet.
 -- Every edible is a Model in the Edibles folder carrying Size (largest dimension, studs), Mass
 -- (reward), Kind and Respawn attributes.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Models = require(script.Parent:WaitForChild("Models"))
 
 local City = {}
 
@@ -297,7 +531,30 @@ local function finish(m: Model, body: BasePart, size: number, kind: string, resp
 	m.Parent = edibles
 end
 
+-- The largest part anchors the model (PrimaryPart).
+local function largestPart(m: Model): BasePart?
+	local best: BasePart? = nil
+	local bestVolume = -1
+	for _, p in m:GetDescendants() do
+		if p:IsA("BasePart") then
+			local v = p.Size.X * p.Size.Y * p.Size.Z
+			if v > bestVolume then
+				best, bestVolume = p, v
+			end
+		end
+	end
+	return best
+end
+
 local function makeProp(kind: Config.PropKind, edibles: Folder, position: Vector3, yaw: number): Model
+	local model = if kind.model then Models.clone(kind.model, kind.size) else nil
+	local main = model and largestPart(model)
+	if model and main then
+		model.Name = kind.name
+		model:PivotTo(CFrame.new(position) * CFrame.Angles(0, yaw, 0))
+		finish(model, main, kind.size, kind.name, kind.respawn, edibles)
+		return model
+	end
 	local m = Instance.new("Model")
 	m.Name = kind.name
 	local dims = kind.dims
@@ -315,7 +572,7 @@ local function makeProp(kind: Config.PropKind, edibles: Folder, position: Vector
 		body = part(m, "Body", dims, base, color, kind.material)
 	end
 	decorate(m, kind, base, color)
-	finish(m, body, math.max(dims.X, dims.Y, dims.Z), kind.name, kind.respawn, edibles)
+	finish(m, body, kind.size, kind.name, kind.respawn, edibles)
 	return m
 end
 
@@ -404,8 +661,16 @@ local function buildLandmarks(edibles: Folder)
 		local m = Instance.new("Model")
 		m.Name = l.name
 		local c = blockCenter(l.block[1], l.block[2])
+		local model = Models.clone(l.model, l.size)
+		local main = model and largestPart(model)
 		local build = BUILDERS[l.style]
-		if build then
+		if model and main then
+			m:Destroy()
+			model.Name = l.name
+			model:PivotTo(CFrame.new(c.X, SIDEWALK_TOP, c.Z))
+			finish(model, main, l.size, l.name, false, edibles)
+			model:SetAttribute("Landmark", true)
+		elseif build then
 			local body = build(m, c, l.size)
 			finish(m, body, l.size, l.name, false, edibles)
 			m:SetAttribute("Landmark", true)
@@ -428,6 +693,16 @@ function City.build(): Folder
 	edibles.Name = "Edibles"
 	edibles.Parent = city
 	buildGround(ground)
+	local names: { string } = {}
+	for _, kind in Config.PROPS do
+		if kind.model then
+			table.insert(names, kind.model)
+		end
+	end
+	for _, l in Config.LANDMARKS do
+		table.insert(names, l.model)
+	end
+	Models.preload(names)
 
 	freeSlots = {}
 	local q = BLOCK / 4
@@ -471,16 +746,18 @@ return City
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="7">
+      <Item class="ModuleScript" referent="9">
         <Properties>
           <string name="Name">Machine</string>
           <string name="Source"><![CDATA[--!strict
--- The player's googly-eyed collector machine. The Roblox character stays (it does the walking and
--- the physics) but turns invisible; the machine is welded to the root part inside the character
--- model, so Model:ScaleTo grows the two together.
+-- The player's machine. The Roblox character stays (it does the walking and the physics) but turns
+-- invisible; the machine is welded to the root part inside the character model, so Model:ScaleTo
+-- grows the two together. It is the web game's own model (Machine_<look>_T<tier>, swapped for the
+-- next tier as the player grows) or, while that model is not uploaded, a primitive googly-eyed one.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Models = require(script.Parent:WaitForChild("Models"))
 
 local Machine = {}
 
@@ -518,10 +795,54 @@ function Machine.hideBody(char: Model)
 	end
 end
 
--- Build the machine at scale 1 (the caller scales the whole character afterwards).
-function Machine.attach(char: Model, color: Color3)
+local function tierFor(scale: number): number
+	local tier = 1
+	for n, from in Config.MACHINE_TIER_SCALES do
+		if scale >= from then
+			tier = n
+		end
+	end
+	return tier
+end
+
+-- The web model for this look and scale, welded under the root part with its wheels on the ground.
+local function attachModel(char: Model, root: BasePart, look: string, scale: number): boolean
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	local tier = tierFor(scale)
+	local m = Models.clone(string.format("Machine_%s_T%d", look, tier), Config.MACHINE_SIZE * scale)
+	if not hum or not m then
+		return false
+	end
+	local ground = hum.HipHeight + root.Size.Y / 2
+	m:PivotTo(root.CFrame * CFrame.new(0, -ground, 0) * CFrame.Angles(0, math.rad(Config.MACHINE_YAW), 0))
+	for _, p in m:GetDescendants() do
+		if p:IsA("BasePart") then
+			p.Anchored = false
+			p.CanCollide = false
+			p.CanQuery = false
+			p.CanTouch = false
+			p.Massless = true
+			local w = Instance.new("WeldConstraint")
+			w.Part0 = root
+			w.Part1 = p
+			w.Parent = p
+		end
+	end
+	m.Name = "Machine"
+	m:SetAttribute("Look", look)
+	m:SetAttribute("Tier", tier)
+	m.Parent = char
+	return true
+end
+
+-- Build the machine for the character's current scale.
+function Machine.attach(char: Model, look: string, color: Color3)
 	local root = char:WaitForChild("HumanoidRootPart", 10) :: BasePart?
 	if not root or char:FindFirstChild("Machine") then
+		return
+	end
+	if attachModel(char, root, look, char:GetScale()) then
+		Machine.hideBody(char)
 		return
 	end
 	local m = Instance.new("Model")
@@ -547,6 +868,25 @@ function Machine.attach(char: Model, color: Color3)
 	Machine.hideBody(char)
 end
 
+-- After the character was scaled: swap in the next tier's model when growth crossed a threshold.
+function Machine.update(char: Model, scale: number)
+	local current = char:FindFirstChild("Machine")
+	local root = char:FindFirstChild("HumanoidRootPart") :: BasePart?
+	local look = current and current:GetAttribute("Look") :: string?
+	if not current or not root or not look or current:GetAttribute("Tier") == tierFor(scale) then
+		return
+	end
+	current:Destroy()
+	if not attachModel(char, root, look, scale) then
+		warn("Machine: tier model missing for " .. look)
+	end
+end
+
+function Machine.look(index: number): string
+	local list = Config.MACHINE_LOOKS
+	return list[(index - 1) % #list + 1]
+end
+
 function Machine.color(index: number): Color3
 	local list = Config.MACHINE_COLORS
 	return list[(index - 1) % #list + 1]
@@ -556,7 +896,7 @@ return Machine
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="8">
+      <Item class="Script" referent="10">
         <Properties>
           <string name="Name">Main</string>
           <token name="RunContext">0</token>
@@ -630,6 +970,7 @@ local function applyScale(player: Player, force: boolean?)
 	pcall(function()
 		char:ScaleTo(s)
 	end)
+	Machine.update(char, s)
 	hum.WalkSpeed = math.min(Config.MAX_WALKSPEED, Config.BASE_WALKSPEED + Config.WALKSPEED_PER_SCALE * (s - 1))
 	player.CameraMaxZoomDistance = 30 + Config.CAMERA_ZOOM_PER_SCALE * s
 	player:SetAttribute("Scale", s)
@@ -688,7 +1029,7 @@ local function onCharacter(player: Player, char: Model)
 	end
 	-- Fresh character = fresh start (death by falling, being eaten, or a new round).
 	resetPlayer(player)
-	Machine.attach(char, Machine.color(colorIndex[player] or 1))
+	Machine.attach(char, Machine.look(colorIndex[player] or 1), Machine.color(colorIndex[player] or 1))
 	task.defer(function()
 		placeAtSpawn(player)
 		applyScale(player, true)
@@ -871,22 +1212,149 @@ end)
 ]]></string>
         </Properties>
       </Item>
+      <Item class="ModuleScript" referent="11">
+        <Properties>
+          <string name="Name">Models</string>
+          <string name="Source"><![CDATA[--!strict
+-- The web game's own models in Roblox. Each one was exported to GLB (tools/model-export), uploaded
+-- as an asset (roblox/upload-assets.sh) and listed in Shared.AssetIds. Loading flattens the asset
+-- into one Model, repaints every MeshPart from Shared.ModelInfo (the importer's colours are not
+-- trusted) and puts the pivot at the bottom centre. Clones come out scaled so their largest
+-- dimension is the requested size in studs. Callers fall back to primitives when this returns nil.
+
+local InsertService = game:GetService("InsertService")
+local ServerStorage = game:GetService("ServerStorage")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local AssetIds = require(Shared:WaitForChild("AssetIds"))
+local ModelInfo = require(Shared:WaitForChild("ModelInfo"))
+
+local Models = {}
+
+local MATERIALS: { [string]: Enum.Material } = {
+	Neon = Enum.Material.Neon,
+	Glass = Enum.Material.Glass,
+	Metal = Enum.Material.Metal,
+	Plastic = Enum.Material.Plastic,
+	SmoothPlastic = Enum.Material.SmoothPlastic,
+}
+
+local store = Instance.new("Folder")
+store.Name = "ModelTemplates"
+store.Parent = ServerStorage
+
+local templates: { [string]: Model } = {}
+local loading: { [string]: boolean } = {}
+local failed: { [string]: boolean } = {}
+
+local function prepare(name: string, asset: Instance): Model?
+	local info = ModelInfo[name]
+	local model = Instance.new("Model")
+	model.Name = name
+	model.WorldPivot = CFrame.new()
+	local count = 0
+	for _, d in asset:GetDescendants() do
+		if d:IsA("BasePart") then
+			local mesh = info and info.meshes[d.Name]
+			if mesh then
+				d.Color = Color3.fromHex(mesh.c)
+				d.Material = MATERIALS[mesh.m] or Enum.Material.SmoothPlastic
+				d.Transparency = mesh.t
+			end
+			d.Anchored = true
+			d.CanTouch = false
+			d.Parent = model
+			count += 1
+		end
+	end
+	asset:Destroy()
+	if count == 0 then
+		model:Destroy()
+		return nil
+	end
+	local box, size = model:GetBoundingBox()
+	model.WorldPivot = CFrame.new(box.X, box.Y - size.Y / 2, box.Z)
+	model:SetAttribute("Box", size)
+	model.Parent = store
+	return model
+end
+
+-- Load (once) and return the template, or nil when the model has no asset id or failed to load.
+-- Yields while LoadAsset runs; concurrent callers for the same name wait for the first one.
+function Models.load(name: string): Model?
+	while loading[name] do
+		task.wait()
+	end
+	if templates[name] then
+		return templates[name]
+	end
+	local id = AssetIds[name]
+	if not id or failed[name] then
+		return nil
+	end
+	loading[name] = true
+	local ok, result = pcall(InsertService.LoadAsset, InsertService, id)
+	local model = if ok then prepare(name, result :: Instance) else nil
+	if model then
+		templates[name] = model
+	else
+		failed[name] = true
+		warn(string.format("Models: %s (%d) did not load: %s", name, id, if ok then "no parts" else tostring(result)))
+	end
+	loading[name] = nil
+	return model
+end
+
+-- Load many models in parallel and wait for all of them.
+function Models.preload(names: { string })
+	local pending = 0
+	for _, name in names do
+		if AssetIds[name] and not templates[name] then
+			pending += 1
+			task.spawn(function()
+				Models.load(name)
+				pending -= 1
+			end)
+		end
+	end
+	while pending > 0 do
+		task.wait()
+	end
+end
+
+-- A fresh copy whose largest dimension is `size` studs, pivot at its bottom centre (not parented).
+function Models.clone(name: string, size: number): Model?
+	local template = Models.load(name)
+	if not template then
+		return nil
+	end
+	local box = template:GetAttribute("Box") :: Vector3
+	local m = template:Clone()
+	m:ScaleTo(size / math.max(box.X, box.Y, box.Z))
+	return m
+end
+
+return Models
+]]></string>
+        </Properties>
+      </Item>
     </Item>
   </Item>
-  <Item class="StarterPlayer" referent="9">
+  <Item class="StarterPlayer" referent="12">
     <Properties>
       <string name="Name">StarterPlayer</string>
       <bool name="LoadCharacterAppearance">false</bool>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="10">
+    <Item class="StarterPlayerScripts" referent="13">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-      <Item class="Folder" referent="11">
+      <Item class="Folder" referent="14">
         <Properties>
           <string name="Name">Client</string>
         </Properties>
-        <Item class="LocalScript" referent="12">
+        <Item class="LocalScript" referent="15">
           <Properties>
             <string name="Name">Hud</string>
             <string name="Source"><![CDATA[--!strict

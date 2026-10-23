@@ -2,11 +2,14 @@
 -- Procedural city: a GRID × GRID block layout with roads and lane markings, lawns and sidewalks,
 -- street props, traffic, colourful buildings with window bands in the block quadrants, and three
 -- landmarks (Oriental Pearl Tower, Empire State Building, Eiffel Tower) on their own blocks.
+-- Props and landmarks use the web game's own models (server/Models) and fall back to primitives
+-- for any model that is not uploaded yet.
 -- Every edible is a Model in the Edibles folder carrying Size (largest dimension, studs), Mass
 -- (reward), Kind and Respawn attributes.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Models = require(script.Parent:WaitForChild("Models"))
 
 local City = {}
 
@@ -157,7 +160,30 @@ local function finish(m: Model, body: BasePart, size: number, kind: string, resp
 	m.Parent = edibles
 end
 
+-- The largest part anchors the model (PrimaryPart).
+local function largestPart(m: Model): BasePart?
+	local best: BasePart? = nil
+	local bestVolume = -1
+	for _, p in m:GetDescendants() do
+		if p:IsA("BasePart") then
+			local v = p.Size.X * p.Size.Y * p.Size.Z
+			if v > bestVolume then
+				best, bestVolume = p, v
+			end
+		end
+	end
+	return best
+end
+
 local function makeProp(kind: Config.PropKind, edibles: Folder, position: Vector3, yaw: number): Model
+	local model = if kind.model then Models.clone(kind.model, kind.size) else nil
+	local main = model and largestPart(model)
+	if model and main then
+		model.Name = kind.name
+		model:PivotTo(CFrame.new(position) * CFrame.Angles(0, yaw, 0))
+		finish(model, main, kind.size, kind.name, kind.respawn, edibles)
+		return model
+	end
 	local m = Instance.new("Model")
 	m.Name = kind.name
 	local dims = kind.dims
@@ -175,7 +201,7 @@ local function makeProp(kind: Config.PropKind, edibles: Folder, position: Vector
 		body = part(m, "Body", dims, base, color, kind.material)
 	end
 	decorate(m, kind, base, color)
-	finish(m, body, math.max(dims.X, dims.Y, dims.Z), kind.name, kind.respawn, edibles)
+	finish(m, body, kind.size, kind.name, kind.respawn, edibles)
 	return m
 end
 
@@ -264,8 +290,16 @@ local function buildLandmarks(edibles: Folder)
 		local m = Instance.new("Model")
 		m.Name = l.name
 		local c = blockCenter(l.block[1], l.block[2])
+		local model = Models.clone(l.model, l.size)
+		local main = model and largestPart(model)
 		local build = BUILDERS[l.style]
-		if build then
+		if model and main then
+			m:Destroy()
+			model.Name = l.name
+			model:PivotTo(CFrame.new(c.X, SIDEWALK_TOP, c.Z))
+			finish(model, main, l.size, l.name, false, edibles)
+			model:SetAttribute("Landmark", true)
+		elseif build then
 			local body = build(m, c, l.size)
 			finish(m, body, l.size, l.name, false, edibles)
 			m:SetAttribute("Landmark", true)
@@ -288,6 +322,16 @@ function City.build(): Folder
 	edibles.Name = "Edibles"
 	edibles.Parent = city
 	buildGround(ground)
+	local names: { string } = {}
+	for _, kind in Config.PROPS do
+		if kind.model then
+			table.insert(names, kind.model)
+		end
+	end
+	for _, l in Config.LANDMARKS do
+		table.insert(names, l.model)
+	end
+	Models.preload(names)
 
 	freeSlots = {}
 	local q = BLOCK / 4

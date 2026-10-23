@@ -2,6 +2,8 @@
 -- GROW EVERYTHING (Roblox) — every balance value lives here.
 -- Units are studs (a default character is about 5 studs tall at scale 1).
 
+local ModelInfo = require(script.Parent:WaitForChild("ModelInfo"))
+
 local Config = {}
 
 -- Rounds
@@ -41,11 +43,12 @@ Config.BLOCK = 90
 Config.ROAD = 26
 -- Landmarks (one per listed block, never respawn). Edible from scale size / (EAT_REACH × height):
 -- the Empire State at about 32, the Pearl Tower at about 37.
-export type Landmark = { name: string, style: string, size: number, block: { number } }
+-- model = the web game's assembled landmark (primitive builder `style` when it is not loaded).
+export type Landmark = { name: string, style: string, model: string, size: number, block: { number } }
 Config.LANDMARKS = {
-	{ name = "Oriental Pearl Tower", style = "pearl", size = 150, block = { 3, 3 } },
-	{ name = "Empire State Building", style = "empire", size = 130, block = { 1, 5 } },
-	{ name = "Eiffel Tower", style = "eiffel", size = 140, block = { 5, 1 } },
+	{ name = "Oriental Pearl Tower", style = "pearl", model = "Landmark_PearlTower", size = 150, block = { 3, 3 } },
+	{ name = "Empire State Building", style = "empire", model = "Landmark_EmpireState", size = 130, block = { 1, 5 } },
+	{ name = "Eiffel Tower", style = "eiffel", model = "Landmark_Eiffel", size = 140, block = { 5, 1 } },
 } :: { Landmark }
 
 -- Colour palettes: buildings and vehicles pick a random one so the city reads as a city.
@@ -58,37 +61,84 @@ Config.VEHICLE_COLORS = {
 	Color3.fromRGB(220, 60, 60), Color3.fromRGB(60, 110, 220), Color3.fromRGB(245, 245, 245),
 	Color3.fromRGB(250, 200, 40), Color3.fromRGB(40, 40, 46), Color3.fromRGB(70, 170, 110),
 }
--- Player machines: one bright body colour each.
+-- Player machines: the web game's four looks (Machine_<look>_T<tier>), one per player in join order.
+-- The tier upgrades as you grow: tier n from scale MACHINE_TIER_SCALES[n]. MACHINE_SIZE = largest
+-- dimension in studs at scale 1. MACHINE_YAW turns the imported model if it faces the wrong way.
+Config.MACHINE_LOOKS = { "collector", "dozer", "racer", "magnet" }
+Config.MACHINE_TIER_SCALES = { 1, 2, 4, 8, 16 }
+Config.MACHINE_SIZE = 5
+Config.MACHINE_YAW = 0
+-- Primitive fallback machines: one bright body colour each.
 Config.MACHINE_COLORS = {
 	Color3.fromRGB(255, 140, 40), Color3.fromRGB(60, 170, 255), Color3.fromRGB(120, 220, 90),
 	Color3.fromRGB(255, 90, 160), Color3.fromRGB(170, 110, 255), Color3.fromRGB(255, 215, 60),
 }
 
--- Edible catalog. size = largest dimension in studs; count = how many per city; respawn = refill.
+-- Edible catalog. Each kind uses one of the web game's models (Shared.ModelInfo; drawn by
+-- server/Models when its asset id is in Shared.AssetIds, primitives otherwise). size = largest
+-- dimension in studs (sets reward and when it becomes edible); dims follow the model's proportions.
+-- count = how many per city; respawn = refill after being eaten; where = sidewalk | road | block.
 export type PropKind = {
 	name: string,
+	model: string?,
+	size: number,
 	dims: Vector3,
 	color: Color3,
 	material: Enum.Material,
 	count: number,
 	respawn: boolean,
-	where: string, -- "sidewalk" | "road" | "block"
+	where: string,
 }
 
+local function kind(name: string, model: string?, size: number, count: number, where: string, color: Color3, material: Enum.Material): PropKind
+	local info = if model then ModelInfo[model] else nil
+	local dims = if info then info.size * (size / math.max(info.size.X, info.size.Y, info.size.Z)) else Vector3.new(size * 0.55, size, size * 0.55)
+	return { name = name, model = model, size = size, dims = dims, color = color, material = material, count = count, respawn = where ~= "block", where = where }
+end
+
+local rgb = Color3.fromRGB
+local M = Enum.Material
 Config.PROPS = {
-	{ name = "Can", dims = Vector3.new(0.5, 0.8, 0.5), color = Color3.fromRGB(200, 60, 50), material = Enum.Material.Metal, count = 260, respawn = true, where = "sidewalk" },
-	{ name = "Bottle", dims = Vector3.new(0.4, 1.1, 0.4), color = Color3.fromRGB(70, 160, 90), material = Enum.Material.Glass, count = 200, respawn = true, where = "sidewalk" },
-	{ name = "Box", dims = Vector3.new(1.4, 1.2, 1.4), color = Color3.fromRGB(180, 140, 90), material = Enum.Material.Cardboard, count = 160, respawn = true, where = "sidewalk" },
-	{ name = "Cone", dims = Vector3.new(1.0, 1.8, 1.0), color = Color3.fromRGB(240, 120, 30), material = Enum.Material.Plastic, count = 110, respawn = true, where = "road" },
-	{ name = "TrashCan", dims = Vector3.new(2.0, 3.0, 2.0), color = Color3.fromRGB(60, 90, 70), material = Enum.Material.Metal, count = 90, respawn = true, where = "sidewalk" },
-	{ name = "Tree", dims = Vector3.new(5, 9, 5), color = Color3.fromRGB(80, 160, 80), material = Enum.Material.Grass, count = 90, respawn = true, where = "sidewalk" },
-	{ name = "Bench", dims = Vector3.new(4.5, 2.2, 1.6), color = Color3.fromRGB(120, 80, 50), material = Enum.Material.Wood, count = 60, respawn = true, where = "sidewalk" },
-	{ name = "Car", dims = Vector3.new(4.5, 4.0, 9.5), color = Color3.fromRGB(60, 110, 200), material = Enum.Material.SmoothPlastic, count = 70, respawn = true, where = "road" },
-	{ name = "Van", dims = Vector3.new(5.5, 6.5, 12), color = Color3.fromRGB(235, 235, 235), material = Enum.Material.SmoothPlastic, count = 30, respawn = true, where = "road" },
-	{ name = "Bus", dims = Vector3.new(6.5, 8, 24), color = Color3.fromRGB(230, 180, 40), material = Enum.Material.SmoothPlastic, count = 16, respawn = true, where = "road" },
-	{ name = "House", dims = Vector3.new(26, 22, 26), color = Color3.fromRGB(200, 170, 140), material = Enum.Material.Brick, count = 40, respawn = false, where = "block" },
-	{ name = "Office", dims = Vector3.new(30, 60, 30), color = Color3.fromRGB(150, 170, 190), material = Enum.Material.Concrete, count = 22, respawn = false, where = "block" },
-	{ name = "Tower", dims = Vector3.new(34, 110, 34), color = Color3.fromRGB(110, 130, 160), material = Enum.Material.Glass, count = 8, respawn = false, where = "block" },
+	-- Sidewalk litter and street furniture.
+	kind("Can", "CAN", 0.8, 160, "sidewalk", rgb(200, 60, 50), M.Metal),
+	kind("Bottle", "BOTTLE", 1.1, 120, "sidewalk", rgb(70, 160, 90), M.Glass),
+	kind("Brick", "BRICK", 1.0, 70, "sidewalk", rgb(170, 80, 60), M.Brick),
+	kind("Box", "CARDBOARD_SMALL", 1.4, 100, "sidewalk", rgb(180, 140, 90), M.Cardboard),
+	kind("Trash Bag", "TRASH_BAG", 2.0, 60, "sidewalk", rgb(40, 40, 45), M.Plastic),
+	kind("Hydrant", "FIRE_HYDRANT", 2.2, 50, "sidewalk", rgb(200, 40, 40), M.Metal),
+	kind("Chair", "CHAIR", 2.6, 50, "sidewalk", rgb(120, 80, 50), M.Wood),
+	kind("Trash Can", "TRASH_CAN", 3.0, 60, "sidewalk", rgb(60, 90, 70), M.Metal),
+	kind("Cafe Table", "CAFE_TABLE", 3.2, 40, "sidewalk", rgb(60, 60, 64), M.Metal),
+	kind("Shopping Cart", "SHOPPING_CART", 3.4, 30, "sidewalk", rgb(180, 185, 190), M.Metal),
+	kind("Tree", nil, 9, 60, "sidewalk", rgb(80, 160, 80), M.Grass),
+	kind("Bench", "BENCH", 4.5, 50, "sidewalk", rgb(120, 80, 50), M.Wood),
+	kind("Bicycle", "BICYCLE", 5.5, 40, "sidewalk", rgb(40, 110, 200), M.Metal),
+	kind("Scooter", "SCOOTER", 5.5, 30, "sidewalk", rgb(220, 60, 60), M.SmoothPlastic),
+	kind("Vending Machine", "VENDING_MACHINE", 6.5, 30, "sidewalk", rgb(200, 40, 40), M.SmoothPlastic),
+	kind("Dumpster", "DUMPSTER", 7, 30, "sidewalk", rgb(40, 110, 70), M.Metal),
+	kind("Food Cart", "FOOD_CART", 8, 16, "sidewalk", rgb(240, 200, 60), M.SmoothPlastic),
+	kind("Advertising Column", "MORRIS_COLUMN", 9, 16, "sidewalk", rgb(40, 90, 60), M.Metal),
+	kind("Kiosk", "KIOSK", 10, 14, "sidewalk", rgb(40, 90, 60), M.Metal),
+	kind("Subway Entrance", "SUBWAY_ENTRANCE", 11, 10, "sidewalk", rgb(40, 90, 60), M.Metal),
+	-- Traffic.
+	kind("Cone", "TRAFFIC_CONE", 1.8, 90, "road", rgb(240, 120, 30), M.Plastic),
+	kind("Motorcycle", "MOTORCYCLE", 6, 24, "road", rgb(40, 40, 46), M.Metal),
+	kind("Car", "CAR_COMPACT", 11, 40, "road", rgb(60, 110, 200), M.SmoothPlastic),
+	kind("Taxi", "TAXI_NY", 12, 30, "road", rgb(250, 200, 40), M.SmoothPlastic),
+	kind("Van", "VAN", 14, 20, "road", rgb(235, 235, 235), M.SmoothPlastic),
+	kind("Delivery Truck", "DELIVERY_TRUCK", 18, 14, "road", rgb(235, 235, 235), M.SmoothPlastic),
+	kind("Bus", "BUS_NY", 26, 12, "road", rgb(230, 180, 40), M.SmoothPlastic),
+	-- Buildings from the three cities (one per block quadrant; never respawn).
+	kind("Shikumen House", "B_SHIKUMEN", 28, 10, "block", rgb(150, 150, 155), M.Brick),
+	kind("Brownstone", "B_BROWNSTONE", 34, 10, "block", rgb(140, 80, 60), M.Brick),
+	kind("Paris Cafe", "B_PARIS_CAFE", 34, 10, "block", rgb(230, 220, 200), M.Limestone),
+	kind("Haussmann Building", "B_HAUSSMANN", 52, 10, "block", rgb(230, 220, 200), M.Limestone),
+	kind("Shanghai Apartments", "B_SH_MID", 58, 8, "block", rgb(200, 200, 205), M.Concrete),
+	kind("New York Loft", "B_NY_LOFT", 72, 8, "block", rgb(170, 100, 80), M.Brick),
+	kind("Peace Hotel", "PEACE_HOTEL", 80, 4, "block", rgb(200, 190, 170), M.Limestone),
+	kind("Customs House", "CUSTOMS_HOUSE", 82, 3, "block", rgb(200, 190, 170), M.Limestone),
+	kind("Flatiron Building", "FLATIRON", 80, 3, "block", rgb(220, 210, 190), M.Limestone),
+	kind("Times Square Tower", "TIMES_TOWER", 100, 3, "block", rgb(110, 130, 160), M.Glass),
 } :: { PropKind }
 
 -- Monetization (create these in the Creator Hub, then paste the ids). 0 = not set up yet.

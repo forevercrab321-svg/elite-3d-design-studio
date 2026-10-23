@@ -68,6 +68,7 @@ local function applyScale(player: Player, force: boolean?)
 	pcall(function()
 		char:ScaleTo(s)
 	end)
+	Machine.update(char, s)
 	hum.WalkSpeed = math.min(Config.MAX_WALKSPEED, Config.BASE_WALKSPEED + Config.WALKSPEED_PER_SCALE * (s - 1))
 	player.CameraMaxZoomDistance = 30 + Config.CAMERA_ZOOM_PER_SCALE * s
 	player:SetAttribute("Scale", s)
@@ -126,7 +127,7 @@ local function onCharacter(player: Player, char: Model)
 	end
 	-- Fresh character = fresh start (death by falling, being eaten, or a new round).
 	resetPlayer(player)
-	Machine.attach(char, Machine.color(colorIndex[player] or 1))
+	Machine.attach(char, Machine.look(colorIndex[player] or 1), Machine.color(colorIndex[player] or 1))
 	task.defer(function()
 		placeAtSpawn(player)
 		applyScale(player, true)

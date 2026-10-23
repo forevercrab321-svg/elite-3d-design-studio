@@ -2,6 +2,15 @@
 
 在 Roblox 上做的"越吃越大"版本：程序生成的城市，从吃易拉罐开始，长大后吃汽车、公交车、整栋楼，最后吃掉城市中心的地标。大的玩家可以吃掉小的玩家。每局 5 分钟，结束时体型最大的人获胜。
 
+## v0.3：搬网页版的真模型（2026-10-23，等上传）
+
+- `tools/model-export/` 直接调用网页版的建模代码，把 20 台机器（4 种外观 × 5 级）、133 个物件、3 个地标导出成 GLB（`roblox/assets/glb/`），每个零件的颜色和材质记在 `assets/manifest.json`。
+- `upload-assets.sh` 用 Open Cloud 把游戏用到的 59 个模型（`assets/needed.txt`）上传成 Roblox 模型资产，输出 `NAME=ID`。
+- `node tools/roblox-assetids.mjs < ids.txt` 生成 `src/shared/AssetIds.luau`；`node tools/roblox-modelinfo.mjs` 从 manifest 生成 `src/shared/ModelInfo.luau`。
+- 服务器 `Models.luau` 用 `InsertService:LoadAsset` 加载，按 manifest 重新上色，底部中心为轴心，按目标尺寸缩放。没上传的模型自动退回 v0.2 的方块造型，所以随时可以发布。
+- 物件目录换成网页版的东西：易拉罐、消防栓、自动售货机、出租车、巴士、石库门、褐石楼、奥斯曼楼、熨斗大厦等 36 种；机器随体型从 T1 升到 T5（`MACHINE_TIER_SCALES`）。
+- 待实测：导入后的朝向（如果机器倒着走，改 `Config.MACHINE_YAW = 180`）、Roblox 是否接受 GLB 上传、审核时间。
+
 ## v0.2（2026-10-23）
 
 - 角色换成大眼珠收集机器（每个玩家一种亮色，随体型一起变大），默认小人隐藏，不加载玩家装扮。

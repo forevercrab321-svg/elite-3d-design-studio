@@ -3,6 +3,7 @@
 # through Open Cloud, then print and copy the name=assetId list (paste it back to Claude).
 #   curl -fsSL https://raw.githubusercontent.com/forevercrab321-svg/elite-3d-design-studio/claude/gifted-goldberg-mz9n2p/roblox/upload-assets.sh | bash -s <your Roblox user id>
 # Key: ~/.roblox-grow-assets-key (assets read+write). Re-running skips names already uploaded.
+# Uploads the models the game uses (assets/needed.txt); pass "all" as the second argument for all 156.
 set -uo pipefail
 USER_ID="${1:-}"
 KEY_FILE="$HOME/.roblox-grow-assets-key"
@@ -13,7 +14,8 @@ if [ ! -s "$KEY_FILE" ]; then echo "没找到模型密钥：先在 Roblox 页面
 KEY="$(tr -d '\r\n' < "$KEY_FILE")"
 touch "$OUT"
 TMP="$(mktemp -d)"
-NAMES="$(curl -fsSL "$BASE/names.txt")" || { echo "下载清单失败"; exit 1; }
+LIST="needed.txt"; [ "${2:-}" = "all" ] && LIST="names.txt"
+NAMES="$(curl -fsSL "$BASE/$LIST")" || { echo "下载清单失败"; exit 1; }
 TOTAL=$(printf '%s\n' "$NAMES" | grep -c .)
 i=0; ok=0; fail=0
 for NAME in $NAMES; do
@@ -36,6 +38,8 @@ for NAME in $NAMES; do
     echo "$NAME=$ID" >> "$OUT"; ok=$((ok+1)); echo "[$i/$TOTAL] $NAME → $ID"
   else
     fail=$((fail+1)); echo "[$i/$TOTAL] $NAME 失败：$(printf '%s' "$RESP" | head -c 300)"
+    # Three failures before any success means the key, user id or file type is wrong: stop and report.
+    if [ $ok -eq 0 ] && [ $fail -ge 3 ]; then echo; echo "连续失败，已停止。把上面几行错误截图发给 Claude。"; rm -rf "$TMP"; exit 1; fi
   fi
   sleep 1
 done
