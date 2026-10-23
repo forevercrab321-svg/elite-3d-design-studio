@@ -4,12 +4,26 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local SoundService = game:GetService("SoundService")
 
 local player = Players.LocalPlayer
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local AteEvent = remotes:WaitForChild("Ate") :: RemoteEvent
 local EatenEvent = remotes:WaitForChild("Eaten") :: RemoteEvent
 local RoundEvent = remotes:WaitForChild("RoundState") :: RemoteEvent
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+
+-- Built-in engine sounds (rbxasset://), so no uploaded audio is needed.
+local function sound(id: string, volume: number): Sound
+	local s = Instance.new("Sound")
+	s.SoundId = id
+	s.Volume = volume
+	s.Parent = SoundService
+	return s
+end
+local sndEat = sound("rbxasset://sounds/electronicpingshort.wav", 0.35)
+local sndBig = sound("rbxasset://sounds/swoosh.wav", 0.6)
+local sndEaten = sound("rbxasset://sounds/uuhhh.mp3", 0.7)
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "GrowHud"
@@ -89,12 +103,21 @@ end
 
 AteEvent.OnClientEvent:Connect(function(kind: string, gain: number, position: Vector3, size: number)
 	pop(position, size)
+	local scale = player:GetAttribute("Scale") :: number? or 1
+	-- Small bites ping higher, big bites lower; a bite near your own size gets the swoosh.
+	if size >= Config.CHARACTER_HEIGHT * scale * 0.5 then
+		sndBig:Play()
+	else
+		sndEat.PlaybackSpeed = math.clamp(1.6 - size / (Config.CHARACTER_HEIGHT * scale), 0.7, 1.6)
+		sndEat:Play()
+	end
 	if size >= 4 then
 		showToast(string.format("Ate %s! +%d", kind, math.floor(gain)), Color3.fromRGB(255, 220, 120))
 	end
 end)
 
 EatenEvent.OnClientEvent:Connect(function(by: string)
+	sndEaten:Play()
 	showToast(string.format("%s ate you! Start small again", by), Color3.fromRGB(255, 120, 120))
 end)
 
@@ -107,8 +130,54 @@ RoundEvent.OnClientEvent:Connect(function(msg: { [string]: any })
 	elseif phase == "Waiting" then
 		status.Text = "Waiting for players…"
 	elseif phase == "Landmark" then
-		showToast(tostring(msg.name) .. " ATE THE LANDMARK!", Color3.fromRGB(255, 200, 60))
+		sndBig:Play()
+		showToast(string.format("%s ATE THE %s!", tostring(msg.name), string.upper(tostring(msg.landmark or "landmark"))), Color3.fromRGB(255, 200, 60))
 	elseif phase == "End" then
 		status.Text = if msg.winner ~= "" then string.format("%s wins! (Size %d)", msg.winner, msg.size) else "Round over"
+	end
+end)
+
+-- "Now you can eat: …" whenever growth unlocks the next kind of object (the goal is always visible).
+local unlocks: { { name: string, size: number } } = {}
+for _, k in Config.PROPS do
+	table.insert(unlocks, { name = k.name, size = math.max(k.dims.X, k.dims.Y, k.dims.Z) })
+end
+for _, l in Config.LANDMARKS do
+	table.insert(unlocks, { name = l.name, size = l.size })
+end
+table.sort(unlocks, function(a, b)
+	return a.size < b.size
+end)
+local announced = 0
+local function checkUnlocks()
+	local scale = player:GetAttribute("Scale") :: number? or 1
+	local reach = Config.EAT_REACH * Config.CHARACTER_HEIGHT * scale
+	local newest: string? = nil
+	for idx, u in unlocks do
+		if u.size <= reach then
+			if idx > announced then
+				newest = u.name
+				announced = idx
+			end
+		end
+	end
+	-- Everything edible at spawn is not news; only announce growth past the start.
+	if newest and scale > 1.01 then
+		sndBig:Play()
+		showToast("Now you can eat: " .. newest .. "!", Color3.fromRGB(140, 230, 255))
+	end
+end
+player:GetAttributeChangedSignal("Scale"):Connect(checkUnlocks)
+-- Respawning or a new round starts small again: re-arm the announcements.
+player:GetAttributeChangedSignal("Mass"):Connect(function()
+	local m = player:GetAttribute("Mass") :: number? or 0
+	if m <= Config.START_MASS + 0.001 then
+		announced = 0
+		local reach = Config.EAT_REACH * Config.CHARACTER_HEIGHT
+		for idx, u in unlocks do
+			if u.size <= reach then
+				announced = idx
+			end
+		end
 	end
 end)

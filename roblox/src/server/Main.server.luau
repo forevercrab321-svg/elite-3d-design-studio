@@ -8,6 +8,7 @@ local MarketplaceService = game:GetService("MarketplaceService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local City = require(script.Parent:WaitForChild("City"))
+local Machine = require(script.Parent:WaitForChild("Machine"))
 
 -- Remotes (server → client only; the client never decides what was eaten).
 local remotes = Instance.new("Folder")
@@ -23,6 +24,8 @@ local EatenEvent = remotes:WaitForChild("Eaten") :: RemoteEvent
 local RoundEvent = remotes:WaitForChild("RoundState") :: RemoteEvent
 
 local mass: { [Player]: number } = {}
+local colorIndex: { [Player]: number } = {}
+local joined = 0
 local appliedScale: { [Player]: number } = {}
 local roundActive = false
 local edibles: Folder = City.build()
@@ -123,6 +126,7 @@ local function onCharacter(player: Player, char: Model)
 	end
 	-- Fresh character = fresh start (death by falling, being eaten, or a new round).
 	resetPlayer(player)
+	Machine.attach(char, Machine.color(colorIndex[player] or 1))
 	task.defer(function()
 		placeAtSpawn(player)
 		applyScale(player, true)
@@ -143,9 +147,15 @@ Players.PlayerAdded:Connect(function(player: Player)
 	wins.Name = "Wins"
 	wins.Parent = ls
 	ls.Parent = player
+	joined += 1
+	colorIndex[player] = joined
 	resetPlayer(player)
 	player.CharacterAdded:Connect(function(char)
 		onCharacter(player, char)
+	end)
+	-- Anything the avatar loads later (hats, faces) is hidden too.
+	player.CharacterAppearanceLoaded:Connect(function(char)
+		Machine.hideBody(char)
 	end)
 	if player.Character then
 		onCharacter(player, player.Character)
@@ -155,6 +165,7 @@ end)
 Players.PlayerRemoving:Connect(function(player: Player)
 	mass[player] = nil
 	appliedScale[player] = nil
+	colorIndex[player] = nil
 end)
 
 -- Eating ------------------------------------------------------------------------------------
@@ -176,6 +187,7 @@ local function eatModel(player: Player, model: Model)
 	local gain = model:GetAttribute("Mass") :: number? or 0
 	local kind = model:GetAttribute("Kind") :: string? or model.Name
 	local respawn = model:GetAttribute("Respawn") == true
+	local isLandmark = model:GetAttribute("Landmark") == true
 	local pos = model:GetPivot().Position
 	model:Destroy()
 	addMass(player, gain)
@@ -183,8 +195,8 @@ local function eatModel(player: Player, model: Model)
 	if respawn then
 		respawnLater(kind)
 	end
-	if kind == "Landmark" then
-		RoundEvent:FireAllClients({ phase = "Landmark", name = player.DisplayName })
+	if isLandmark then
+		RoundEvent:FireAllClients({ phase = "Landmark", name = player.DisplayName, landmark = kind })
 	end
 end
 
