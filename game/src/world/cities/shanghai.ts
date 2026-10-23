@@ -24,7 +24,7 @@ const SHANGHAI_HAZE: Palette = {
  * small pearls → upper sphere → space module and mast. Pull a column and the tower above
  * collapses toward it.
  */
-function pearlTower(): Placement[] {
+export function pearlTower(): Placement[] {
   const out: Placement[] = [];
   for (let i = 0; i < 3; i++) {
     const a = Math.PI / 2 + (i * Math.PI * 2) / 3;

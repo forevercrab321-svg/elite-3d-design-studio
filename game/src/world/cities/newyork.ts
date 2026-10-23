@@ -20,7 +20,7 @@ const NY_MORNING: Palette = {
 };
 
 /** Empire State Building (1:5): limestone podium halves → lower tower → setbacks → crown and mast. */
-function empireState(): Placement[] {
+export function empireState(): Placement[] {
   return [
     { type: 'ESB_PODIUM', x: -6.5, z: 0, yaw: Math.PI / 2, tag: 'ep0' },
     { type: 'ESB_PODIUM', x: 6.5, z: 0, yaw: -Math.PI / 2, tag: 'ep1' },
