@@ -55,5 +55,5 @@ for NAME in $NAMES; do
 done
 rm -rf "$TMP"
 echo
-echo "完成：成功 $ok，失败 $fail。结果在 $OUT，已复制到剪贴板，直接粘贴给 Claude。"
+echo "完成：成功 ${ok}，失败 ${fail}。结果在 ${OUT}，已复制到剪贴板，直接粘贴给 Claude。"
 pbcopy < "$OUT" 2>/dev/null || true

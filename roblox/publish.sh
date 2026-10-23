@@ -28,6 +28,6 @@ rm -f "$TMP"
 if [ "$CODE" = "200" ]; then
   echo "发布成功：$BODY"
 else
-  echo "发布失败（HTTP $CODE）：$BODY"
+  echo "发布失败（HTTP ${CODE}）：$BODY"
   exit 1
 fi
