@@ -9,6 +9,7 @@
 - `node tools/roblox-assetids.mjs < ids.txt` 生成 `src/shared/AssetIds.luau`；`node tools/roblox-modelinfo.mjs` 从 manifest 生成 `src/shared/ModelInfo.luau`。
 - 服务器 `Models.luau` 用 `InsertService:LoadAsset` 加载，按 manifest 重新上色，底部中心为轴心，按目标尺寸缩放。没上传的模型自动退回 v0.2 的方块造型，所以随时可以发布。
 - 物件目录换成网页版的东西：易拉罐、消防栓、自动售货机、出租车、巴士、石库门、褐石楼、奥斯曼楼、熨斗大厦等 36 种；机器随体型从 T1 升到 T5（`MACHINE_TIER_SCALES`）。
+- 离线验证（不靠推理）：`lune run roblox/tests/run.luau` 用 Lune 真正执行 src 里的 Config/City 代码，检查 59 个模型都已导出、建筑占地不压邻居、车辆宽度放得进车道、每种物件数量正确、平衡模拟（总吃最大的东西：5 口能吃车，吃掉全城约 17% 质量就能吃地标）。`node tools/preview-city.mjs layout.json out.png` 用真实模型按 City.luau 的实际布局出图，见 `renders/review/roblox-city-v0.3.png`。这一轮测试抓到并修好了：海关大楼/熨斗大厦占地过大、地标需要吃掉全城 74%（`REWARD_EXP` 2.5→2.7）、大量空地块和草坪（改成 174 栋楼铺满街道、铺装地块）。
 - 待实测：导入后的朝向（如果机器倒着走，改 `Config.MACHINE_YAW = 180`）、Roblox 是否接受 GLB 上传、审核时间。
 
 ## v0.2（2026-10-23）

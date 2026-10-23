@@ -1,6 +1,6 @@
 --!strict
--- Procedural city: a GRID × GRID block layout with roads and lane markings, lawns and sidewalks,
--- street props, traffic, colourful buildings with window bands in the block quadrants, and three
+-- Procedural city: a GRID × GRID block layout with roads and lane markings, paved blocks and sidewalks,
+-- street props, traffic, paved blocks, colourful buildings with window bands in the block quadrants, and three
 -- landmarks (Oriental Pearl Tower, Empire State Building, Eiffel Tower) on their own blocks.
 -- Props and landmarks use the web game's own models (server/Models) and fall back to primitives
 -- for any model that is not uploaded yet.
@@ -66,7 +66,7 @@ function City.reward(size: number): number
 	return Config.REWARD_FACTOR * size ^ Config.REWARD_EXP
 end
 
--- Static ground: asphalt with lane markings, sidewalks with lawns on the blocks, edge walls.
+-- Static ground: asphalt with lane markings, paved blocks, edge walls.
 local function buildGround(folder: Folder)
 	part(folder, "Asphalt", Vector3.new(TOTAL, 2, TOTAL), CFrame.new(0, -1, 0), Color3.fromRGB(52, 55, 62), Enum.Material.Asphalt)
 	-- Dashed centre lines on every road.
@@ -82,9 +82,9 @@ local function buildGround(folder: Folder)
 		for j = 0, GRID - 1 do
 			local c = blockCenter(i, j)
 			part(folder, "Sidewalk", Vector3.new(BLOCK, SIDEWALK_TOP, BLOCK), CFrame.new(c.X, SIDEWALK_TOP / 2, c.Z), Color3.fromRGB(190, 188, 180), Enum.Material.Concrete)
-			local lawnColor = if isLandmarkBlock(i, j) then Color3.fromRGB(200, 190, 160) else Color3.fromRGB(110, 170, 90)
-			local lawnMat = if isLandmarkBlock(i, j) then Enum.Material.Pavement else Enum.Material.Grass
-			part(folder, "Lawn", Vector3.new(BLOCK - 12, 0.1, BLOCK - 12), CFrame.new(c.X, SIDEWALK_TOP + 0.05, c.Z), lawnColor, lawnMat)
+			-- Paved plazas like the web game's city blocks; landmark blocks get a warmer stone.
+			local plazaColor = if isLandmarkBlock(i, j) then Color3.fromRGB(205, 195, 170) else Color3.fromRGB(176, 174, 168)
+			part(folder, "Plaza", Vector3.new(BLOCK - 12, 0.1, BLOCK - 12), CFrame.new(c.X, SIDEWALK_TOP + 0.05, c.Z), plazaColor, Enum.Material.Pavement)
 		end
 	end
 	local wallH = 600

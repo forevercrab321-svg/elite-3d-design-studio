@@ -22,7 +22,10 @@ Config.CHARACTER_HEIGHT = 5
 -- is fast, late growth needs buildings.
 -- v0.2: 0.5 → 0.3 (the first playtest reached car size in about a minute; target is 1.5–3 min).
 Config.REWARD_FACTOR = 0.3
-Config.REWARD_EXP = 2.5
+-- v0.3: 2.5 → 2.7. roblox/tests/run.luau simulates a player who always eats the biggest thing in
+-- reach: at 2.5 the Pearl Tower needed 74% of the whole city's mass (impossible in a shared 5-minute
+-- round); at 2.7 it needs about a third, while early growth (car size after ~5 bites) is unchanged.
+Config.REWARD_EXP = 2.7
 -- Eating radius around the root part, in character heights.
 Config.EAT_RADIUS = 0.55
 Config.EAT_TICK = 0.1
@@ -128,17 +131,18 @@ Config.PROPS = {
 	kind("Van", "VAN", 14, 20, "road", rgb(235, 235, 235), M.SmoothPlastic),
 	kind("Delivery Truck", "DELIVERY_TRUCK", 18, 14, "road", rgb(235, 235, 235), M.SmoothPlastic),
 	kind("Bus", "BUS_NY", 26, 12, "road", rgb(230, 180, 40), M.SmoothPlastic),
-	-- Buildings from the three cities (one per block quadrant; never respawn).
-	kind("Shikumen House", "B_SHIKUMEN", 28, 10, "block", rgb(150, 150, 155), M.Brick),
-	kind("Brownstone", "B_BROWNSTONE", 34, 10, "block", rgb(140, 80, 60), M.Brick),
-	kind("Paris Cafe", "B_PARIS_CAFE", 34, 10, "block", rgb(230, 220, 200), M.Limestone),
-	kind("Haussmann Building", "B_HAUSSMANN", 52, 10, "block", rgb(230, 220, 200), M.Limestone),
-	kind("Shanghai Apartments", "B_SH_MID", 58, 8, "block", rgb(200, 200, 205), M.Concrete),
-	kind("New York Loft", "B_NY_LOFT", 72, 8, "block", rgb(170, 100, 80), M.Brick),
-	kind("Peace Hotel", "PEACE_HOTEL", 80, 4, "block", rgb(200, 190, 170), M.Limestone),
-	kind("Customs House", "CUSTOMS_HOUSE", 82, 3, "block", rgb(200, 190, 170), M.Limestone),
-	kind("Flatiron Building", "FLATIRON", 80, 3, "block", rgb(220, 210, 190), M.Limestone),
-	kind("Times Square Tower", "TIMES_TOWER", 100, 3, "block", rgb(110, 130, 160), M.Glass),
+	-- Buildings from the three cities: 174 of the 184 block quadrants, so every street has a wall of
+	-- buildings like the web game (one per quadrant; never respawn).
+	kind("Shikumen House", "B_SHIKUMEN", 28, 26, "block", rgb(150, 150, 155), M.Brick),
+	kind("Brownstone", "B_BROWNSTONE", 34, 26, "block", rgb(140, 80, 60), M.Brick),
+	kind("Paris Cafe", "B_PARIS_CAFE", 34, 26, "block", rgb(230, 220, 200), M.Limestone),
+	kind("Haussmann Building", "B_HAUSSMANN", 52, 24, "block", rgb(230, 220, 200), M.Limestone),
+	kind("Shanghai Apartments", "B_SH_MID", 58, 20, "block", rgb(200, 200, 205), M.Concrete),
+	kind("New York Loft", "B_NY_LOFT", 72, 18, "block", rgb(170, 100, 80), M.Brick),
+	kind("Peace Hotel", "PEACE_HOTEL", 80, 10, "block", rgb(200, 190, 170), M.Limestone),
+	kind("Customs House", "CUSTOMS_HOUSE", 56, 8, "block", rgb(200, 190, 170), M.Limestone),
+	kind("Flatiron Building", "FLATIRON", 40, 8, "block", rgb(220, 210, 190), M.Limestone),
+	kind("Times Square Tower", "TIMES_TOWER", 100, 8, "block", rgb(110, 130, 160), M.Glass),
 } :: { PropKind }
 
 -- Monetization (create these in the Creator Hub, then paste the ids). 0 = not set up yet.
