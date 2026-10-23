@@ -28,7 +28,9 @@ local colorIndex: { [Player]: number } = {}
 local joined = 0
 local appliedScale: { [Player]: number } = {}
 local roundActive = false
-local edibles: Folder = City.build()
+-- Filled by the round loop: City.build waits for the models to load, which must not delay the
+-- player handlers below (a player who joins during that wait would get no machine).
+local edibles: Folder = Instance.new("Folder")
 
 local function scaleFor(m: number): number
 	return math.clamp((m / Config.START_MASS) ^ (1 / 3), 1, Config.MAX_SCALE)
@@ -138,7 +140,7 @@ local function onCharacter(player: Player, char: Model)
 	end)
 end
 
-Players.PlayerAdded:Connect(function(player: Player)
+local function onPlayerAdded(player: Player)
 	local ls = Instance.new("Folder")
 	ls.Name = "leaderstats"
 	local size = Instance.new("IntValue")
@@ -161,7 +163,13 @@ Players.PlayerAdded:Connect(function(player: Player)
 	if player.Character then
 		onCharacter(player, player.Character)
 	end
-end)
+end
+
+Players.PlayerAdded:Connect(onPlayerAdded)
+-- Anyone who joined before this script got here (Studio Play joins immediately).
+for _, player in Players:GetPlayers() do
+	task.spawn(onPlayerAdded, player)
+end
 
 Players.PlayerRemoving:Connect(function(player: Player)
 	mass[player] = nil
@@ -270,6 +278,8 @@ local function broadcast(phase: string, timeLeft: number, extra: { [string]: any
 end
 
 task.spawn(function()
+	-- The first city is built straight away so there is something to look at during intermission.
+	edibles = City.build()
 	while true do
 		roundActive = false
 		for t = Config.INTERMISSION_SECONDS, 1, -1 do

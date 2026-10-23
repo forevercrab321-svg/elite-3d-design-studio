@@ -121,6 +121,17 @@ for _, k in Config.PROPS do
 	end
 end
 
+print("Main startup order")
+-- City.build yields while models load; a player joining during that wait was missed in v0.3
+-- (grey avatar, no machine, Size 0). Player handlers must be connected before any build runs.
+do
+	local main = fs.readFile(ROOT .. "server/Main.server.luau")
+	local connect = string.find(main, "Players.PlayerAdded:Connect", 1, true)
+	local firstBuild = string.find(main, "City.build()", 1, true)
+	check(connect ~= nil and firstBuild ~= nil and connect < firstBuild, "PlayerAdded is connected before the first City.build")
+	check(string.find(main, "for _, player in Players:GetPlayers() do\n\ttask.spawn(onPlayerAdded", 1, true) ~= nil, "players who joined earlier are handled")
+end
+
 print("City.build (no assets → primitives)")
 local City = load("server/City")
 local edibles = City.build()
