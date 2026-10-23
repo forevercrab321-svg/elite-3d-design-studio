@@ -1,7 +1,7 @@
 #!/bin/bash
 # Upload the exported GROW EVERYTHING models (roblox/assets/glb/*.glb) to Roblox as Model assets
 # through Open Cloud, then print and copy the name=assetId list (paste it back to Claude).
-#   curl -fsSL https://raw.githubusercontent.com/forevercrab321-svg/elite-3d-design-studio/claude/gifted-goldberg-mz9n2p/roblox/upload-assets.sh | bash -s <your Roblox user id>
+#   curl -fsSL https://raw.githubusercontent.com/forevercrab321-svg/elite-3d-design-studio/claude/gifted-goldberg-mz9n2p/roblox/upload-assets.sh | bash -s <your Roblox username or user id>
 # Key: ~/.roblox-grow-assets-key (assets read+write). Re-running skips names already uploaded.
 # Uploads the models the game uses (assets/needed.txt); pass "all" as the second argument for all 156.
 set -uo pipefail
@@ -9,7 +9,17 @@ USER_ID="${1:-}"
 KEY_FILE="$HOME/.roblox-grow-assets-key"
 OUT="$HOME/grow-roblox-assets.txt"
 BASE="https://raw.githubusercontent.com/forevercrab321-svg/elite-3d-design-studio/claude/gifted-goldberg-mz9n2p/roblox/assets"
-if [ -z "$USER_ID" ]; then echo "用法：… | bash -s 你的Roblox用户ID"; exit 1; fi
+if [ -z "$USER_ID" ]; then echo "用法：… | bash -s 你的Roblox用户名或用户ID"; exit 1; fi
+# A username instead of the numeric id: look the id up.
+USER_ID="${USER_ID#<}"; USER_ID="${USER_ID%>}"
+if ! [[ "$USER_ID" =~ ^[0-9]+$ ]]; then
+  LOOKUP="$(curl -sS -X POST https://users.roblox.com/v1/usernames/users -H 'Content-Type: application/json' \
+    -d "{\"usernames\":[\"$USER_ID\"],\"excludeBannedUsers\":false}")"
+  ID_FOUND="$(printf '%s' "$LOOKUP" | grep -o '"id": *[0-9]*' | head -1 | grep -o '[0-9][0-9]*')"
+  if [ -z "$ID_FOUND" ]; then echo "找不到用户名 $USER_ID 的用户ID：$LOOKUP"; exit 1; fi
+  echo "用户名 $USER_ID → 用户ID $ID_FOUND"
+  USER_ID="$ID_FOUND"
+fi
 if [ ! -s "$KEY_FILE" ]; then echo "没找到模型密钥：先在 Roblox 页面点 Copy Key To Clipboard，再运行 pbpaste > ~/.roblox-grow-assets-key"; exit 1; fi
 KEY="$(tr -d '\r\n' < "$KEY_FILE")"
 touch "$OUT"
