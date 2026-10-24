@@ -24,7 +24,7 @@ async function pack(name: string, group: string, add: (g: THREE.Group, meshes: M
   g.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(g);
   const size = box.getSize(new THREE.Vector3());
-  return { name, group, size: [size.x, size.y, size.z], tris: meshes.reduce((a, m) => a + m.tris, 0), meshes, glb: await toGlb(g) };
+  return { name, group, size: [size.x, size.y, size.z], min: [box.min.x, box.min.y, box.min.z], tris: meshes.reduce((a, m) => a + m.tris, 0), meshes, glb: await toGlb(g) };
 }
 
 function addGeometry(g: THREE.Group, meshes: MeshInfo[], base: string, geom: THREE.BufferGeometry, src: THREE.Material, tint: number | undefined, matrix?: THREE.Matrix4) {

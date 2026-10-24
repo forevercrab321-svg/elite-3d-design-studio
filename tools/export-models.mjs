@@ -24,7 +24,7 @@ const items = await page.evaluate(() => window.__EXPORT__);
 const manifest = {};
 for (const it of items) {
   if (!process.argv.includes('--manifest-only')) writeFileSync(resolve(out, 'glb', `${it.name}.glb`), Buffer.from(it.glb, 'base64'));
-  manifest[it.name] = { group: it.group, size: it.size.map((v) => +v.toFixed(3)), tris: it.tris, meshes: it.meshes };
+  manifest[it.name] = { group: it.group, size: it.size.map((v) => +v.toFixed(3)), min: it.min.map((v) => +v.toFixed(3)), tris: it.tris, meshes: it.meshes };
 }
 writeFileSync(resolve(out, 'manifest.json'), JSON.stringify(manifest, null, 1));
 console.log(`exported ${items.length} models; largest: ${items.sort((a, b) => b.tris - a.tris).slice(0, 5).map((i) => `${i.name} ${i.tris}`).join(', ')}`);

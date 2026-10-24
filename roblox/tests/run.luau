@@ -1,54 +1,42 @@
 --!nocheck
 -- Offline checks for the Roblox port, run with Lune (https://lune-org.github.io):
 --   lune run roblox/tests/run.luau
--- Loads the real src/ modules with a tiny shim for game/script/require, builds the city with no
--- uploaded assets (the primitive fallback path) and checks the catalogue, layout and balance.
+-- Loads the real src/ modules with a small shim for game/script/require and checks them against
+-- the web game: collision and growth maths against golden values computed by the web code
+-- (tools/roblox-golden.mjs), the exported city data, and the server World (pull-in timing,
+-- landmark collapse) with models stubbed out.
 
 local fs = require("@lune/fs")
 local luau = require("@lune/luau")
 local roblox = require("@lune/roblox")
 local Instance = roblox.Instance
-local Vector3 = roblox.Vector3
 
 local ROOT = "roblox/src/"
-
--- Roblox globals Lune does not have.
-local RandomShim = { new = function()
-	return {
-		NextInteger = function(_, a, b)
-			return math.random(a, b)
-		end,
-		NextNumber = function(_, a, b)
-			a = a or 0
-			b = b or 1
-			return a + math.random() * (b - a)
-		end,
-	}
-end }
-local taskShim = { wait = function() end, spawn = function(f, ...)
-	f(...)
-end, delay = function() end, defer = function() end }
 local game = Instance.new("DataModel")
 local workspace = game:GetService("Workspace")
-local failures = 0
+local failures, passes = 0, 0
 local function check(ok: boolean, msg: string)
 	if ok then
-		print("  ok   " .. msg)
+		passes += 1
 	else
 		failures += 1
 		print("  FAIL " .. msg)
 	end
 end
+local function near(a: number, b: number, tol: number?): boolean
+	return math.abs(a - b) <= (tol or 1e-6) * math.max(1, math.abs(b))
+end
 
--- Module loader: each file gets a fake `script` whose Parent resolves siblings by name.
+-- Module loader ------------------------------------------------------------------------------
+local stubs = {}
 local cache = {}
 local env
-local function folder(dir: string)
-	return setmetatable({ __dir = dir }, {
+local function node(path: string)
+	return setmetatable({ __file = path }, {
 		__index = function(self, k)
 			if k == "WaitForChild" or k == "FindFirstChild" then
 				return function(_, name)
-					return { __file = dir .. name }
+					return node(path .. "/" .. name)
 				end
 			end
 			return nil
@@ -56,237 +44,187 @@ local function folder(dir: string)
 	})
 end
 local function load(path: string)
+	if stubs[path] then
+		return stubs[path]
+	end
 	if cache[path] ~= nil then
 		return cache[path]
 	end
 	local src = fs.readFile(ROOT .. path .. ".luau")
-	local dir = string.match(path, "^(.*/)") or ""
+	local dir = string.match(path, "^(.*)/") or ""
 	-- Lune replaces the environment's metatable, so every global is copied in flat.
-	local e = { script = { Parent = folder(dir) }, require = env.require, game = env.game, workspace = workspace, warn = function() end }
+	local e = { script = { Parent = node(dir) }, require = env.require, game = env.game, workspace = workspace, warn = function() end, task = env.task }
 	for k, v in roblox do
 		e[k] = v
 	end
-	e.Random = RandomShim
-	e.task = taskShim
 	local fn = luau.load(src, { debugName = path, environment = e, injectGlobals = true })
 	cache[path] = fn()
 	return cache[path]
 end
-local shared = folder("shared/")
 local replicated = {
 	WaitForChild = function(_, name)
 		if name == "Shared" then
-			return shared
+			return node("shared")
 		end
 		return Instance.new("Folder")
 	end,
 }
-local services = {
-	ReplicatedStorage = replicated,
-	ServerStorage = game:GetService("ServerStorage"),
-	InsertService = { LoadAsset = function()
-		error("no network in tests")
-	end },
-}
-env = setmetatable({
+env = {
 	game = { GetService = function(_, n)
-		return services[n] or game:GetService(n)
+		if n == "ReplicatedStorage" then
+			return replicated
+		end
+		if n == "InsertService" then
+			return { LoadAsset = function()
+				error("no network in tests")
+			end }
+		end
+		return game:GetService(n)
 	end },
-	workspace = workspace,
 	require = function(m)
 		return load(m.__file)
 	end,
-	warn = function() end,
-}, { __index = function(_, k)
-	return roblox[k] or _G[k] or getfenv(0)[k]
-end })
+	task = { wait = function() end, spawn = function(f, ...)
+		f(...)
+	end, delay = function() end },
+}
 
-print("Config / ModelInfo")
+-- Golden values from the web code ----------------------------------------------------------------
+print("Collision + growth vs the web code")
+local golden = luau.load(fs.readFile("roblox/tests/golden.luau"))()
+local Collision = load("shared/Collision")
+for i, c in golden.collision do
+	local nx, nz, depth = Collision.circleVsObb(c[1], c[2], c[3], { c[4], c[5], c[6], c[7], c[8] })
+	local hit = if nx then 1 else 0
+	check(hit == c[9], "collision case " .. i .. " hit")
+	if hit == 1 and c[9] == 1 then
+		check(near(nx, c[10]) and near(nz, c[11]) and near(depth, c[12]), "collision case " .. i .. " normal/depth")
+	end
+end
+local Growth = load("shared/Growth")
+for _, g in golden.growth do
+	local m = g[1]
+	local d = Growth.diameterForMass(m)
+	local cls = Growth.classForPower(d)
+	local nextCls, nextMass, frac = Growth.progress(m)
+	check(near(d, g[2]), "diameter for " .. m .. " kg")
+	check(cls == g[3], "class for " .. m .. " kg")
+	check(Growth.tierForClass(cls) == g[4], "tier for " .. m .. " kg")
+	check((nextCls or -1) == g[5] and near(nextMass or -1, g[6], 1e-6) and near(frac, g[7], 1e-6), "progress for " .. m .. " kg")
+end
+
+-- City data ---------------------------------------------------------------------------------------
+print("Cities")
 local Config = load("shared/Config")
+local AssetIds = load("shared/AssetIds")
 local ModelInfo = load("shared/ModelInfo")
-local needed = fs.readFile("roblox/assets/needed.txt")
-for name in string.gmatch(needed, "[^\n]+") do
-	check(ModelInfo[name] ~= nil and fs.isFile("roblox/assets/glb/" .. name .. ".glb"), "model exported: " .. name)
-end
-for _, k in Config.PROPS do
-	local biggest = math.max(k.dims.X, k.dims.Y, k.dims.Z)
-	check(math.abs(biggest - k.size) < 0.01, string.format("%s dims %.1f×%.1f×%.1f match size %g", k.name, k.dims.X, k.dims.Y, k.dims.Z, k.size))
-	if k.where == "block" then
-		-- A building sits in a quadrant slot BLOCK/2 wide; leave a 4-stud gap to its neighbour.
-		local foot = math.max(k.dims.X, k.dims.Z)
-		check(foot <= Config.BLOCK / 2 - 4, string.format("%s footprint %.1f fits a %g-stud quadrant", k.name, foot, Config.BLOCK / 2))
-	end
-	if k.where == "road" then
-		check(math.min(k.dims.X, k.dims.Z) <= Config.ROAD / 2 - 1, string.format("%s width %.1f fits a lane", k.name, math.min(k.dims.X, k.dims.Z)))
-	end
-end
-
-print("Materials")
-do
-	local src = fs.readFile(ROOT .. "server/Models.luau")
-	local known = {}
-	for name in string.gmatch(string.match(src, "for _, name in (%b{})") or "", '"(%w+)"') do
-		known[name] = true
-	end
+local WebConfig = load("shared/WebConfig")
+for _, id in Config.CITIES do
+	local city = load("shared/Cities/" .. id)
+	check(AssetIds[city.scenery] ~= nil and ModelInfo[city.scenery] ~= nil, id .. ": scenery uploaded")
 	local missing = {}
-	for _, info in ModelInfo do
-		for _, mesh in info.meshes do
-			if not known[mesh.m] then
-				missing[mesh.m] = true
+	for i, row in city.objects do
+		if not AssetIds[row[1]] or not ModelInfo[row[1]] then
+			missing[row[1]] = true
+		end
+		if row[7] then
+			for _, s in row[7] do
+				check(city.objects[s] ~= nil and s ~= i, id .. ": support " .. s .. " of object " .. i .. " exists")
 			end
 		end
+		check(WebConfig.objects[row[1]] ~= nil, id .. ": type " .. row[1] .. " in WebConfig")
 	end
-	for name in known do
-		check(pcall(function()
-			return roblox.Enum.Material[name]
-		end), "Enum.Material." .. name .. " exists")
+	check(next(missing) == nil, id .. ": every object type uploaded" .. (if next(missing) then " (missing " .. next(missing) .. ")" else ""))
+	local ground = Collision.groundLookup(city.ground)
+	for i, sp in city.spawns do
+		local x, z = Collision.resolveStatic(sp.x, sp.z, 0.35 * 0.47, city.colliders, city.bounds)
+		check(near(x, sp.x) and near(z, sp.z), id .. ": spawn " .. i .. " is free")
+		check(ground(sp.x, sp.z) >= 0 and ground(sp.x, sp.z) < 1, id .. ": spawn " .. i .. " ground height")
 	end
-	check(next(missing) == nil, "every ModelInfo material is in Models.luau's list")
+	local climax = 0
+	for _, row in city.objects do
+		if WebConfig.objects[row[1]].climax then
+			climax += 1
+		end
+	end
+	check(climax > 0, id .. ": has landmark parts (" .. climax .. ")")
 end
 
-print("Camera")
-do
-	local function zoom(scale)
-		local size = Config.MACHINE_SIZE * scale
-		local back = Config.CAMERA_DIST_BASE + Config.CAMERA_DIST_PER_SIZE * size
-		local up = Config.CAMERA_HEIGHT_BASE + Config.CAMERA_HEIGHT_PER_SIZE * size
-		return math.sqrt(back * back + up * up)
+-- Server World with models stubbed out -------------------------------------------------------------
+print("World: pull-in and collapse")
+stubs["server/Models"] = { preload = function() end, clone = function()
+	return nil
+end, load = function()
+	return nil
+end }
+local World = load("server/World")
+local city = World.build("shanghai")
+check(#World.objects == #city.objects, "every layout object is in the world")
+-- Pull: a can 1 m from a starting machine reaches the intake within the web's time limit.
+local CC = WebConfig.collection
+local can
+for _, o in World.objects do
+	if o.type == "CAN" then
+		can = o
+		break
 	end
-	-- Web game at spawn: machine 0.9 m, camera 5.0 m back and 2.3 m up = 5.5 m ≈ 6.1 machine sizes.
-	local ratio = zoom(1) / Config.MACHINE_SIZE
-	check(math.abs(ratio - 6.1) < 0.3, string.format("spawn camera distance %.1f machine sizes (web 6.1)", ratio))
-	print(string.format("  zoom at scale 1 / 10 / 40: %.0f / %.0f / %.0f studs", zoom(1), zoom(10), zoom(40)))
 end
+local d = WebConfig.growth.startDiameter
+local ox, oz = can.x + 1, can.z
+check(World.eligible(can, d, false), "a can is edible at spawn size")
+World.startPull(can, { UserId = 1 })
+local t, done = 0, false
+while t < 3 and not done do
+	t += 1 / 60
+	done = World.stepPull(can, 1 / 60, ox, oz, 0, 0, d, 1.1)
+end
+check(done and t <= CC.maxPullSeconds / 1.1 + 0.02, string.format("can absorbed in %.2f s (limit %.2f)", t, CC.maxPullSeconds / 1.1))
+-- Collapse: eating the Pearl Tower's three legs drops the lower sphere, which lands on the ground.
+local legs, sphere = {}, nil
+for _, o in World.objects do
+	if o.type == "PEARL_LEG" then
+		table.insert(legs, o)
+	elseif o.type == "PEARL_SPHERE_LOW" then
+		sphere = o
+	end
+end
+check(#legs == 3 and sphere ~= nil and sphere.anchored, "Pearl Tower: 3 legs hold the anchored lower sphere")
+check(not World.eligible(sphere, 100, true), "anchored sphere cannot be eaten while held up")
+-- Web rule: a "collapse" part falls as soon as any one support goes, and everything above it follows.
+World.remove(legs[1])
+check(sphere.state == "falling", "sphere falls when one leg is eaten")
+local fallingCount = 0
+for _, o in World.objects do
+	if o.state == "falling" then
+		fallingCount += 1
+	end
+end
+check(fallingCount == 4, "the whole tower above comes down (" .. fallingCount .. " falling: sphere, shaft, upper sphere, top)")
+for _ = 1, 600 do
+	World.stepFalling(1 / 60)
+end
+check(sphere.state == "idle" and near(sphere.y, World.ground(sphere.x, sphere.z), 1e-3), "sphere lands on the ground")
+local landedFar = 0
+for _, o in World.objects do
+	if o.type == "PEARL_TOP" then
+		landedFar = math.sqrt(o.x * o.x + o.z * o.z)
+	end
+end
+check(landedFar > 3 and landedFar <= 23, string.format("top topples sideways %.1f m (web: up to 22 m)", landedFar))
+check(World.eligible(sphere, 12, true) and not World.eligible(sphere, 12, false), "fallen sphere is edible once the landmark opens")
 
+-- Script structure ------------------------------------------------------------------------------
 print("Main startup order")
--- City.build yields while models load; a player joining during that wait was missed in v0.3
--- (grey avatar, no machine, Size 0). Player handlers must be connected before any build runs.
 do
 	local main = fs.readFile(ROOT .. "server/Main.server.luau")
 	local connect = string.find(main, "Players.PlayerAdded:Connect", 1, true)
-	local firstBuild = string.find(main, "City.build()", 1, true)
-	check(connect ~= nil and firstBuild ~= nil and connect < firstBuild, "PlayerAdded is connected before the first City.build")
-	check(string.find(main, "for _, player in Players:GetPlayers() do\n\ttask.spawn(onPlayerAdded", 1, true) ~= nil, "players who joined earlier are handled")
+	local firstBuild = string.find(main, "World.build(", 1, true)
+	check(connect ~= nil and firstBuild ~= nil and connect < firstBuild, "PlayerAdded is connected before the first World.build")
+	check(string.find(main, "task.spawn(onPlayerAdded, player)", 1, true) ~= nil, "players who joined earlier are handled")
 end
 
-print("City.build (no assets → primitives)")
-local City = load("server/City")
-local edibles = City.build()
-local counts, total = {}, 0
-for _, m in edibles:GetChildren() do
-	local kind = m:GetAttribute("Kind")
-	counts[kind] = (counts[kind] or 0) + 1
-	total += 1
-end
-for _, k in Config.PROPS do
-	local want = if k.where == "block" then nil else k.count
-	if want then
-		check(counts[k.name] == want, string.format("%s spawned %d/%d", k.name, counts[k.name] or 0, want))
-	end
-end
-local blocks, slots = 0, (Config.GRID * Config.GRID - #Config.LANDMARKS) * 4
-for _, k in Config.PROPS do
-	if k.where == "block" then
-		blocks += k.count
-		check((counts[k.name] or 0) == k.count, string.format("%s placed %d/%d", k.name, counts[k.name] or 0, k.count))
-	end
-end
-check(blocks <= slots, string.format("buildings %d ≤ slots %d", blocks, slots))
-for _, l in Config.LANDMARKS do
-	check(counts[l.name] == 1, "landmark present: " .. l.name)
-end
-print(string.format("  %d edibles in total", total))
-
--- `lune run roblox/tests/run.luau <out.json>` also writes the layout for tools/preview-city.mjs.
-local outPath = require("@lune/process").args[1]
-if outPath then
-	local items = {}
-	for _, m in edibles:GetChildren() do
-		local kind = m:GetAttribute("Kind")
-		local k = City.kind(kind)
-		local cf = m.PrimaryPart.CFrame
-		local _, yaw = cf:ToEulerAnglesYXZ()
-		local landmark = m:GetAttribute("Landmark") == true
-		local model, bottom = nil, cf.Position
-		if k then
-			model = k.model
-			bottom -= Vector3.new(0, k.dims.Y / 2, 0)
-		else
-			for _, l in Config.LANDMARKS do
-				if l.name == kind then
-					model = l.model
-				end
-			end
-		end
-		table.insert(items, { kind = kind, model = model, size = m:GetAttribute("Size"), x = bottom.X, y = if landmark then 0.4 else bottom.Y, z = bottom.Z, yaw = if landmark then 0 else yaw })
-	end
-	fs.writeFile(outPath, require("@lune/serde").encode("json", { grid = Config.GRID, block = Config.BLOCK, road = Config.ROAD, items = items }))
-	print("  layout written to " .. outPath)
-end
-
-print("Balance (who can eat what)")
-local function scaleFor(m)
-	return math.clamp((m / Config.START_MASS) ^ (1 / 3), 1, Config.MAX_SCALE)
-end
-local reach = function(s)
-	return Config.EAT_REACH * Config.CHARACTER_HEIGHT * s
-end
-check(reach(1) >= Config.PROPS[1].size, "the smallest prop is edible at spawn")
-check(reach(Config.MAX_SCALE) >= 150, "the biggest landmark is edible at max scale")
--- A player who always eats the biggest thing in reach (landmarks included). Pacing targets:
--- car size within 10 bites; every landmark reachable after eating at most 40% of the city's mass
--- (rounds are shared and five minutes long).
-local pool, total = {}, 0
-for _, k in Config.PROPS do
-	for _ = 1, k.count do
-		table.insert(pool, k.size)
-		total += City.reward(k.size)
-	end
-end
-for _, l in Config.LANDMARKS do
-	table.insert(pool, l.size)
-	total += City.reward(l.size)
-end
-table.sort(pool)
-local mass, bites, eaten = Config.START_MASS, 0, 0
-local milestones = { { 11, "Car" }, { 26, "Bus" }, { 100, "Times Square Tower" } }
-for _, l in Config.LANDMARKS do
-	table.insert(milestones, { l.size, l.name })
-end
-table.sort(milestones, function(x, y)
-	return x[1] < y[1]
-end)
-local reached = {}
-while #pool > 0 do
-	local r = reach(scaleFor(mass))
-	local pickIndex = nil
-	for idx = #pool, 1, -1 do
-		if pool[idx] <= r then
-			pickIndex = idx
-			break
-		end
-	end
-	if not pickIndex then
-		break
-	end
-	local size = table.remove(pool, pickIndex)
-	mass += City.reward(size)
-	eaten += City.reward(size)
-	bites += 1
-	for _, ms in milestones do
-		if not reached[ms[2]] and reach(scaleFor(mass)) >= ms[1] then
-			reached[ms[2]] = { bites = bites, share = eaten / total }
-			print(string.format("  can eat %s after %d bites, %.0f%% of the city's mass", ms[2], bites, eaten / total * 100))
-		end
-	end
-end
-check(reached.Car ~= nil and reached.Car.bites <= 10, "car size within 10 bites")
-for _, l in Config.LANDMARKS do
-	local r = reached[l.name]
-	check(r ~= nil and r.share <= 0.4, string.format("%s reachable with ≤40%% of the city", l.name))
-end
-
-print(if failures == 0 then "ALL CHECKS PASSED" else string.format("%d CHECK(S) FAILED", failures))
+print(string.format("%d checks passed, %d failed", passes, failures))
+print(if failures == 0 then "ALL CHECKS PASSED" else "CHECKS FAILED")
 if failures > 0 then
 	error("tests failed", 0)
 end

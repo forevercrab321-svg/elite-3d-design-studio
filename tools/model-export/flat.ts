@@ -5,7 +5,7 @@ import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 export const MAX_TRIS = 19000;
 
 export interface MeshInfo { name: string; role: string; color: string; roughness: number; metalness: number; opacity: number; emissive: boolean; tris: number }
-export interface Exported { name: string; group: string; size: [number, number, number]; tris: number; meshes: MeshInfo[]; glb: string }
+export interface Exported { name: string; group: string; size: [number, number, number]; min: [number, number, number]; tris: number; meshes: MeshInfo[]; glb: string }
 
 export const hex = (c: THREE.Color) => '#' + c.getHexString();
 

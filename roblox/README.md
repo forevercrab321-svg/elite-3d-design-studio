@@ -2,6 +2,16 @@
 
 在 Roblox 上做的"越吃越大"版本：程序生成的城市，从吃易拉罐开始，长大后吃汽车、公交车、整栋楼，最后吃掉城市中心的地标。大的玩家可以吃掉小的玩家。每局 5 分钟，结束时体型最大的人获胜。
 
+## v0.4：照网页版重做底层（2026-10-24，等 Studio 验收）
+
+计划和进度见 `PORT_PLAN.md`。这一版：
+- 城市：网页版上海 / 纽约 / 巴黎原样导出（`tools/export-city.mjs`），街景是一个上传的模型，约 1,650 个物体（含新手圈、金箱子、道具箱）按网页 arena 的布局摆放；地标由多个部件组成，吃掉支撑会倒塌（网页 releaseDependents / updateFalling 原样移植）。三座城轮流。
+- 数值：`src/shared/WebConfig.luau` 由 `tools/roblox-config.mjs` 从 `game/src/config` 生成。1 米 = 10 格。
+- 机器：不再是隐身人形，是一辆车（`Play.client.luau`），网页的速度/加速/转向/冲刺公式，网页的碰撞（圆对盒子），网页的跟随镜头。
+- 吃：客户端提出、服务器检查（`Main.server.luau`），物体按网页公式飞进进料口；连击、金箱子、加速/磁铁/护盾、240 秒后地标开放、吃掉最后一块 +25%。
+- 界面（`Hud.client.luau`）：计时、城市·地标进度、地标倒计时、质量面板（档位、进度条、NEXT）、+kg、解锁/升档横幅、倒计时、结算。
+- 测试：`lune run roblox/tests/run.luau`，碰撞和成长数学用网页代码算出的 400+16 组标准答案对拍（`tools/roblox-golden.mjs`），城市数据、吸入时间、地标倒塌都有检查。
+
 ## v0.3：搬网页版的真模型（2026-10-23，59 个模型已上传，ID 在 AssetIds.luau）
 
 - `tools/model-export/` 直接调用网页版的建模代码，把 20 台机器（4 种外观 × 5 级）、133 个物件、3 个地标导出成 GLB（`roblox/assets/glb/`），每个零件的颜色和材质记在 `assets/manifest.json`。

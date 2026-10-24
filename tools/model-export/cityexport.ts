@@ -11,6 +11,15 @@ import { MaterialLibrary, TINTED } from '../../game/src/art/materials';
 import { World } from '../../game/src/world/World';
 import { cityById } from '../../game/src/world/cities';
 import { MAX_TRIS, type MeshInfo, flatMaterial, toGlb } from './flat';
+import { arenaConfig as A } from '../../game/src/config/arena';
+import type { ObjectTypeId } from '../../game/src/config/objects';
+import type { Cluster } from '../../game/src/world/city';
+
+/** Same as arena/ArenaGame.ts STARTER_RING. */
+const STARTER_RING: [ObjectTypeId, number, number][] = [
+  ['SCRAP', 5, 30], ['CAN', 6, 14], ['BOTTLE', 6, 10], ['BRICK', 7, 8],
+  ['CARDBOARD_SMALL', 8, 8], ['CARDBOARD_BOX', 9, 5], ['TRASH_BAG', 10, 4], ['TRAFFIC_CONE', 10, 4],
+];
 
 const TILE = 96; // m: scenery is split into 3D tiles so Roblox can cull and stream it
 const MAX_EDGE = 80; // m: long triangles (ground planes, skyline faces) are subdivided so every
@@ -37,7 +46,12 @@ async function run() {
   if (!city) throw new Error('no city ' + id);
   const lib = new MaterialLibrary(buildTextureKit(64, 1), 'low');
   const world = new World(lib, city);
-  world.spawnObjects(seed);
+  // The arena's extra clusters (ArenaGame constructor): gold crates, a starter ring per spawn, power crates.
+  const b = city.bounds;
+  const extra: Cluster[] = [{ type: 'GOLD_CRATE', x: (b.minX + b.maxX) / 2, z: (b.minZ + b.maxZ) / 2, radius: Math.min(b.maxX - b.minX, b.maxZ - b.minZ) * 0.45, count: A.goldCrateCount }];
+  for (const sp of city.spawns) for (const [type, radius, count] of city.starterRing ?? STARTER_RING) extra.push({ type, x: sp.x, z: sp.z, radius, count });
+  for (const type of ['POWER_SPEED', 'POWER_MAGNET', 'POWER_SHIELD'] as const) extra.push({ type, x: (b.minX + b.maxX) / 2, z: (b.minZ + b.maxZ) / 2, radius: Math.min(b.maxX - b.minX, b.maxZ - b.minZ) * 0.47, count: A.powerCount });
+  world.spawnObjects(seed, extra);
   world.root.updateMatrixWorld(true);
 
   // ── Scenery ──
@@ -162,6 +176,29 @@ async function run() {
     scenery: { name: `City_${id}`, tris: meshes.reduce((a, m) => a + m.tris, 0), meshes, skipped: [...new Set(skipped)] },
     tinted,
     objects,
+    // Collision exactly as the web World resolves it: circle vs these boxes, plus the bounds.
+    colliders: world.staticColliders.map((b) => [+b.cx.toFixed(3), +b.cz.toFixed(3), +b.hx.toFixed(3), +b.hz.toFixed(3), +b.yaw.toFixed(4)]),
+    // Ground height on a 1 m grid, run-length encoded per row ("height*count,…").
+    ground: (() => {
+      const b = city.bounds;
+      const rows: string[] = [];
+      for (let z = Math.floor(b.minZ); z < Math.ceil(b.maxZ); z++) {
+        const runs: string[] = [];
+        let prev = NaN, count = 0;
+        for (let x = Math.floor(b.minX); x < Math.ceil(b.maxX); x++) {
+          const h = +city.groundHeight(x + 0.5, z + 0.5).toFixed(3);
+          if (h === prev) count++;
+          else {
+            if (count) runs.push(`${prev}*${count}`);
+            prev = h;
+            count = 1;
+          }
+        }
+        runs.push(`${prev}*${count}`);
+        rows.push(runs.join(','));
+      }
+      return { x0: Math.floor(b.minX), z0: Math.floor(b.minZ), rows };
+    })(),
     glb: await toGlb(group),
   };
 }
