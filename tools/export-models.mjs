@@ -1,5 +1,6 @@
 // Export the web game's procedural models to GLB for Roblox (see tools/model-export/export.ts).
 //   node tools/export-models.mjs   → roblox/assets/glb/*.glb + roblox/assets/manifest.json
+//   node tools/export-models.mjs --manifest-only   → manifest only (keeps the uploaded GLBs as they are)
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -22,7 +23,7 @@ if (err) throw new Error(err);
 const items = await page.evaluate(() => window.__EXPORT__);
 const manifest = {};
 for (const it of items) {
-  writeFileSync(resolve(out, 'glb', `${it.name}.glb`), Buffer.from(it.glb, 'base64'));
+  if (!process.argv.includes('--manifest-only')) writeFileSync(resolve(out, 'glb', `${it.name}.glb`), Buffer.from(it.glb, 'base64'));
   manifest[it.name] = { group: it.group, size: it.size.map((v) => +v.toFixed(3)), tris: it.tris, meshes: it.meshes };
 }
 writeFileSync(resolve(out, 'manifest.json'), JSON.stringify(manifest, null, 1));

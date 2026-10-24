@@ -38,7 +38,18 @@ Config.PVP_STEAL = 0.5
 Config.BASE_WALKSPEED = 18
 Config.WALKSPEED_PER_SCALE = 1.5
 Config.MAX_WALKSPEED = 60
-Config.CAMERA_ZOOM_PER_SCALE = 14
+-- Follow camera from the web game (game/src/config/growth.ts camera: distanceBase 1.25 m +
+-- 4.2 × machine diameter, heightBase 0.5 m + 2.0 × diameter, FOV 56° + 1.6°/m up to 64°), converted
+-- with the machine's 0.9 m = MACHINE_SIZE studs. Zoom is held near that distance: low and close,
+-- like the web game, instead of Roblox's default high orbit.
+Config.CAMERA_DIST_BASE = 6.95
+Config.CAMERA_DIST_PER_SIZE = 4.2
+Config.CAMERA_HEIGHT_BASE = 2.8
+Config.CAMERA_HEIGHT_PER_SIZE = 2.0
+Config.CAMERA_ZOOM_RANGE = 0.35 -- players may zoom ±35% around the web distance
+Config.CAMERA_FOV_BASE = 56
+Config.CAMERA_FOV_PER_SIZE = 1.6 / 5.56 -- per stud of machine size (1 m = 5.56 studs)
+Config.CAMERA_FOV_MAX = 64
 
 -- City layout (procedural): GRID × GRID blocks separated by roads.
 Config.GRID = 7

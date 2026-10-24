@@ -72,7 +72,13 @@ local function applyScale(player: Player, force: boolean?)
 	end)
 	Machine.update(char, s)
 	hum.WalkSpeed = math.min(Config.MAX_WALKSPEED, Config.BASE_WALKSPEED + Config.WALKSPEED_PER_SCALE * (s - 1))
-	player.CameraMaxZoomDistance = 30 + Config.CAMERA_ZOOM_PER_SCALE * s
+	-- Web-game follow distance for this machine size (Config CAMERA_*).
+	local size = Config.MACHINE_SIZE * s
+	local back = Config.CAMERA_DIST_BASE + Config.CAMERA_DIST_PER_SIZE * size
+	local up = Config.CAMERA_HEIGHT_BASE + Config.CAMERA_HEIGHT_PER_SIZE * size
+	local zoom = math.sqrt(back * back + up * up)
+	player.CameraMaxZoomDistance = zoom * (1 + Config.CAMERA_ZOOM_RANGE)
+	player.CameraMinZoomDistance = zoom * (1 - Config.CAMERA_ZOOM_RANGE)
 	player:SetAttribute("Scale", s)
 end
 

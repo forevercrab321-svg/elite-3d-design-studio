@@ -15,13 +15,11 @@ local ModelInfo = require(Shared:WaitForChild("ModelInfo"))
 
 local Models = {}
 
-local MATERIALS: { [string]: Enum.Material } = {
-	Neon = Enum.Material.Neon,
-	Glass = Enum.Material.Glass,
-	Metal = Enum.Material.Metal,
-	Plastic = Enum.Material.Plastic,
-	SmoothPlastic = Enum.Material.SmoothPlastic,
-}
+-- Material names used by Shared.ModelInfo (see tools/roblox-modelinfo.mjs).
+local MATERIALS: { [string]: Enum.Material } = {}
+for _, name in { "Neon", "Glass", "Metal", "CorrodedMetal", "Plastic", "SmoothPlastic", "Brick", "Concrete", "Limestone", "Pavement", "Asphalt", "Pebble", "Rubber", "WoodPlanks", "Wood", "Fabric", "Cardboard" } do
+	MATERIALS[name] = (Enum.Material :: any)[name]
+end
 
 local store = Instance.new("Folder")
 store.Name = "ModelTemplates"

@@ -6,11 +6,26 @@ import { readFileSync, writeFileSync } from 'node:fs';
 const root = new URL('../', import.meta.url);
 const manifest = JSON.parse(readFileSync(new URL('roblox/assets/manifest.json', root), 'utf8'));
 
+// Web material role (MaterialLibrary name) → Roblox material, so surfaces keep their texture
+// language (brick, concrete, rubber, metal…) instead of all being flat plastic.
+const ROLE_MATERIAL = {
+  propBrick: 'Brick', brick: 'Brick', darkBrick: 'Brick',
+  concreteProp: 'Concrete', concrete: 'Concrete', plaster: 'Concrete', curb: 'Concrete',
+  stone: 'Limestone', sidewalk: 'Pavement', asphalt: 'Asphalt', gravel: 'Pebble',
+  tread: 'Rubber', rubber: 'Rubber',
+  steel: 'Metal', steelDark: 'Metal', aluminium: 'Metal', chrome: 'Metal', metals: 'Metal', metalLight: 'Metal',
+  copper: 'Metal', roofMetal: 'CorrodedMetal', corrugated: 'CorrodedMetal', Player_Gunmetal: 'Metal',
+  glass: 'Glass', glassTint: 'Glass', clearGlass: 'Glass', windowGlass: 'Glass', shopGlass: 'Glass',
+  wood: 'WoodPlanks', timber: 'Wood', fabric: 'Fabric', velvet: 'Fabric', cardboard: 'Cardboard',
+  lamps: 'Neon', headlight: 'Neon', taillight: 'Neon', screen: 'Neon', lampGlow: 'Neon',
+  plastic: 'Plastic',
+};
+
 function material(m) {
   if (m.emissive) return 'Neon';
+  if (ROLE_MATERIAL[m.role]) return ROLE_MATERIAL[m.role];
   if (m.opacity < 0.99) return 'Glass';
   if (m.metalness >= 0.6) return 'Metal';
-  if (m.roughness >= 0.9) return 'Plastic';
   return 'SmoothPlastic';
 }
 

@@ -62,7 +62,7 @@ local function load(path: string)
 	local src = fs.readFile(ROOT .. path .. ".luau")
 	local dir = string.match(path, "^(.*/)") or ""
 	-- Lune replaces the environment's metatable, so every global is copied in flat.
-	local e = { script = { Parent = folder(dir) }, require = env.require, game = env.game, workspace = workspace, warn = print }
+	local e = { script = { Parent = folder(dir) }, require = env.require, game = env.game, workspace = workspace, warn = function() end }
 	for k, v in roblox do
 		e[k] = v
 	end
@@ -96,7 +96,7 @@ env = setmetatable({
 	require = function(m)
 		return load(m.__file)
 	end,
-	warn = print,
+	warn = function() end,
 }, { __index = function(_, k)
 	return roblox[k] or _G[k] or getfenv(0)[k]
 end })
@@ -119,6 +119,43 @@ for _, k in Config.PROPS do
 	if k.where == "road" then
 		check(math.min(k.dims.X, k.dims.Z) <= Config.ROAD / 2 - 1, string.format("%s width %.1f fits a lane", k.name, math.min(k.dims.X, k.dims.Z)))
 	end
+end
+
+print("Materials")
+do
+	local src = fs.readFile(ROOT .. "server/Models.luau")
+	local known = {}
+	for name in string.gmatch(string.match(src, "for _, name in (%b{})") or "", '"(%w+)"') do
+		known[name] = true
+	end
+	local missing = {}
+	for _, info in ModelInfo do
+		for _, mesh in info.meshes do
+			if not known[mesh.m] then
+				missing[mesh.m] = true
+			end
+		end
+	end
+	for name in known do
+		check(pcall(function()
+			return roblox.Enum.Material[name]
+		end), "Enum.Material." .. name .. " exists")
+	end
+	check(next(missing) == nil, "every ModelInfo material is in Models.luau's list")
+end
+
+print("Camera")
+do
+	local function zoom(scale)
+		local size = Config.MACHINE_SIZE * scale
+		local back = Config.CAMERA_DIST_BASE + Config.CAMERA_DIST_PER_SIZE * size
+		local up = Config.CAMERA_HEIGHT_BASE + Config.CAMERA_HEIGHT_PER_SIZE * size
+		return math.sqrt(back * back + up * up)
+	end
+	-- Web game at spawn: machine 0.9 m, camera 5.0 m back and 2.3 m up = 5.5 m ≈ 6.1 machine sizes.
+	local ratio = zoom(1) / Config.MACHINE_SIZE
+	check(math.abs(ratio - 6.1) < 0.3, string.format("spawn camera distance %.1f machine sizes (web 6.1)", ratio))
+	print(string.format("  zoom at scale 1 / 10 / 40: %.0f / %.0f / %.0f studs", zoom(1), zoom(10), zoom(40)))
 end
 
 print("Main startup order")

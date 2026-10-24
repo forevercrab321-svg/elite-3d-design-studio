@@ -168,6 +168,15 @@ local function checkUnlocks()
 	end
 end
 player:GetAttributeChangedSignal("Scale"):Connect(checkUnlocks)
+
+-- Field of view widens a little as the machine grows, like the web game's camera rig.
+local function applyFov()
+	local scale = player:GetAttribute("Scale") :: number? or 1
+	local size = Config.MACHINE_SIZE * scale
+	workspace.CurrentCamera.FieldOfView = math.min(Config.CAMERA_FOV_MAX, Config.CAMERA_FOV_BASE + Config.CAMERA_FOV_PER_SIZE * size)
+end
+player:GetAttributeChangedSignal("Scale"):Connect(applyFov)
+applyFov()
 -- Respawning or a new round starts small again: re-arm the announcements.
 player:GetAttributeChangedSignal("Mass"):Connect(function()
 	local m = player:GetAttribute("Mass") :: number? or 0

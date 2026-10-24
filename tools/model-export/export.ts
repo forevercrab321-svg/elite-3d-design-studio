@@ -17,7 +17,7 @@ import { eiffel } from '../../game/src/world/cities/paris';
 
 const MAX_TRIS = 19000;
 
-interface MeshInfo { name: string; color: string; roughness: number; metalness: number; opacity: number; emissive: boolean; tris: number }
+interface MeshInfo { name: string; role: string; color: string; roughness: number; metalness: number; opacity: number; emissive: boolean; tris: number }
 interface Exported { name: string; group: string; size: [number, number, number]; tris: number; meshes: MeshInfo[]; glb: string }
 
 const hex = (c: THREE.Color) => '#' + c.getHexString();
@@ -59,7 +59,7 @@ function flatMaterial(src: THREE.Material, tint?: number): { mat: THREE.MeshStan
   if (avg) color.multiply(avg);
   const emissive = !!s.emissive && s.emissive.getHex() !== 0 && (s.emissiveIntensity ?? 0) > 0.5;
   if (emissive) color.copy(s.emissive);
-  const info = { color: hex(color), roughness: s.roughness ?? 0.6, metalness: s.metalness ?? 0, opacity: s.transparent ? (s.opacity ?? 1) : 1, emissive };
+  const info = { role: (s.name || '').replace(/^MAT_(ARCH_)?/, ''), color: hex(color), roughness: s.roughness ?? 0.6, metalness: s.metalness ?? 0, opacity: s.transparent ? (s.opacity ?? 1) : 1, emissive };
   return { mat: new THREE.MeshStandardMaterial({ color, roughness: info.roughness, metalness: info.metalness }), info };
 }
 
