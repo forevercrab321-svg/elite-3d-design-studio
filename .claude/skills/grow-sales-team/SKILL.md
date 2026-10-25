@@ -1,18 +1,19 @@
 ---
 name: grow-sales-team
 description: |
-  GROW EVERYTHING 的销售团队（6 个岗位）：平台发行 BD、达人合作、变现与定价、社群与裂变、数据运营，由销售总监统筹。
+  GROW EVERYTHING 的销售团队（7 个岗位）：平台发行 BD、短视频制片、达人合作、变现与定价、社群与裂变、数据运营，由销售总监统筹。
   每个岗位配一个用女娲蒸馏的顶级思维顾问（alex-hormozi-perspective、top-sales-team-framework、
   game-sales-marketing-framework、mrbeast-perspective）。
   触发：「销售团队」「sales 团队」「开销售周会」「怎么卖这个游戏」「谈 CrazyGames/Poki/Steam」「找达人推广」
-  「定价/报价/礼包/VIP 怎么定」「提高付费率」「拉新裂变」。不在一般编程或 3D 建模问题上触发。
+  「定价/报价/礼包/VIP 怎么定」「提高付费率」「拉新裂变」「做 Shorts/短视频/宣传片」。不在一般编程或 3D 建模问题上触发。
 ---
 
 # GROW EVERYTHING · 销售团队
 
 > 目标：把 GROW EVERYTHING 从「做好了」变成「卖出去」，并且每一步都能用数据验证。
 >
-> **当前优先级（2026-09-24 用户指令）：先做 ToB，ToC 暂停。** 卖给平台的工作由 `grow-platform-bd` 负责；本团队的达人合作、社群裂变、短视频动作暂停，用户说恢复再做。
+> **当前优先级（2026-10-25 用户指令）：全面推广。** 已部署的平台（CrazyGames、Playgama、itch.io 等）和 YouTube 同时推进；平台 BD 细节用 `grow-platform-bd`。短视频由「短视频制片」岗负责，质量标准见下方。
+> 平台申请前先查 `docs/business/sales/platforms/ai-policy.md`（Armor Games 因 AI 素材拒绝过我们）。
 
 ## 激活后先做什么
 
@@ -31,6 +32,7 @@ description: |
 | --- | --- | --- | --- |
 | **销售总监** Head of Revenue | 定目标和优先级、每周复盘、在岗位之间分配资源 | `top-sales-team-framework` | 月收入、D1/D7 留存、付费率、单用户收入 ARPDAU |
 | **平台发行 BD** | CrazyGames、Poki、itch.io、Newgrounds、Steam、TapTap、抖音/微信小游戏：申请、谈条件、按平台规范交付 | `game-sales-marketing-framework` + `top-sales-team-framework`（MEDDIC 管大客户） | 签约平台数、平台审核通过率、各平台 DAU 与分成收入 |
+| **短视频制片** Shorts Producer | YouTube Shorts / TikTok / 抖音 / 小红书的游戏实录短片：选题、分镜、拍摄脚本（`tools/shorts/`）、剪辑、标题封面 | `mrbeast-perspective`（退出角色用中性语气） + `game-sales-marketing-framework` | 3 秒留存、完播率、每条带来的 `lobby_view`（utm） |
 | **达人合作** Creator Partnerships | TikTok/抖音/YouTube/B站/小红书 创作者外联、合作方案、素材包 | `mrbeast-perspective` + `game-sales-marketing-framework` | 合作达人数、视频播放量、带来的 `lobby_view`（按 utm） |
 | **变现与定价** Monetization | 商品设计（外观、礼包、VIP）、价格测试、激励广告位 | `alex-hormozi-perspective` | 付费率、ARPPU、VIP 转化率、激励广告观看率 |
 | **社群与裂变** Community & Referral | 好友礼物、邀请链接、Discord/微信群、玩家活动 | `alex-hormozi-perspective`（$100M Leads）+ `mrbeast-perspective` | 分享率（`share_click`/会话）、邀请带来的新玩家、`gift_unlock` |
@@ -49,6 +51,17 @@ description: |
 2. 每个平台建档：`docs/business/sales/platforms/<平台>.md`，记录要求、分成、联系人、状态、下一步。
 3. 用 MEDDIC 管每个平台的「交易」：衡量指标、决策人、决策标准、决策流程、痛点、内部支持者。
 4. 交付物：申请材料（截图、GIF、描述，中英双语）、SDK 集成清单（见 `game/src/platform/`）。
+
+### 短视频制片（2026-10-25 起）
+
+教训：整局延时（自动驾驶 0.5 秒/帧、HUD 全开、无高潮）没有吸引力，用户直接否了。每条短片必须过这 6 条再给用户看：
+1. **一句话概念**：标题能用 10 个字说清（「小车拆掉埃菲尔铁塔」），不是「从 5 kg 长到 377 吨」这种数字。
+2. **第 1 秒就是对比画面**：极小的机器 + 巨大的目标同框，低机位，配一行问句字幕。
+3. **一个真实的 payoff**：地标倒下、吃掉对手、吃掉卡车……必须在视频里真的发生，不能只在标题里。
+4. **节奏有变速**：成长段快进，高潮段实时或慢放；不允许整条匀速延时。
+5. **画面干净**：`?clip=1`，只留质量数字；镜头不进墙、不进物体（逐帧查）。
+6. **可循环**：最后一帧接得回第一帧（大 → 小，或倒下 → 开局）。
+拍摄只脚本化「往哪开」和镜头；质量和事件必须来自真实对局，不用调试作弊。
 
 ### 达人合作
 1. 先用 `mrbeast-perspective` 找出游戏里最适合拍的 3 个「时刻」（比如吞掉东方明珠、四人互吃、搞笑打嗝）。
