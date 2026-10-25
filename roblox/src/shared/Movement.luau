@@ -92,6 +92,29 @@ function Movement.step(b: Body, dt: number, now: number, wx: number, wz: number,
 	return top, crashed
 end
 
+-- Bumper cars (ArenaGame.bumpActors): two machines that cannot eat each other push apart within
+-- (da + db) × 0.45. share = how much of the push this body takes (1 when only it is driven
+-- here, 0.5 when both are). Returns true on a "BOING" (combined speed above 1 m/s).
+function Movement.bump(b: Body, diameter: number, ox: number, oz: number, otherDiameter: number, otherSpeed: number, share: number): boolean
+	local dx, dz = ox - b.x, oz - b.z
+	local d = math.sqrt(dx * dx + dz * dz)
+	if d < 0.001 then
+		d = 0.001
+	end
+	local reach = (diameter + otherDiameter) * 0.45
+	if d >= reach then
+		return false
+	end
+	local push = reach - d
+	b.x -= dx / d * push * share
+	b.z -= dz / d * push * share
+	if math.abs(b.speed) + math.abs(otherSpeed) > 1 then
+		b.speed *= -0.35
+		return true
+	end
+	return false
+end
+
 -- Is a circle at (x, z) blocked by static boxes or solids? (ArenaGame.isBlocked, for the AI.)
 function Movement.blocked(x: number, z: number, r: number, colliders: { Collision.Box }, bounds: any, solids: { Solid }): boolean
 	if x < bounds.minX + r or x > bounds.maxX - r or z < bounds.minZ + r or z > bounds.maxZ - r then

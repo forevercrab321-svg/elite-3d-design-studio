@@ -1837,6 +1837,7 @@ return {
 		{ "POWER_SHIELD", 10.338, 0.12, 18.824, 5.398, "#3fe0c0", false, false },
 		{ "POWER_SHIELD", 73.152, 0, 1.73, 5.213, "#3fe0c0", false, false },
 	},
+	blocks = { { -106.767, 0, -105.5, 22.165, 40.886, 18, "concrete" }, { -82.21, 0, -105.5, 26.351, 31.001, 18, "concrete" }, { -55.218, 0, -105.5, 27.032, 33.541, 18, "concrete" }, { -31.884, 0, -105.5, 19.037, 59.419, 18, "brick" }, { -10.35, 0, -105.5, 23.43, 63.124, 18, "darkBrick" }, { 12.124, 0, -105.5, 20.916, 62.077, 18, "concrete" }, { 34.37, 0, -105.5, 22.976, 34.227, 18, "darkBrick" }, { 58.157, 0, -105.5, 23.998, 43.62, 18, "darkBrick" }, { 78.713, 0, -105.5, 16.514, 52.553, 18, "brick" }, { 95.714, 0, -105.5, 16.886, 58.347, 18, "concrete" }, { 114.513, 0, -105.5, 20.113, 41.508, 18, "concrete" }, { -106.961, 0, 105.5, 21.778, 48.199, 18, "brick" }, { -86.213, 0, 105.5, 19.118, 69.237, 18, "brick" }, { -66.316, 0, 105.5, 20.075, 62.645, 18, "concrete" }, { -43.598, 0, 105.5, 24.761, 51.491, 18, "concrete" }, { -19.728, 0, 105.5, 22.379, 31.607, 18, "darkBrick" }, { 2.112, 0, 105.5, 20.7, 53.726, 18, "concrete" }, { 25.59, 0, 105.5, 25.656, 59.991, 18, "concrete" }, { 49.256, 0, 105.5, 21.078, 61.004, 18, "darkBrick" }, { 71.476, 0, 105.5, 22.761, 55.839, 18, "concrete" }, { 94.071, 0, 105.5, 21.83, 37.337, 18, "brick" }, { 114.278, 0, 105.5, 17.983, 33.92, 18, "darkBrick" }, { -105.5, 0, -104.885, 18, 47.395, 25.931, "brick" }, { -105.5, 0, -82.608, 18, 34.97, 18.022, "brick" }, { -105.5, 0, -62.791, 18, 39.758, 21.012, "darkBrick" }, { -105.5, 0, -39.81, 18, 64.035, 24.35, "concrete" }, { -105.5, 0, -16.787, 18, 69.115, 21.095, "brick" }, { -105.5, 0, 2.959, 18, 53.827, 17.797, "brick" }, { -105.5, 0, 22.1, 18, 55.331, 19.885, "brick" }, { -105.5, 0, 46.098, 18, 31.847, 27.51, "brick" }, { -105.5, 0, 70.034, 18, 45.665, 19.763, "concrete" }, { -105.5, 0, 88.872, 18, 55.327, 17.313, "brick" }, { -105.5, 0, 106.399, 18, 35.681, 17.139, "brick" }, { -105.5, 0, 125.542, 18, 35.269, 20.547, "brick" }, { 105.5, 0, -103.605, 18, 54.25, 28.49, "darkBrick" }, { 105.5, 0, -75.354, 18, 31.969, 27.412, "darkBrick" }, { 105.5, 0, -52.426, 18, 56.323, 17.845, "concrete" }, { 105.5, 0, -35, 18, 33.599, 16.405, "darkBrick" }, { 105.5, 0, -12.317, 18, 46.644, 28.36, "darkBrick" }, { 105.5, 0, 11.436, 18, 35.43, 18.548, "concrete" }, { 105.5, 0, 31.775, 18, 43.895, 21.53, "brick" }, { 105.5, 0, 51.566, 18, 62.134, 17.452, "darkBrick" }, { 105.5, 0, 72.984, 18, 39.249, 24.783, "brick" }, { 105.5, 0, 97.455, 18, 59.23, 23.559, "concrete" }, { 105.5, 0, 123.554, 18, 66.389, 28.04, "concrete" } },
 	colliders = { { -106.767, -105.5, 11.083, 9, 0 }, { -82.21, -105.5, 13.175, 9, 0 }, { -55.218, -105.5, 13.516, 9, 0 }, { -31.884, -105.5, 9.519, 9, 0 }, { -10.35, -105.5, 11.715, 9, 0 }, { 12.124, -105.5, 10.458, 9, 0 }, { 34.37, -105.5, 11.488, 9, 0 }, { 58.157, -105.5, 11.999, 9, 0 }, { 78.713, -105.5, 8.257, 9, 0 }, { 95.714, -105.5, 8.443, 9, 0 }, { 114.513, -105.5, 10.056, 9, 0 }, { -106.961, 105.5, 10.889, 9, 0 }, { -86.213, 105.5, 9.559, 9, 0 }, { -66.316, 105.5, 10.038, 9, 0 }, { -43.598, 105.5, 12.38, 9, 0 }, { -19.728, 105.5, 11.19, 9, 0 }, { 2.112, 105.5, 10.35, 9, 0 }, { 25.59, 105.5, 12.828, 9, 0 }, { 49.256, 105.5, 10.539, 9, 0 }, { 71.476, 105.5, 11.38, 9, 0 }, { 94.071, 105.5, 10.915, 9, 0 }, { 114.278, 105.5, 8.992, 9, 0 }, { -105.5, -104.885, 9, 12.965, 0 }, { -105.5, -82.608, 9, 9.011, 0 }, { -105.5, -62.791, 9, 10.506, 0 }, { -105.5, -39.81, 9, 12.175, 0 }, { -105.5, -16.787, 9, 10.548, 0 }, { -105.5, 2.959, 9, 8.899, 0 }, { -105.5, 22.1, 9, 9.942, 0 }, { -105.5, 46.098, 9, 13.755, 0 }, { -105.5, 70.034, 9, 9.881, 0 }, { -105.5, 88.872, 9, 8.657, 0 }, { -105.5, 106.399, 9, 8.57, 0 }, { -105.5, 125.542, 9, 10.274, 0 }, { 105.5, -103.605, 9, 14.245, 0 }, { 105.5, -75.354, 9, 13.706, 0 }, { 105.5, -52.426, 9, 8.923, 0 }, { 105.5, -35, 9, 8.203, 0 }, { 105.5, -12.317, 9, 14.18, 0 }, { 105.5, 11.436, 9, 9.274, 0 }, { 105.5, 31.775, 9, 10.765, 0 }, { 105.5, 51.566, 9, 8.726, 0 }, { 105.5, 72.984, 9, 12.391, 0 }, { 105.5, 97.455, 9, 11.78, 0 }, { 105.5, 123.554, 9, 14.02, 0 }, { -80.658, 69.094, 0.2, 0.2, 0 }, { -79.629, 86.527, 0.2, 0.2, 0 }, { -72.159, 87.689, 0.2, 0.2, 0 }, { -69.439, 77.584, 0.2, 0.2, 0 }, { -72.075, 69.289, 0.2, 0.2, 0 }, { -88.917, 81.965, 0.2, 0.2, 0 }, { -83.465, 76.506, 0.2, 0.2, 0 }, { -88, -11, 0.2, 0.2, 0 }, { -76, -11, 0.2, 0.2, 0 }, { -40, -11, 0.2, 0.2, 0 }, { 32, -11, 0.2, 0.2, 0 }, { 80, -11, 0.2, 0.2, 0 }, { -88, 11, 0.2, 0.2, 0 }, { -76, 11, 0.2, 0.2, 0 }, { -40, 11, 0.2, 0.2, 0 }, { 32, 11, 0.2, 0.2, 0 }, { 80, 11, 0.2, 0.2, 0 }, { -11, -88, 0.2, 0.2, 0 }, { -11, -76, 0.2, 0.2, 0 }, { -11, -40, 0.2, 0.2, 0 }, { -11, 32, 0.2, 0.2, 0 }, { -11, 80, 0.2, 0.2, 0 }, { 11, -88, 0.2, 0.2, 0 }, { 11, -76, 0.2, 0.2, 0 }, { 11, -40, 0.2, 0.2, 0 }, { 11, 32, 0.2, 0.2, 0 }, { 11, 80, 0.2, 0.2, 0 } },
 	ground = { x0 = -96, z0 = -96, rows = {
 		"0.12*33,0*14,0.12*39,0*20,0.12*39,0*14,0.12*33",
@@ -2048,7 +2049,7 @@ return {
 	spawns = { { x = 0, z = 88, heading = 0 }, { x = 0, z = -88, heading = 3.142 }, { x = -88, z = 0, heading = -1.571 }, { x = 88, z = 0, heading = 1.571 } },
 	starterRing = nil,
 	trees = { { 23.107, 0.12, -73.357 }, { 43.103, 0.12, -80.395 }, { 29.03, 0.12, -80.549 }, { 28.612, 0.12, -69.42 }, { -88, 0.12, -11 }, { -76, 0.12, -11 }, { -40, 0.12, -11 }, { 32, 0.12, -11 }, { 80, 0.12, -11 }, { -88, 0.12, 11 }, { -76, 0.12, 11 }, { -40, 0.12, 11 }, { 32, 0.12, 11 }, { 80, 0.12, 11 }, { -11, 0.12, -88 }, { -11, 0.12, -76 }, { -11, 0.12, -40 }, { -11, 0.12, 32 }, { -11, 0.12, 80 }, { 11, 0.12, -88 }, { 11, 0.12, -76 }, { 11, 0.12, -40 }, { 11, 0.12, 32 }, { 11, 0.12, 80 } },
-	canopyScale = 1,
+	canopyScale = 1.3,
 	objects = {
 		{ "EIFFEL_LEG", 9.5, 0.12, 9.5, 3.142, "#6f5a44", false, false },
 		{ "EIFFEL_LEG", -9.5, 0.12, -9.5, 0, "#6f5a44", false, false },
@@ -3723,6 +3724,7 @@ return {
 		{ "POWER_SHIELD", 5.511, 0, 42.765, 0.394, "#3fe0c0", false, false },
 		{ "POWER_SHIELD", 57.307, 0, -9.353, 1.83, "#3fe0c0", false, false },
 	},
+	blocks = { { -108.385, 0, -105.5, 18.93, 23.597, 18, "concrete" }, { -84.295, 0, -105.5, 28.649, 21.439, 18, "concrete" }, { -60.891, 0, -105.5, 17.56, 24.887, 18, "plaster" }, { -43.418, 0, -105.5, 16.785, 20.324, 18, "concrete" }, { -26.099, 0, -105.5, 17.254, 22.806, 18, "plaster" }, { -3.869, 0, -105.5, 26.607, 24.088, 18, "plaster" }, { 19.89, 0, -105.5, 20.311, 20.37, 18, "plaster" }, { 38.759, 0, -105.5, 16.827, 20.669, 18, "plaster" }, { 55.736, 0, -105.5, 16.528, 23.371, 18, "plaster" }, { 75.271, 0, -105.5, 21.943, 24.778, 18, "plaster" }, { 95.502, 0, -105.5, 17.918, 25.361, 18, "plaster" }, { 117.898, 0, -105.5, 26.275, 25.687, 18, "concrete" }, { -104.619, 0, 105.5, 26.462, 25.309, 18, "plaster" }, { -77.294, 0, 105.5, 27.587, 24.724, 18, "plaster" }, { -54.328, 0, 105.5, 17.746, 23.782, 18, "concrete" }, { -31.574, 0, 105.5, 27.162, 25.474, 18, "plaster" }, { -3.175, 0, 105.5, 29.035, 20.283, 18, "concrete" }, { 25.995, 0, 105.5, 28.706, 25.028, 18, "plaster" }, { 48.561, 0, 105.5, 15.825, 22.857, 18, "plaster" }, { 67.479, 0, 105.5, 21.412, 21.249, 18, "concrete" }, { 88.324, 0, 105.5, 19.677, 20.149, 18, "plaster" }, { 106.662, 0, 105.5, 16.399, 25.917, 18, "concrete" }, { 126.031, 0, 105.5, 21.738, 22.285, 18, "plaster" }, { -105.5, 0, -105.124, 18, 20.08, 25.452, "plaster" }, { -105.5, 0, -79.193, 18, 22.407, 25.81, "plaster" }, { -105.5, 0, -51.556, 18, 24.297, 28.866, "concrete" }, { -105.5, 0, -22.628, 18, 25.86, 28.389, "concrete" }, { -105.5, 0, 1.426, 18, 21.664, 19.119, "concrete" }, { -105.5, 0, 23.432, 18, 23.117, 24.293, "concrete" }, { -105.5, 0, 48.349, 18, 21.798, 24.941, "plaster" }, { -105.5, 0, 74.607, 18, 24.959, 26.976, "plaster" }, { -105.5, 0, 102.707, 18, 24.503, 28.624, "plaster" }, { -105.5, 0, 126.297, 18, 20.625, 17.957, "plaster" }, { 105.5, 0, -104.11, 18, 21.618, 27.48, "plaster" }, { 105.5, 0, -78.856, 18, 22.715, 22.428, "plaster" }, { 105.5, 0, -53.139, 18, 20.505, 28.406, "plaster" }, { 105.5, 0, -27.022, 18, 21.648, 23.226, "concrete" }, { 105.5, 0, -6.628, 18, 25.24, 16.961, "plaster" }, { 105.5, 0, 16.709, 18, 22.127, 29.113, "plaster" }, { 105.5, 0, 39.441, 18, 25.522, 15.751, "plaster" }, { 105.5, 0, 62.244, 18, 23.059, 29.256, "plaster" }, { 105.5, 0, 90.091, 18, 23.504, 25.839, "plaster" }, { 105.5, 0, 111.75, 18, 24.974, 16.878, "plaster" } },
 	colliders = { { -108.385, -105.5, 9.465, 9, 0 }, { -84.295, -105.5, 14.324, 9, 0 }, { -60.891, -105.5, 8.78, 9, 0 }, { -43.418, -105.5, 8.393, 9, 0 }, { -26.099, -105.5, 8.627, 9, 0 }, { -3.869, -105.5, 13.303, 9, 0 }, { 19.89, -105.5, 10.156, 9, 0 }, { 38.759, -105.5, 8.413, 9, 0 }, { 55.736, -105.5, 8.264, 9, 0 }, { 75.271, -105.5, 10.971, 9, 0 }, { 95.502, -105.5, 8.959, 9, 0 }, { 117.898, -105.5, 13.138, 9, 0 }, { -104.619, 105.5, 13.231, 9, 0 }, { -77.294, 105.5, 13.794, 9, 0 }, { -54.328, 105.5, 8.873, 9, 0 }, { -31.574, 105.5, 13.581, 9, 0 }, { -3.175, 105.5, 14.518, 9, 0 }, { 25.995, 105.5, 14.353, 9, 0 }, { 48.561, 105.5, 7.913, 9, 0 }, { 67.479, 105.5, 10.706, 9, 0 }, { 88.324, 105.5, 9.838, 9, 0 }, { 106.662, 105.5, 8.2, 9, 0 }, { 126.031, 105.5, 10.869, 9, 0 }, { -105.5, -105.124, 9, 12.726, 0 }, { -105.5, -79.193, 9, 12.905, 0 }, { -105.5, -51.556, 9, 14.433, 0 }, { -105.5, -22.628, 9, 14.194, 0 }, { -105.5, 1.426, 9, 9.56, 0 }, { -105.5, 23.432, 9, 12.146, 0 }, { -105.5, 48.349, 9, 12.47, 0 }, { -105.5, 74.607, 9, 13.488, 0 }, { -105.5, 102.707, 9, 14.312, 0 }, { -105.5, 126.297, 9, 8.979, 0 }, { 105.5, -104.11, 9, 13.74, 0 }, { 105.5, -78.856, 9, 11.214, 0 }, { 105.5, -53.139, 9, 14.203, 0 }, { 105.5, -27.022, 9, 11.613, 0 }, { 105.5, -6.628, 9, 8.481, 0 }, { 105.5, 16.709, 9, 14.556, 0 }, { 105.5, 39.441, 9, 7.876, 0 }, { 105.5, 62.244, 9, 14.628, 0 }, { 105.5, 90.091, 9, 12.92, 0 }, { 105.5, 111.75, 9, 8.439, 0 }, { 23.107, -73.357, 0.2, 0.2, 0 }, { 43.103, -80.395, 0.2, 0.2, 0 }, { 29.03, -80.549, 0.2, 0.2, 0 }, { 28.612, -69.42, 0.2, 0.2, 0 }, { -88, -11, 0.2, 0.2, 0 }, { -76, -11, 0.2, 0.2, 0 }, { -40, -11, 0.2, 0.2, 0 }, { 32, -11, 0.2, 0.2, 0 }, { 80, -11, 0.2, 0.2, 0 }, { -88, 11, 0.2, 0.2, 0 }, { -76, 11, 0.2, 0.2, 0 }, { -40, 11, 0.2, 0.2, 0 }, { 32, 11, 0.2, 0.2, 0 }, { 80, 11, 0.2, 0.2, 0 }, { -11, -88, 0.2, 0.2, 0 }, { -11, -76, 0.2, 0.2, 0 }, { -11, -40, 0.2, 0.2, 0 }, { -11, 32, 0.2, 0.2, 0 }, { -11, 80, 0.2, 0.2, 0 }, { 11, -88, 0.2, 0.2, 0 }, { 11, -76, 0.2, 0.2, 0 }, { 11, -40, 0.2, 0.2, 0 }, { 11, 32, 0.2, 0.2, 0 }, { 11, 80, 0.2, 0.2, 0 } },
 	ground = { x0 = -96, z0 = -96, rows = {
 		"0.12*33,0*14,0.12*39,0*20,0.12*39,0*14,0.12*33",
@@ -3934,7 +3936,7 @@ return {
 	spawns = { { x = 0, z = 88, heading = 0 }, { x = 0, z = -88, heading = 3.142 }, { x = -88, z = 0, heading = -1.571 }, { x = 88, z = 0, heading = 1.571 } },
 	starterRing = nil,
 	trees = { { 83.272, 0.12, 68.799 }, { 76.255, 0.12, 82.217 }, { 78.223, 0.12, 76.492 }, { 86.577, 0.12, 88.102 }, { -88, 0.12, -11 }, { -76, 0.12, -11 }, { -40, 0.12, -11 }, { 32, 0.12, -11 }, { 80, 0.12, -11 }, { -88, 0.12, 11 }, { -76, 0.12, 11 }, { -40, 0.12, 11 }, { 32, 0.12, 11 }, { 80, 0.12, 11 }, { -11, 0.12, -88 }, { -11, 0.12, -76 }, { -11, 0.12, -40 }, { -11, 0.12, 32 }, { -11, 0.12, 80 }, { 11, 0.12, -88 }, { 11, 0.12, -76 }, { 11, 0.12, -40 }, { 11, 0.12, 32 }, { 11, 0.12, 80 } },
-	canopyScale = 1,
+	canopyScale = 0.9,
 	objects = {
 		{ "PEARL_LEG", 0, 0.12, 4.5, 0, "#d9d5cc", false, false },
 		{ "PEARL_LEG", -3.897, 0.12, -2.25, -2.094, "#d9d5cc", false, false },
@@ -5595,6 +5597,7 @@ return {
 		{ "POWER_SHIELD", 1.534, 0, -63.001, 3.327, "#3fe0c0", false, false },
 		{ "POWER_SHIELD", -11.911, 0, 62.646, 3.911, "#3fe0c0", false, false },
 	},
+	blocks = { { -106.296, 0, -105.5, 23.109, 41.408, 18, "plaster" }, { -86.419, 0, -105.5, 16.046, 35.96, 18, "plaster" }, { -68.393, 0, -105.5, 19.405, 29.696, 18, "concrete" }, { -45.203, 0, -105.5, 26.375, 28.359, 18, "plaster" }, { -20.947, 0, -105.5, 21.537, 31.458, 18, "plaster" }, { -0.837, 0, -105.5, 18.083, 41.582, 18, "concrete" }, { 19.095, 0, -105.5, 21.18, 35.603, 18, "concrete" }, { 44.532, 0, -105.5, 29.094, 44.582, 18, "concrete" }, { 73.625, 0, -105.5, 28.493, 34.432, 18, "concrete" }, { 99.377, 0, -105.5, 22.41, 24.225, 18, "concrete" }, { 121.951, 0, -105.5, 22.138, 25.182, 18, "concrete" }, { -109.769, 0, 105.5, 16.162, 26.838, 18, "darkBrick" }, { -92.965, 0, 105.5, 16.845, 45.087, 18, "concrete" }, { -72.716, 0, 105.5, 23.054, 30.296, 18, "concrete" }, { -49.682, 0, 105.5, 22.413, 25.796, 18, "plaster" }, { -26.518, 0, 105.5, 23.316, 26.399, 18, "plaster" }, { -3.478, 0, 105.5, 22.162, 37.833, 18, "concrete" }, { 18.953, 0, 105.5, 22.1, 40.57, 18, "concrete" }, { 41.801, 0, 105.5, 22.995, 27.035, 18, "concrete" }, { 64.668, 0, 105.5, 22.14, 26.96, 18, "plaster" }, { 84.531, 0, 105.5, 16.985, 23.431, 18, "concrete" }, { 102.421, 0, 105.5, 18.196, 24.998, 18, "darkBrick" }, { 121.056, 0, 105.5, 18.475, 23.907, 18, "darkBrick" }, { -105.5, 0, -109.436, 18, 44.557, 16.829, "concrete" }, { -105.5, 0, -88.373, 18, 36.745, 24.695, "concrete" }, { -105.5, 0, -64.364, 18, 27.385, 22.723, "concrete" }, { -105.5, 0, -44.298, 18, 43.924, 16.809, "concrete" }, { -105.5, 0, -25.288, 18, 47.606, 20.611, "plaster" }, { -105.5, 0, -4.591, 18, 40.042, 20.184, "concrete" }, { -105.5, 0, 19.149, 18, 27.844, 26.696, "concrete" }, { -105.5, 0, 42.533, 18, 29.932, 19.473, "darkBrick" }, { -105.5, 0, 62.954, 18, 43.628, 20.768, "concrete" }, { -105.5, 0, 84.676, 18, 29.221, 22.077, "darkBrick" }, { -105.5, 0, 109.482, 18, 43.94, 26.936, "concrete" }, { 97.2, 0, 0, 1.2, 1.1, 236, "concrete" } },
 	colliders = { { -106.296, -105.5, 11.554, 9, 0 }, { -86.419, -105.5, 8.023, 9, 0 }, { -68.393, -105.5, 9.703, 9, 0 }, { -45.203, -105.5, 13.188, 9, 0 }, { -20.947, -105.5, 10.768, 9, 0 }, { -0.837, -105.5, 9.042, 9, 0 }, { 19.095, -105.5, 10.59, 9, 0 }, { 44.532, -105.5, 14.547, 9, 0 }, { 73.625, -105.5, 14.247, 9, 0 }, { 99.377, -105.5, 11.205, 9, 0 }, { 121.951, -105.5, 11.069, 9, 0 }, { -109.769, 105.5, 8.081, 9, 0 }, { -92.965, 105.5, 8.423, 9, 0 }, { -72.716, 105.5, 11.527, 9, 0 }, { -49.682, 105.5, 11.207, 9, 0 }, { -26.518, 105.5, 11.658, 9, 0 }, { -3.478, 105.5, 11.081, 9, 0 }, { 18.953, 105.5, 11.05, 9, 0 }, { 41.801, 105.5, 11.497, 9, 0 }, { 64.668, 105.5, 11.07, 9, 0 }, { 84.531, 105.5, 8.493, 9, 0 }, { 102.421, 105.5, 9.098, 9, 0 }, { 121.056, 105.5, 9.237, 9, 0 }, { -105.5, -109.436, 9, 8.414, 0 }, { -105.5, -88.373, 9, 12.348, 0 }, { -105.5, -64.364, 9, 11.361, 0 }, { -105.5, -44.298, 9, 8.404, 0 }, { -105.5, -25.288, 9, 10.305, 0 }, { -105.5, -4.591, 9, 10.092, 0 }, { -105.5, 19.149, 9, 13.348, 0 }, { -105.5, 42.533, 9, 9.736, 0 }, { -105.5, 62.954, 9, 10.384, 0 }, { -105.5, 84.676, 9, 11.039, 0 }, { -105.5, 109.482, 9, 13.468, 0 }, { 97.2, 0, 0.6, 118, 0 }, { 83.272, 68.799, 0.2, 0.2, 0 }, { 76.255, 82.217, 0.2, 0.2, 0 }, { 78.223, 76.492, 0.2, 0.2, 0 }, { 86.577, 88.102, 0.2, 0.2, 0 }, { -88, -11, 0.2, 0.2, 0 }, { -76, -11, 0.2, 0.2, 0 }, { -40, -11, 0.2, 0.2, 0 }, { 32, -11, 0.2, 0.2, 0 }, { 80, -11, 0.2, 0.2, 0 }, { -88, 11, 0.2, 0.2, 0 }, { -76, 11, 0.2, 0.2, 0 }, { -40, 11, 0.2, 0.2, 0 }, { 32, 11, 0.2, 0.2, 0 }, { 80, 11, 0.2, 0.2, 0 }, { -11, -88, 0.2, 0.2, 0 }, { -11, -76, 0.2, 0.2, 0 }, { -11, -40, 0.2, 0.2, 0 }, { -11, 32, 0.2, 0.2, 0 }, { -11, 80, 0.2, 0.2, 0 }, { 11, -88, 0.2, 0.2, 0 }, { 11, -76, 0.2, 0.2, 0 }, { 11, -40, 0.2, 0.2, 0 }, { 11, 32, 0.2, 0.2, 0 }, { 11, 80, 0.2, 0.2, 0 } },
 	ground = { x0 = -96, z0 = -96, rows = {
 		"0.12*33,0*14,0.12*39,0*20,0.12*39,0*14,0.12*33",
@@ -5925,7 +5928,7 @@ Config.CLAIM_SLACK = 1.6
 Config.GAMEPASS_VIP_TRAIL = 0
 
 -- Remote names (created by the server in ReplicatedStorage.Remotes).
-Config.REMOTES = { "Claim", "Crash", "Absorbed", "RoundState", "Notice" }
+Config.REMOTES = { "Claim", "Crash", "Absorbed", "RoundState", "Notice", "PickVehicle" }
 
 return Config
 ]]></string>
@@ -6292,6 +6295,29 @@ function Movement.step(b: Body, dt: number, now: number, wx: number, wz: number,
 	return top, crashed
 end
 
+-- Bumper cars (ArenaGame.bumpActors): two machines that cannot eat each other push apart within
+-- (da + db) × 0.45. share = how much of the push this body takes (1 when only it is driven
+-- here, 0.5 when both are). Returns true on a "BOING" (combined speed above 1 m/s).
+function Movement.bump(b: Body, diameter: number, ox: number, oz: number, otherDiameter: number, otherSpeed: number, share: number): boolean
+	local dx, dz = ox - b.x, oz - b.z
+	local d = math.sqrt(dx * dx + dz * dz)
+	if d < 0.001 then
+		d = 0.001
+	end
+	local reach = (diameter + otherDiameter) * 0.45
+	if d >= reach then
+		return false
+	end
+	local push = reach - d
+	b.x -= dx / d * push * share
+	b.z -= dz / d * push * share
+	if math.abs(b.speed) + math.abs(otherSpeed) > 1 then
+		b.speed *= -0.35
+		return true
+	end
+	return false
+end
+
 -- Is a circle at (x, z) blocked by static boxes or solids? (ArenaGame.isBlocked, for the AI.)
 function Movement.blocked(x: number, z: number, r: number, colliders: { Collision.Box }, bounds: any, solids: { Solid }): boolean
 	if x < bounds.minX + r or x > bounds.maxX - r or z < bounds.minZ + r or z > bounds.maxZ - r then
@@ -6315,6 +6341,43 @@ return Movement
         </Properties>
       </Item>
       <Item class="ModuleScript" referent="18">
+        <Properties>
+          <string name="Name">Sfx</string>
+          <string name="Source"><![CDATA[--!strict
+-- GENERATED by tools/export-sfx.mjs: the web game's sound effects rendered into one sprite
+-- (assets/audio/GrowSfx.ogg). name = { offset s, length s }.
+return {
+	absorb_tick = { 0, 0.1359 },
+	absorb_small = { 0.3859, 0.1359 },
+	absorb_3 = { 0.7717, 0.3657 },
+	absorb_4 = { 1.3874, 0.3597 },
+	absorb_5 = { 1.9971, 0.8064 },
+	absorb_7 = { 3.0536, 0.9059 },
+	absorb_9 = { 4.2095, 1.0054 },
+	crunch_4 = { 5.4649, 0.4704 },
+	crunch_6 = { 6.1853, 0.5664 },
+	crunch_8 = { 7.0018, 0.6688 },
+	collapse = { 7.9206, 1.3243 },
+	dash = { 9.4949, 0.4113 },
+	dashReady = { 10.1562, 0.2041 },
+	stun = { 10.6103, 0.9319 },
+	bump = { 11.7922, 0.3628 },
+	unlock = { 12.405, 0.8356 },
+	tier = { 13.4905, 0.9752 },
+	win = { 14.7157, 2.0515 },
+	beep_low = { 17.0172, 0.2448 },
+	beep_high = { 17.5121, 0.5592 },
+	eaten = { 18.3212, 0.9932 },
+	landmark = { 19.5645, 3.3118 },
+	boing = { 23.1263, 0.5137 },
+	burp = { 23.8899, 0.966 },
+	pop = { 25.1059, 0.1901 },
+	horn = { 25.546, 0.4854 },
+} :: { [string]: { number } }
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="19">
         <Properties>
           <string name="Name">WebConfig</string>
           <string name="Source"><![CDATA[--!nocheck
@@ -7904,15 +7967,15 @@ return {
       </Item>
     </Item>
   </Item>
-  <Item class="ServerScriptService" referent="19">
+  <Item class="ServerScriptService" referent="20">
     <Properties>
       <string name="Name">ServerScriptService</string>
     </Properties>
-    <Item class="Folder" referent="20">
+    <Item class="Folder" referent="21">
       <Properties>
         <string name="Name">Server</string>
       </Properties>
-      <Item class="ModuleScript" referent="21">
+      <Item class="ModuleScript" referent="22">
         <Properties>
           <string name="Name">Bot</string>
           <string name="Source"><![CDATA[--!strict
@@ -8107,7 +8170,7 @@ return Bot
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Script" referent="22">
+      <Item class="Script" referent="23">
         <Properties>
           <string name="Name">Main</string>
           <token name="RunContext">0</token>
@@ -8155,6 +8218,7 @@ local CrashEvent = remotes:WaitForChild("Crash") :: RemoteEvent
 local AbsorbedEvent = remotes:WaitForChild("Absorbed") :: RemoteEvent
 local RoundEvent = remotes:WaitForChild("RoundState") :: RemoteEvent
 local NoticeEvent = remotes:WaitForChild("Notice") :: RemoteEvent
+local PickVehicleEvent = remotes:WaitForChild("PickVehicle") :: RemoteEvent
 
 local machinesFolder = Instance.new("Folder")
 machinesFolder.Name = "Machines"
@@ -8438,6 +8502,8 @@ local function onPlayerAdded(player: Player)
 		end
 	end
 	local a = newActor("player", player, player.DisplayName, slot, look)
+	player:SetAttribute("ActorId", a.id)
+	player:SetAttribute("Look", look)
 	table.insert(actors, a)
 	byPlayer[player] = a
 	if World.city then
@@ -8549,6 +8615,23 @@ ClaimEvent.OnServerEvent:Connect(function(player: Player, ids: any)
 		return
 	end
 	tryClaim(a, ids, Config.CLAIM_SLACK)
+end)
+
+-- Lobby: pick one of the four web vehicles (between rounds only; it changes stats, not just looks).
+PickVehicleEvent.OnServerEvent:Connect(function(player: Player, look: any)
+	local a = byPlayer[player]
+	if not a or typeof(look) ~= "string" or not WebConfig.vehicles[look] or not table.find(Config.MACHINE_LOOKS, look) then
+		return
+	end
+	if phase ~= "Intermission" and phase ~= "Waiting" and phase ~= "Loading" then
+		return
+	end
+	a.look = look
+	a.vehicle = WebConfig.vehicles[look]
+	player:SetAttribute("Look", look)
+	if a.root then
+		a.root:SetAttribute("Look", look)
+	end
 end)
 
 -- A player's client reports dashing into something too big: the web penalty (3% of mass).
@@ -8701,6 +8784,20 @@ local botGame = {
 	end,
 }
 
+-- Bumper cars for AI machines (players push themselves on their clients).
+local function bumpBots()
+	for _, a in actors do
+		if a.kind == "bot" and a.alive then
+			for _, b in actors do
+				if b ~= a and b.alive and not ((canEat(a, b) and not spares(a, b)) or (canEat(b, a) and not spares(b, a))) then
+					local bx, _, bz = position(b)
+					Movement.bump(a.body, a.diameter, bx, bz, b.diameter, math.abs(b.body.speed), if b.kind == "bot" then 0.5 else 1)
+				end
+			end
+		end
+	end
+end
+
 local function stepBots(dt: number)
 	botGame.time = os.clock()
 	botGame.matchTime = matchTime()
@@ -8775,6 +8872,7 @@ RunService.Heartbeat:Connect(function(dt: number)
 	end
 	stepBots(dt)
 	if phase == "Round" then
+		bumpBots()
 		pvp()
 	end
 end)
@@ -8929,8 +9027,21 @@ task.spawn(function()
 		phase = "Round"
 		roundStart = os.clock()
 		broadcast({ phase = phase, timeLeft = Config.ROUND_SECONDS, go = true })
+		local refillClock = 0
 		while true do
 			task.wait(1)
+			refillClock += 1
+			if refillClock >= A.refillCheckSeconds then
+				refillClock = 0
+				local machines = {}
+				for _, a in actors do
+					if a.alive then
+						local x, _, z = position(a)
+						table.insert(machines, { x, z, a.diameter })
+					end
+				end
+				World.refill(machines)
+			end
 			local elapsed = os.clock() - roundStart
 			local left = math.max(0, math.ceil(Config.ROUND_SECONDS - elapsed))
 			if not landmarkOpen and elapsed >= A.landmarkOpenSeconds then
@@ -8963,7 +9074,7 @@ end)
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="23">
+      <Item class="ModuleScript" referent="24">
         <Properties>
           <string name="Name">Models</string>
           <string name="Source"><![CDATA[--!strict
@@ -9124,7 +9235,7 @@ return Models
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="24">
+      <Item class="ModuleScript" referent="25">
         <Properties>
           <string name="Name">World</string>
           <string name="Source"><![CDATA[--!strict
@@ -9174,9 +9285,15 @@ export type Obj = {
 	-- fall
 	fallVy: number,
 	tilt: number,
+	-- refill (ArenaGame refill): home pose, the colours to rebuild it, when it may come back
+	home: { number },
+	base0: Color3,
+	refillAt: number?,
 }
 
 local World = {}
+-- Time source for refills (tests run on simulated time).
+World.clock = os.clock
 World.city = nil :: any
 World.objects = {} :: { Obj }
 World.ground = function(_x: number, _z: number): number
@@ -9244,6 +9361,77 @@ local function syncAttributes(o: Obj)
 	m:SetAttribute("Anchored", o.anchored)
 end
 
+-- Fallback street scenery from the city data when the scenery model cannot be loaded: the ground
+-- grid as asphalt (roads) and raised pavement (kerb height), and the static buildings as boxes.
+local BLOCK_COLORS: { [string]: Color3 } = {
+	brick = Color3.fromRGB(150, 82, 62), darkBrick = Color3.fromRGB(96, 70, 60), plaster = Color3.fromRGB(196, 186, 166),
+	concrete = Color3.fromRGB(150, 150, 146), steel = Color3.fromRGB(120, 130, 140),
+}
+local BLOCK_MATERIALS: { [string]: Enum.Material } = {
+	brick = Enum.Material.Brick, darkBrick = Enum.Material.Brick, plaster = Enum.Material.Concrete,
+	concrete = Enum.Material.Concrete, steel = Enum.Material.Metal,
+}
+local function fallbackScenery(city: any, parent: Instance)
+	local folder = Instance.new("Folder")
+	folder.Name = "FallbackScenery"
+	folder.Parent = parent
+	local function slab(x0: number, x1: number, z0: number, z1: number, h: number)
+		local p = Instance.new("Part")
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		local top = math.max(h, 0.001)
+		p.Size = Vector3.new((x1 - x0) * K, (top + 0.5) * K, (z1 - z0) * K)
+		p.CFrame = CFrame.new((x0 + x1) / 2 * K, (top - 0.5) / 2 * K, (z0 + z1) / 2 * K)
+		if h > 0.01 then
+			p.Color = Color3.fromRGB(176, 174, 168)
+			p.Material = Enum.Material.Pavement
+		else
+			p.Color = Color3.fromRGB(70, 70, 72)
+			p.Material = Enum.Material.Asphalt
+		end
+		p.Parent = folder
+	end
+	-- Rows of runs → rectangles, merging identical consecutive rows.
+	local g = city.ground
+	local prevRow: string? = nil
+	local startZ = g.z0
+	local function flush(row: string, z0: number, z1: number)
+		local x = g.x0
+		for h, n in string.gmatch(row, "([%-%d%.]+)%*(%d+)") do
+			local count = tonumber(n) :: number
+			slab(x, x + count, z0, z1, tonumber(h) :: number)
+			x += count
+		end
+	end
+	for i, row in g.rows do
+		local z = g.z0 + i - 1
+		if row ~= prevRow then
+			if prevRow then
+				flush(prevRow, startZ, z)
+			end
+			prevRow = row
+			startZ = z
+		end
+	end
+	if prevRow then
+		flush(prevRow, startZ, g.z0 + #g.rows)
+	end
+	for _, b in city.blocks or {} do
+		local p = Instance.new("Part")
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.Size = Vector3.new(b[4], b[5], b[6]) * K
+		p.CFrame = CFrame.new(b[1] * K, (b[2] + b[5] / 2) * K, b[3] * K)
+		p.Color = BLOCK_COLORS[b[7]] or BLOCK_COLORS.concrete
+		p.Material = BLOCK_MATERIALS[b[7]] or Enum.Material.Concrete
+		p.Parent = folder
+	end
+end
+
 -- Build a city; returns its module. Yields while models load.
 function World.build(cityId: string)
 	if arena then
@@ -9280,7 +9468,8 @@ function World.build(cityId: string)
 		end
 		scenery.Parent = root
 	else
-		warn("World: scenery " .. city.scenery .. " missing")
+		warn("World: scenery " .. city.scenery .. " missing, building the fallback street scenery")
+		fallbackScenery(city, root)
 	end
 	-- Fallback ground so machines never fall through when the scenery did not load.
 	local base = Instance.new("Part")
@@ -9291,6 +9480,36 @@ function World.build(cityId: string)
 	base.Color = Color3.fromRGB(80, 79, 78)
 	base.Material = Enum.Material.Asphalt
 	base.Parent = root
+
+	-- Street-tree canopies: the web's leaf cards (alpha-tested) cannot be MeshParts, so each crown
+	-- is a cluster of leafy balls where the web crown sits (trunk 2.6–3.4 m, crown 1.6–2.2 m above
+	-- it, radius 1.9–2.5 m × the city's crown scale, squashed to 0.72 in height).
+	local canopies = Instance.new("Folder")
+	canopies.Name = "Canopies"
+	canopies.Parent = root
+	local leafRng = Random.new(1)
+	for _, t in city.trees do
+		local tx, treeBase, tz = t[1], t[2], t[3]
+		local radius = (1.9 + leafRng:NextNumber() * 0.6) * (city.canopyScale or 1)
+		local cy = treeBase + 3 + 1.9
+		local green = Color3.fromRGB(70 + leafRng:NextInteger(0, 25), 110 + leafRng:NextInteger(0, 30), 55 + leafRng:NextInteger(0, 15))
+		for k = 1, 4 do
+			local a = k * 2.1 + leafRng:NextNumber()
+			local off = if k == 1 then Vector3.zero else Vector3.new(math.cos(a) * radius * 0.45, (leafRng:NextNumber() - 0.3) * radius * 0.3, math.sin(a) * radius * 0.45)
+			local r = if k == 1 then radius else radius * (0.6 + leafRng:NextNumber() * 0.2)
+			local ball = Instance.new("Part")
+			ball.Shape = Enum.PartType.Ball
+			ball.Anchored = true
+			ball.CanCollide = false
+			ball.CanQuery = false
+			ball.CanTouch = false
+			ball.Material = Enum.Material.LeafyGrass
+			ball.Color = green
+			ball.Size = Vector3.one * r * 2 * K
+			ball.CFrame = CFrame.new((Vector3.new(tx, cy, tz) + off) * K)
+			ball.Parent = canopies
+		end
+	end
 
 	local folder = Instance.new("Folder")
 	folder.Name = "Objects"
@@ -9325,6 +9544,9 @@ function World.build(cityId: string)
 			spin = 0,
 			fallVy = 0,
 			tilt = 0,
+			home = { x, y, z, yaw },
+			base0 = base0,
+			refillAt = nil,
 		}
 		local m = Models.clone(typeId, 1, color, base0)
 		if m then
@@ -9433,9 +9655,14 @@ local function release(removed: Obj, from: Obj)
 	end
 end
 
--- Remove an absorbed object and release what it held up.
+-- Remove an absorbed object and release what it held up. Small and medium props that are not
+-- landmark parts and not stacked come back at home later (arena refill).
+local A = WebConfig.arena
 function World.remove(o: Obj)
 	o.state = "gone"
+	if o.def.objectClass <= A.refillMaxClass and not o.def.climax and #o.supports == 0 then
+		o.refillAt = World.clock() + A.refillDelay + o.def.objectClass * A.refillPerClass
+	end
 	if o.model then
 		o.model:Destroy()
 		o.model = nil
@@ -9524,6 +9751,49 @@ function World.stepFalling(dt: number): { Obj }
 	return landed
 end
 
+-- Refill due objects whose home is clear of machines ({x, z, diameter} each); at most
+-- refillPerCheck per call. Returns how many came back.
+function World.refill(machines: { { number } }): number
+	local n = 0
+	local t = World.clock()
+	local folder = arena and arena:FindFirstChild("Objects")
+	for _, o in World.objects do
+		if n >= A.refillPerCheck then
+			break
+		end
+		if o.state == "gone" and o.refillAt and t >= o.refillAt then
+			local hx, hy, hz, hyaw = o.home[1], o.home[2], o.home[3], o.home[4]
+			local clear = true
+			for _, m in machines do
+				local need = A.refillClearance + math.min(2 * m[3], A.refillClearanceMaxExtra) + o.radius
+				if (m[1] - hx) ^ 2 + (m[2] - hz) ^ 2 < need * need then
+					clear = false
+					break
+				end
+			end
+			if clear then
+				o.x, o.y, o.z, o.yaw, o.tilt = hx, hy, hz, hyaw, 0
+				o.state = "idle"
+				o.refillAt = nil
+				o.vx, o.vy, o.vz = 0, 0, 0
+				local m = Models.clone(o.type, 1, o.color, o.base0)
+				if m and folder then
+					m.Name = tostring(o.id)
+					m:SetAttribute("Id", o.id)
+					m:SetAttribute("Type", o.type)
+					o.model = m
+					place(o)
+					syncAttributes(o)
+					m.Parent = folder
+				end
+				addToGrid(o)
+				n += 1
+			end
+		end
+	end
+	return n
+end
+
 -- Solid for a machine of this power (web World.isSolid): held up in the air = pass underneath.
 function World.solid(o: Obj, power: number, landmarkOpen: boolean): boolean
 	if o.state ~= "idle" then
@@ -9545,20 +9815,260 @@ return World
       </Item>
     </Item>
   </Item>
-  <Item class="StarterPlayer" referent="25">
+  <Item class="StarterPlayer" referent="26">
     <Properties>
       <string name="Name">StarterPlayer</string>
       <bool name="LoadCharacterAppearance">false</bool>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="26">
+    <Item class="StarterPlayerScripts" referent="27">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-      <Item class="Folder" referent="27">
+      <Item class="Folder" referent="28">
         <Properties>
           <string name="Name">Client</string>
         </Properties>
-        <Item class="LocalScript" referent="28">
+        <Item class="ModuleScript" referent="29">
+          <Properties>
+            <string name="Name">Feel</string>
+            <string name="Source"><![CDATA[--!strict
+-- Game feel on the client, after the web game's systems/Effects.ts and audio/AudioEngine.ts:
+--  * sounds: the web's own procedural effects rendered into one sprite (Shared.Sfx, uploaded as
+--    AssetIds.GrowSfx) played with Sound.PlaybackRegion; pickup ticks climb a pentatonic ladder
+--    while chained, like the web;
+--  * camera trauma (shake = trauma², decays 1.4/s, 17 Hz, max 6% of camera distance), a timed
+--    pull-back (tier up, landmark) and a dash FOV kick;
+--  * particles: burst, shards, dust, sparks and a ground pulse ring.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local SoundService = game:GetService("SoundService")
+local Debris = game:GetService("Debris")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local WebConfig = require(Shared:WaitForChild("WebConfig"))
+local AssetIds = require(Shared:WaitForChild("AssetIds"))
+local Sfx = require(Shared:WaitForChild("Sfx"))
+
+local FEEL = WebConfig.feel
+
+local Feel = {}
+
+-- Sounds -----------------------------------------------------------------------------------------
+local spriteId = AssetIds.GrowSfx
+-- Built-in engine sounds stand in until the sprite is uploaded.
+local FALLBACK: { [string]: string } = {
+	absorb_tick = "rbxasset://sounds/electronicpingshort.wav",
+	absorb_small = "rbxasset://sounds/electronicpingshort.wav",
+	tier = "rbxasset://sounds/victory.wav",
+	win = "rbxasset://sounds/victory.wav",
+	eaten = "rbxasset://sounds/uuhhh.mp3",
+	beep_low = "rbxasset://sounds/clickfast.wav",
+	beep_high = "rbxasset://sounds/clickfast.wav",
+}
+local function playSound(name: string, volume: number?, speed: number?)
+	local s = Instance.new("Sound")
+	s.Volume = volume or 0.8
+	s.PlaybackSpeed = speed or 1
+	local region = Sfx[name]
+	if spriteId and region then
+		s.SoundId = "rbxassetid://" .. spriteId
+		s.PlaybackRegionsEnabled = true
+		s.PlaybackRegion = NumberRange.new(region[1], region[1] + region[2])
+	else
+		local id = FALLBACK[name]
+		if not id then
+			s:Destroy()
+			return
+		end
+		s.SoundId = id
+	end
+	s.Parent = SoundService
+	s:Play()
+	Debris:AddItem(s, ((region and region[2]) or 3) / (speed or 1) + 0.5)
+end
+
+function Feel.play(name: string, volume: number?, speed: number?)
+	playSound(name, volume, speed)
+end
+
+-- Pickup tick: chained pickups climb STREAK_STEPS (semitones) within 0.7 s (AudioEngine.tick).
+local STREAK_STEPS = { 0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24 }
+local streak, lastStreak = 0, -10
+function Feel.tick(size: number)
+	local t = os.clock()
+	streak = if t - lastStreak < 0.7 then math.min(#STREAK_STEPS - 1, streak + 1) else 0
+	lastStreak = t
+	-- The rendered tick is the base pitch for a 0.1 m object; size lowers it like the web.
+	local base = math.max(500, 1150 - size * 700) / math.max(500, 1150 - 0.1 * 700)
+	playSound("absorb_tick", 0.6, base * 2 ^ (STREAK_STEPS[streak + 1] / 12))
+end
+
+-- Absorb sound by class (AudioEngine.handle 'absorb').
+function Feel.absorb(cls: number, size: number)
+	if cls <= 2 then
+		Feel.tick(size)
+	elseif cls == 3 then
+		playSound("absorb_3")
+	elseif cls == 4 then
+		playSound("absorb_4")
+	elseif cls <= 6 then
+		playSound("absorb_5")
+	elseif cls <= 8 then
+		playSound("absorb_7")
+	else
+		playSound("absorb_9")
+	end
+end
+
+function Feel.crunch(cls: number)
+	playSound(if cls >= 8 then "crunch_8" elseif cls >= 6 then "crunch_6" else "crunch_4")
+end
+
+-- Camera feel ------------------------------------------------------------------------------------
+local trauma = 0
+local pull, pullUntil, pullTotal = 0, 0, 1
+local fovKick = 0
+
+function Feel.trauma(amount: number)
+	trauma = math.min(1, trauma + amount)
+end
+
+-- Trauma from something at distance `dist` m (fades past 45 m + 3 × size, like the web).
+function Feel.traumaAt(amount: number, dist: number, size: number)
+	local falloff = 45 + size * 3
+	if dist < falloff * 2 then
+		Feel.trauma(amount * math.clamp(1 - dist / (falloff * 2), 0, 1))
+	end
+end
+
+function Feel.pullBack(amount: number, seconds: number)
+	pull = amount
+	pullTotal = seconds
+	pullUntil = os.clock() + seconds
+end
+
+function Feel.kickFov(deg: number)
+	fovKick = math.max(fovKick, deg)
+end
+
+-- Per frame: returns a camera offset (studs), a distance multiplier and extra FOV degrees.
+function Feel.camera(dt: number, distance: number): (Vector3, number, number)
+	trauma = math.max(0, trauma - FEEL.traumaDecay * dt)
+	local s = trauma * trauma
+	local t = os.clock() * 17
+	local offset = Vector3.new(math.noise(t, 0.3) * 2, math.noise(t, 4.1) * 2, math.noise(t, 9.7) * 2) * s * FEEL.maxShakeOffset * distance
+	local left = pullUntil - os.clock()
+	local p = if left > 0 then pull * math.sin(math.clamp(left / pullTotal, 0, 1) * math.pi) else 0
+	fovKick = math.max(0, fovKick - 5 * fovKick * dt)
+	return offset, 1 + p, fovKick + p * 30
+end
+
+-- Particles --------------------------------------------------------------------------------------
+local fxFolder = Instance.new("Folder")
+fxFolder.Name = "Fx"
+fxFolder.Parent = workspace
+
+local function emitter(position: Vector3, props: { [string]: any }, count: number, life: number)
+	local p = Instance.new("Part")
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.Transparency = 1
+	p.Size = Vector3.one * 0.1
+	p.Position = position
+	local a = Instance.new("Attachment")
+	a.Parent = p
+	local e = Instance.new("ParticleEmitter")
+	e.Enabled = false
+	for k, v in props do
+		(e :: any)[k] = v
+	end
+	e.Parent = a
+	p.Parent = fxFolder
+	e:Emit(count)
+	Debris:AddItem(p, life + 0.5)
+end
+
+-- Shards: chunky coloured bits flung out and falling (Effects.shards).
+function Feel.shards(position: Vector3, color: Color3, count: number, size: number, speed: number)
+	emitter(position, {
+		Color = ColorSequence.new(color),
+		Size = NumberSequence.new(size),
+		Speed = NumberRange.new(speed * 0.5, speed),
+		SpreadAngle = Vector2.new(180, 180),
+		Acceleration = Vector3.new(0, -workspace.Gravity * 0.6, 0),
+		Lifetime = NumberRange.new(0.5, 0.9),
+		Rotation = NumberRange.new(0, 360),
+		RotSpeed = NumberRange.new(-300, 300),
+		Texture = "rbxasset://textures/particles/sparkles_main.dds",
+		LightEmission = 0,
+		Transparency = NumberSequence.new(0, 1),
+	}, count, 0.9)
+end
+
+function Feel.dust(position: Vector3, radius: number, count: number)
+	emitter(position, {
+		Color = ColorSequence.new(Color3.fromRGB(190, 180, 165)),
+		Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, radius * 0.4), NumberSequenceKeypoint.new(1, radius * 1.4) }),
+		Speed = NumberRange.new(radius * 0.4, radius * 1.2),
+		SpreadAngle = Vector2.new(90, 20),
+		Lifetime = NumberRange.new(0.8, 1.4),
+		Texture = "rbxasset://textures/particles/smoke_main.dds",
+		Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.4), NumberSequenceKeypoint.new(1, 1) }),
+		Drag = 2,
+	}, count, 1.4)
+end
+
+function Feel.sparks(position: Vector3, count: number, speed: number)
+	emitter(position, {
+		Color = ColorSequence.new(Color3.fromRGB(255, 200, 90)),
+		Size = NumberSequence.new(0.3, 0),
+		Speed = NumberRange.new(speed * 0.5, speed),
+		SpreadAngle = Vector2.new(180, 180),
+		Acceleration = Vector3.new(0, -workspace.Gravity * 0.4, 0),
+		Lifetime = NumberRange.new(0.25, 0.5),
+		LightEmission = 1,
+		Texture = "rbxasset://textures/particles/sparkles_main.dds",
+	}, count, 0.5)
+end
+
+-- A small burst (pop at the intake, absorb burst).
+function Feel.burst(position: Vector3, color: Color3, count: number, size: number)
+	emitter(position, {
+		Color = ColorSequence.new(color),
+		Size = NumberSequence.new(size, 0),
+		Speed = NumberRange.new(size * 4, size * 9),
+		SpreadAngle = Vector2.new(180, 180),
+		Lifetime = NumberRange.new(0.25, 0.45),
+		LightEmission = 0.6,
+		Texture = "rbxasset://textures/particles/sparkles_main.dds",
+	}, count, 0.45)
+end
+
+-- Ground pulse ring (tier up, landmark, being eaten).
+function Feel.pulse(position: Vector3, radius: number, color: Color3?)
+	local ring = Instance.new("Part")
+	ring.Shape = Enum.PartType.Cylinder
+	ring.Anchored = true
+	ring.CanCollide = false
+	ring.CanQuery = false
+	ring.CanTouch = false
+	ring.Material = Enum.Material.Neon
+	ring.Color = color or Color3.fromHex("ffb347")
+	ring.Transparency = 0.3
+	ring.Size = Vector3.new(0.2, 1, 1)
+	ring.CFrame = CFrame.new(position) * CFrame.Angles(0, 0, math.pi / 2)
+	ring.Parent = fxFolder
+	game:GetService("TweenService"):Create(ring, TweenInfo.new(0.7, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = Vector3.new(0.2, radius * 2, radius * 2), Transparency = 1 }):Play()
+	Debris:AddItem(ring, 0.8)
+end
+
+return Feel
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="LocalScript" referent="30">
           <Properties>
             <string name="Name">Hud</string>
             <string name="Source"><![CDATA[--!strict
@@ -9571,7 +10081,6 @@ return World
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
-local SoundService = game:GetService("SoundService")
 local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
@@ -9582,6 +10091,7 @@ local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local AbsorbedEvent = remotes:WaitForChild("Absorbed") :: RemoteEvent
 local RoundEvent = remotes:WaitForChild("RoundState") :: RemoteEvent
 local NoticeEvent = remotes:WaitForChild("Notice") :: RemoteEvent
+local Feel = require(script.Parent:WaitForChild("Feel"))
 
 local ORANGE = Color3.fromHex("ffb347")
 local ORANGE_DARK = Color3.fromHex("d97a14")
@@ -9593,20 +10103,6 @@ local CITY_TEXT: { [string]: { city: string, landmark: string } } = {
 	newyork = { city = "New York", landmark = "Empire State Building" },
 	paris = { city = "Paris", landmark = "Eiffel Tower" },
 }
-
--- Built-in engine sounds (no uploaded audio needed yet).
-local function sound(id: string, volume: number): Sound
-	local s = Instance.new("Sound")
-	s.SoundId = id
-	s.Volume = volume
-	s.Parent = SoundService
-	return s
-end
-local sndPop = sound("rbxasset://sounds/electronicpingshort.wav", 0.3)
-local sndBig = sound("rbxasset://sounds/swoosh.wav", 0.6)
-local sndTier = sound("rbxasset://sounds/victory.wav", 0.5)
-local sndBeep = sound("rbxasset://sounds/clickfast.wav", 0.6)
-local sndEaten = sound("rbxasset://sounds/uuhhh.mp3", 0.7)
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "GrowHud"
@@ -9810,7 +10306,7 @@ shadow(status)
 -- Controls legend (bottom-right).
 local legend = text(gui, "Legend", 12, Enum.Font.GothamBold, ORANGE)
 legend.AnchorPoint = Vector2.new(1, 1)
-legend.Position = UDim2.new(1, -20, 1, -20)
+legend.Position = UDim2.new(1, -20, 1, -18)
 legend.Size = UDim2.fromOffset(320, 18)
 legend.TextXAlignment = Enum.TextXAlignment.Right
 legend.Text = "WASD MOVE · SPACE DASH · DRAG LOOK"
@@ -9959,6 +10455,223 @@ local function addFeed(s: string, tone: string?)
 	end)
 end
 
+-- Minimap (184 px, north-up, refreshed every 90 ms; arena/ArenaUi.ts): class ≥ 6 objects and
+-- landmark parts (green = you can eat it, landmark orange, grey while locked), crates as dots,
+-- machines as slot-colour dots (red ring = can eat you, green = you can eat it, white = you).
+local MAP = 184
+local minimap = Instance.new("Frame")
+minimap.Name = "Minimap"
+minimap.AnchorPoint = Vector2.new(1, 1)
+minimap.Position = UDim2.new(1, -20, 1, -46)
+minimap.Size = UDim2.fromOffset(MAP, MAP)
+minimap.BackgroundColor3 = PANEL
+minimap.BackgroundTransparency = 0.35
+minimap.ClipsDescendants = true
+minimap.Parent = gui
+corner(minimap, 10)
+local mapPool: { Frame } = {}
+local mapUsed = 0
+local function mapDot(): Frame
+	mapUsed += 1
+	local f = mapPool[mapUsed]
+	if not f then
+		local nf = Instance.new("Frame")
+		nf.BorderSizePixel = 0
+		nf.AnchorPoint = Vector2.new(0.5, 0.5)
+		local stroke = Instance.new("UIStroke")
+		stroke.Name = "Ring"
+		stroke.Thickness = 2
+		stroke.Parent = nf
+		local c = Instance.new("UICorner")
+		c.Name = "Round"
+		c.Parent = nf
+		nf.Parent = minimap
+		mapPool[mapUsed] = nf
+		f = nf
+	end
+	f.Visible = true
+	return f
+end
+local mapCity: any = nil
+local mapCityId = ""
+local function drawMinimap()
+	local arena = workspace:FindFirstChild("Arena")
+	local cityId = arena and arena:GetAttribute("City") :: string?
+	if not cityId then
+		minimap.Visible = false
+		return
+	end
+	minimap.Visible = true
+	if cityId ~= mapCityId then
+		mapCityId = cityId
+		mapCity = require(Shared:WaitForChild("Cities"):WaitForChild(cityId)) :: any
+	end
+	local b = mapCity.bounds
+	local pad = 6
+	local k = (MAP - pad * 2) / math.max(b.maxX - b.minX, b.maxZ - b.minZ)
+	local function at(x: number, z: number): UDim2
+		return UDim2.fromOffset(pad + (x - b.minX) * k, pad + (z - b.minZ) * k)
+	end
+	mapUsed = 0
+	local myD = player:GetAttribute("Diameter") :: number? or WebConfig.growth.startDiameter
+	local open = workspace:GetAttribute("LandmarkOpen") == true
+	local objects = arena and arena:FindFirstChild("Objects")
+	if objects then
+		for _, m in objects:GetChildren() do
+			local typeId = m:GetAttribute("Type") :: string?
+			local def = typeId and WebConfig.objects[typeId]
+			if def and m:GetAttribute("State") ~= "pulled" then
+				local x, z = m:GetAttribute("X") :: number? or 0, m:GetAttribute("Z") :: number? or 0
+				if def.power or def.bonus then
+					local f = mapDot()
+					f.Size = UDim2.fromOffset(4, 4)
+					f.Rotation = 0
+					f.BackgroundColor3 = if def.power == "speed" then Color3.fromHex("3fa9ff") elseif def.power == "magnet" then Color3.fromHex("b05cff") elseif def.power == "shield" then Color3.fromHex("3fe0c0") else Color3.fromHex("ffd35a")
+					f.BackgroundTransparency = 0
+					f.Position = at(x, z)
+					;(f:FindFirstChild("Ring") :: UIStroke).Enabled = false
+					;(f:FindFirstChild("Round") :: UICorner).CornerRadius = UDim.new(1, 0)
+				elseif def.objectClass >= 6 or def.climax then
+					local edible = myD >= Growth.requiredPower(typeId :: string) and (open or not def.climax) and m:GetAttribute("Anchored") ~= true
+					local f = mapDot()
+					f.Size = UDim2.fromOffset(math.max(2, def.size[1] * k), math.max(2, def.size[3] * k))
+					f.Rotation = -math.deg(m:GetAttribute("Yaw") :: number? or 0)
+					f.Position = at(x, z)
+					;(f:FindFirstChild("Ring") :: UIStroke).Enabled = false
+					;(f:FindFirstChild("Round") :: UICorner).CornerRadius = UDim.new(0, 0)
+					if def.climax then
+						f.BackgroundColor3 = if edible then ORANGE elseif not open then Color3.fromRGB(170, 176, 186) else ORANGE
+						f.BackgroundTransparency = if edible then 0 elseif not open then 0.5 else 0.45
+					else
+						f.BackgroundColor3 = if edible then Color3.fromRGB(140, 224, 122) else Color3.fromRGB(210, 214, 220)
+						f.BackgroundTransparency = if edible then 0.45 elseif def.objectClass >= 7 then 0.66 else 0.82
+					end
+				end
+			end
+		end
+	end
+	local machines = workspace:FindFirstChild("Machines")
+	local myId = tostring(player:GetAttribute("ActorId"))
+	if machines then
+		for _, m in machines:GetChildren() do
+			local root = m:FindFirstChild("Root") :: BasePart?
+			if root then
+				local p = root.Position / 10
+				local d = root:GetAttribute("Diameter") :: number? or 0.35
+				local slot = root:GetAttribute("Slot") :: number? or 1
+				local f = mapDot()
+				f.Size = UDim2.fromOffset(9, 9)
+				f.Rotation = 0
+				f.BackgroundColor3 = SLOT[(slot - 1) % #SLOT + 1]
+				f.BackgroundTransparency = 0
+				f.Position = at(p.X, p.Z)
+				;(f:FindFirstChild("Round") :: UICorner).CornerRadius = UDim.new(1, 0)
+				local ring = f:FindFirstChild("Ring") :: UIStroke
+				ring.Enabled = true
+				if m.Name == myId then
+					ring.Color = Color3.new(1, 1, 1)
+				elseif d >= myD * WebConfig.arena.eatRatio then
+					ring.Color = Color3.fromRGB(255, 70, 70)
+				elseif myD >= d * WebConfig.arena.eatRatio then
+					ring.Color = Color3.fromRGB(110, 230, 110)
+				else
+					ring.Enabled = false
+				end
+			end
+		end
+	end
+	for i = mapUsed + 1, #mapPool do
+		mapPool[i].Visible = false
+	end
+end
+task.spawn(function()
+	while true do
+		drawMinimap()
+		task.wait(0.09)
+	end
+end)
+
+-- Vehicle picker (between rounds, like the web lobby's "Pick a vehicle" with stat bars).
+local PickEvent = remotes:WaitForChild("PickVehicle") :: RemoteEvent
+local picker = Instance.new("Frame")
+picker.Name = "VehiclePicker"
+picker.AnchorPoint = Vector2.new(0.5, 1)
+picker.Position = UDim2.new(0.5, 0, 1, -24)
+picker.Size = UDim2.fromOffset(4 * 150 + 3 * 10, 150)
+picker.BackgroundTransparency = 1
+picker.Visible = false
+picker.Parent = gui
+local pickerList = Instance.new("UIListLayout")
+pickerList.FillDirection = Enum.FillDirection.Horizontal
+pickerList.Padding = UDim.new(0, 10)
+pickerList.Parent = picker
+local pickerTitle = text(picker, "Title", 14, Enum.Font.GothamBlack, ORANGE)
+pickerTitle.Text = "PICK A VEHICLE"
+pickerTitle.Position = UDim2.fromOffset(0, -24)
+pickerTitle.Size = UDim2.new(1, 0, 0, 20)
+pickerTitle.AnchorPoint = Vector2.new(0, 0)
+local cards: { [string]: Frame } = {}
+local STATS = { { "speed", "Speed" }, { "accel", "Accel" }, { "reach", "Reach" }, { "pull", "Pull" } }
+for _, look in { "collector", "dozer", "racer", "magnet" } do
+	local v = WebConfig.vehicles[look]
+	local card = Instance.new("TextButton")
+	card.Name = look
+	card.AutoButtonColor = true
+	card.Text = ""
+	card.Size = UDim2.fromOffset(150, 150)
+	card.BackgroundColor3 = PANEL
+	card.BackgroundTransparency = 0.15
+	card.Parent = picker
+	corner(card, 10)
+	local stroke = Instance.new("UIStroke")
+	stroke.Name = "Selected"
+	stroke.Color = ORANGE
+	stroke.Thickness = 2
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Parent = card
+	local title = text(card, "Name", 16, Enum.Font.GothamBlack)
+	title.Text = string.upper(v.name)
+	title.Position = UDim2.fromOffset(0, 8)
+	title.Size = UDim2.new(1, 0, 0, 20)
+	local blurb = text(card, "Blurb", 11, Enum.Font.Gotham, DIM)
+	blurb.Text = v.blurb
+	blurb.TextWrapped = true
+	blurb.Position = UDim2.fromOffset(8, 28)
+	blurb.Size = UDim2.new(1, -16, 0, 28)
+	for i, st in STATS do
+		local y = 60 + (i - 1) * 20
+		local lab = text(card, "L" .. i, 11, Enum.Font.GothamBold, DIM)
+		lab.Text = st[2]
+		lab.TextXAlignment = Enum.TextXAlignment.Left
+		lab.Position = UDim2.fromOffset(10, y)
+		lab.Size = UDim2.fromOffset(50, 16)
+		local track = Instance.new("Frame")
+		track.BackgroundColor3 = Color3.fromRGB(60, 60, 66)
+		track.BorderSizePixel = 0
+		track.Position = UDim2.fromOffset(58, y + 6)
+		track.Size = UDim2.fromOffset(80, 5)
+		track.Parent = card
+		local fillBar = Instance.new("Frame")
+		fillBar.BackgroundColor3 = ORANGE
+		fillBar.BorderSizePixel = 0
+		-- 0.7 … 1.4 maps to the bar (the four vehicles' range).
+		fillBar.Size = UDim2.fromScale(math.clamp((v[st[1]] - 0.7) / 0.7, 0.08, 1), 1)
+		fillBar.Parent = track
+	end
+	card.Activated:Connect(function()
+		PickEvent:FireServer(look)
+	end)
+	cards[look] = card :: any
+end
+local function refreshPicker()
+	local mine = player:GetAttribute("Look") :: string?
+	for look, card in cards do
+		(card:FindFirstChild("Selected") :: UIStroke).Enabled = look == mine
+	end
+end
+player:GetAttributeChangedSignal("Look"):Connect(refreshPicker)
+refreshPicker()
+
 -- Mass panel refresh ----------------------------------------------------------------------------
 local shownMass = 0
 local function refreshMass()
@@ -10006,11 +10719,20 @@ local comboText = ""
 local comboUntil = 0
 AbsorbedEvent.OnClientEvent:Connect(function(info: { [string]: any })
 	popGain(info.gain)
-	if info.cls >= 3 then
-		sndBig:Play()
-	else
-		sndPop.PlaybackSpeed = 1 + math.random() * 0.2
-		sndPop:Play()
+	Feel.absorb(info.cls, info.size)
+	-- Pop at the intake; big objects (class ≥ 3) burst and shake by size relative to the machine.
+	local machines = workspace:FindFirstChild("Machines")
+	local m = machines and machines:FindFirstChild(tostring(player:GetAttribute("ActorId")))
+	local root = m and m:FindFirstChild("Root") :: BasePart?
+	if root then
+		local d = root:GetAttribute("Diameter") :: number? or 0.35
+		local intake = root.CFrame * CFrame.new(0, 0, -d * 0.3 * 10)
+		if info.cls >= 3 then
+			Feel.burst(intake.Position, ORANGE, 12, math.max(0.2, d * 2))
+			Feel.trauma(WebConfig.feel.largePickupTrauma * math.min(1, info.size / d))
+		else
+			Feel.burst(intake.Position, Color3.new(1, 1, 1), 4, math.max(0.1, d))
+		end
 	end
 	if info.combo then
 		comboText = string.format("Combo ×%.1f", info.combo)
@@ -10027,25 +10749,30 @@ end)
 
 NoticeEvent.OnClientEvent:Connect(function(n: { [string]: any })
 	if n.kind == "unlock" then
-		sndBig:Play()
+		Feel.play("unlock")
 		showBanner("UNLOCKED: " .. string.upper(Growth.classLabel(n.cls)), "SIZE CLASS " .. n.cls, 1.6)
 	elseif n.kind == "tier" then
-		sndTier:Play()
+		Feel.play("tier")
+		Feel.pullBack(0.28, 1.6)
+		Feel.trauma(WebConfig.feel.tierUpTrauma)
 		showBanner("TIER " .. n.tier, "NOW EATING: " .. string.upper(Growth.classLabel(n.cls)), 2.4)
 	elseif n.kind == "landmarkOpen" then
 		local t = CITY_TEXT[n.city]
-		sndTier:Play()
+		Feel.play("unlock")
 		showBanner("LANDMARK OPEN!", "TOPPLE THE " .. string.upper(t and t.landmark or "LANDMARK"), 2.6)
 	elseif n.kind == "landmarkDown" then
 		local t = CITY_TEXT[n.city]
-		sndTier:Play()
+		Feel.play("landmark")
+		Feel.pullBack(0.35, 2.6)
 		showBanner(string.upper(t and t.landmark or "LANDMARK") .. " DOWN!", n.name .. " · LANDMARK BONUS +25%", 3)
 	elseif n.kind == "ate" then
-		sndBig:Play()
+		Feel.play("burp")
+		Feel.trauma(0.5)
 		local v, u = Growth.massText(n.gain)
 		showBanner("ATE " .. string.upper(n.name) .. "!", "+" .. v .. " " .. string.upper(u) .. (if n.first then " · FIRST BLOOD" else ""), 2)
 	elseif n.kind == "eaten" then
-		sndEaten:Play()
+		Feel.play("eaten")
+		Feel.trauma(0.7)
 		if n.lives and n.lives <= 0 then
 			showBanner("ELIMINATED", "Eaten by " .. n.name .. " · spectating", 3)
 		else
@@ -10065,7 +10792,6 @@ NoticeEvent.OnClientEvent:Connect(function(n: { [string]: any })
 		centerSub.Text = ""
 		showToast("RESPAWN · " .. WebConfig.arena.invulnerableSeconds .. " s INVULNERABLE")
 	elseif n.kind == "crash" then
-		sndEaten:Play()
 		showToast(n.text, Color3.fromRGB(255, 120, 120))
 		addFeed("Dashed into something too big: stunned, mass lost", "bad")
 	elseif n.kind == "feed" then
@@ -10083,6 +10809,7 @@ RoundEvent.OnClientEvent:Connect(function(msg: { [string]: any })
 	local t = CITY_TEXT[msg.city or ""]
 	local cityLine = if t then string.format("%s · %s %d/%d", t.city, t.landmark, msg.climaxEaten or 0, msg.climaxTotal or 0) else ""
 	results.Visible = p == "Results"
+	picker.Visible = p == "Intermission" or p == "Waiting"
 	if msg.board then
 		renderBoard(msg.board)
 	end
@@ -10097,8 +10824,7 @@ RoundEvent.OnClientEvent:Connect(function(msg: { [string]: any })
 		subline.Text = "Waiting for players…"
 		lockLine.Text = ""
 	elseif p == "Countdown" then
-		sndBeep.PlaybackSpeed = 1
-		sndBeep:Play()
+		Feel.play("beep_low")
 		center.Text = tostring(msg.timeLeft)
 		centerSub.Text = "GET READY"
 		timer.Text = fmt(WebConfig.arena.roundSeconds)
@@ -10108,8 +10834,7 @@ RoundEvent.OnClientEvent:Connect(function(msg: { [string]: any })
 		timer.Text = fmt(msg.timeLeft)
 		subline.Text = cityLine
 		if msg.go then
-			sndBeep.PlaybackSpeed = 1.6
-			sndBeep:Play()
+			Feel.play("beep_high")
 			center.Text = "GO"
 			centerSub.Text = "EAT!"
 			task.delay(1.2, function()
@@ -10130,6 +10855,9 @@ RoundEvent.OnClientEvent:Connect(function(msg: { [string]: any })
 		lockLine.Text = ""
 		local rows = msg.rows or {}
 		local champion = rows[1]
+		if champion and champion.userId == player.UserId then
+			Feel.play("win")
+		end
 		resultsTitle.Text = "Round over"
 		local lines = {}
 		if champion then
@@ -10164,7 +10892,7 @@ RunService.Heartbeat:Connect(function()
 		table.insert(lines, comboText)
 	end
 	local machines = workspace:FindFirstChild("Machines")
-	local m = machines and machines:FindFirstChild(player.Name)
+	local m = machines and machines:FindFirstChild(tostring(player:GetAttribute("ActorId")))
 	local root = m and m:FindFirstChild("Root")
 	if root then
 		local t = workspace:GetServerTimeNow()
@@ -10181,7 +10909,7 @@ end)
 ]]></string>
           </Properties>
         </Item>
-        <Item class="LocalScript" referent="29">
+        <Item class="LocalScript" referent="31">
           <Properties>
             <string name="Name">Play</string>
             <string name="Source"><![CDATA[--!strict
@@ -10207,6 +10935,7 @@ local WebConfig = require(Shared:WaitForChild("WebConfig"))
 local Growth = require(Shared:WaitForChild("Growth"))
 local Collision = require(Shared:WaitForChild("Collision"))
 local Movement = require(Shared:WaitForChild("Movement"))
+local Feel = require(script.Parent:WaitForChild("Feel"))
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local ClaimEvent = remotes:WaitForChild("Claim") :: RemoteEvent
 local CrashEvent = remotes:WaitForChild("Crash") :: RemoteEvent
@@ -10228,6 +10957,8 @@ end
 
 -- City data -------------------------------------------------------------------------------------
 type Rec = { id: number, model: Model, type: string, def: any, req: number, radius: number, x: number, y: number, z: number, yaw: number, state: string, anchored: boolean }
+-- The local machine: its root and the movement body driven by Movement.step.
+local me = { root = nil :: BasePart?, body = Movement.new(0, 0, 0) }
 local recs: { [number]: Rec } = {}
 local cells: { [number]: { Rec } } = {}
 local CELL = 8
@@ -10298,7 +11029,34 @@ local function track(m: Instance)
 	addToGrid(r)
 	m.AttributeChanged:Connect(function(name)
 		if name == "State" then
+			local before = r.state
 			r.state = m:GetAttribute("State") :: string? or "idle"
+			local size = math.max(r.def.size[1], r.def.size[2], r.def.size[3])
+			local pos = Vector3.new(r.x, r.y + r.def.size[2] / 2, r.z) * K
+			local cls = r.def.objectClass
+			if r.state == "pulled" and cls >= 4 then
+				-- Destruction beat (ArenaGame.startPull): shards, dust, sparks for crush/collapse.
+				local pp = m.PrimaryPart or m:FindFirstChildWhichIsA("BasePart")
+				Feel.shards(pos, if pp then pp.Color else Color3.new(0.6, 0.6, 0.6), 12, math.max(0.3, size * 0.09 * K), (2 + size * 0.9) * K)
+				Feel.dust(Vector3.new(r.x, r.y, r.z) * K, size * 0.5 * K, if cls >= 6 then 6 else 3)
+				if r.def.destructionType == "crush" or r.def.destructionType == "collapse" then
+					Feel.sparks(Vector3.new(r.x, r.y + r.def.size[2] * 0.8, r.z) * K, 10, (1.5 + size * 0.6) * K)
+				end
+				if m:GetAttribute("Owner") == player:GetAttribute("ActorId") then
+					Feel.crunch(cls)
+					local myD = me.root and me.root:GetAttribute("Diameter") :: number? or G.startDiameter
+					local rel = math.min(1.5, size / myD)
+					Feel.trauma(math.min(0.45, (0.08 + 0.035 * cls) * math.min(1, 0.25 + 0.6 * rel)))
+				end
+			elseif before == "falling" and r.state == "idle" then
+				-- A landmark part landing: dust and a rumble that fades with distance.
+				Feel.dust(Vector3.new(r.x, r.y, r.z) * K, size * 0.6 * K, 12)
+				local dist = math.sqrt((r.x - me.body.x) ^ 2 + (r.z - me.body.z) ^ 2)
+				if dist < (45 + size * 3) * 2 then
+					Feel.play("collapse")
+					Feel.traumaAt(math.min(0.5, 0.12 + size * 0.02), dist, size)
+				end
+			end
 		elseif name == "Anchored" then
 			r.anchored = m:GetAttribute("Anchored") == true
 		elseif name == "X" or name == "Z" or name == "Y" or name == "Yaw" then
@@ -10425,12 +11183,11 @@ local function cleanupVisuals()
 end
 
 -- Local machine --------------------------------------------------------------------------------
-local me = { root = nil :: BasePart?, body = Movement.new(0, 0, 0) }
 local cam = { yaw = 0, pitch = 1, idle = 0, pos = nil :: Vector3?, fov = CAM.fovBase }
 
 local function myRoot(): BasePart?
 	local machines = workspace:FindFirstChild("Machines")
-	local m = machines and machines:FindFirstChild(player.Name)
+	local m = machines and machines:FindFirstChild(tostring(player:GetAttribute("ActorId")))
 	local root = m and m:FindFirstChild("Root") :: BasePart?
 	return root
 end
@@ -10469,6 +11226,67 @@ UserInputService.InputChanged:Connect(function(input: InputObject)
 	end
 end)
 
+-- Touch (web touch layout): drag on the left half to steer, drag on the right half to look,
+-- DASH button bottom-right.
+local touchMove = Vector2.zero
+local moveTouch: InputObject? = nil
+local moveOrigin = Vector2.zero
+local lookTouch: InputObject? = nil
+if UserInputService.TouchEnabled then
+	local touchGui = Instance.new("ScreenGui")
+	touchGui.Name = "TouchControls"
+	touchGui.ResetOnSpawn = false
+	touchGui.Parent = player:WaitForChild("PlayerGui")
+	local dash = Instance.new("TextButton")
+	dash.Name = "Dash"
+	dash.AnchorPoint = Vector2.new(1, 1)
+	dash.Position = UDim2.new(1, -28, 1, -200)
+	dash.Size = UDim2.fromOffset(84, 84)
+	dash.Text = "DASH"
+	dash.Font = Enum.Font.GothamBlack
+	dash.TextSize = 16
+	dash.TextColor3 = Color3.fromRGB(30, 20, 5)
+	dash.BackgroundColor3 = Color3.fromHex("ffb347")
+	dash.Parent = touchGui
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(1, 0)
+	c.Parent = dash
+	dash.Activated:Connect(function()
+		dashPressed = true
+	end)
+	UserInputService.TouchStarted:Connect(function(input: InputObject, processed: boolean)
+		if processed then
+			return
+		end
+		local p = Vector2.new(input.Position.X, input.Position.Y)
+		if p.X < camera.ViewportSize.X / 2 and not moveTouch then
+			moveTouch = input
+			moveOrigin = p
+		elseif not lookTouch then
+			lookTouch = input
+		end
+	end)
+	UserInputService.TouchMoved:Connect(function(input: InputObject)
+		if input == moveTouch then
+			local delta = Vector2.new(input.Position.X, input.Position.Y) - moveOrigin
+			local r = 70
+			touchMove = if delta.Magnitude > r then delta.Unit else delta / r
+		elseif input == lookTouch then
+			cam.yaw -= input.Delta.X * CAM.mouseYawPerPixel
+			cam.pitch = math.clamp(cam.pitch + input.Delta.Y * CAM.mousePitchPerPixel, 0.45, 1.8)
+			cam.idle = 0
+		end
+	end)
+	UserInputService.TouchEnded:Connect(function(input: InputObject)
+		if input == moveTouch then
+			moveTouch = nil
+			touchMove = Vector2.zero
+		elseif input == lookTouch then
+			lookTouch = nil
+		end
+	end)
+end
+
 local function axis(pos: { Enum.KeyCode }, neg: { Enum.KeyCode }): number
 	local v = 0
 	for _, k in pos do
@@ -10490,14 +11308,15 @@ local function vehicle(root: BasePart): any
 	return WebConfig.vehicles[root:GetAttribute("Look") :: string? or "collector"]
 end
 
+local lastBoing = 0
 local function move(root: BasePart, dt: number): number
 	local d = root:GetAttribute("Diameter") :: number? or G.startDiameter
 	local mass = root:GetAttribute("Mass") :: number? or G.startMass
 	local p = phase()
 	local frozen = p == "Countdown" or p == "Results" or p == "Loading"
 	-- Camera-relative input.
-	local ix = axis({ Enum.KeyCode.D, Enum.KeyCode.Right }, { Enum.KeyCode.A, Enum.KeyCode.Left })
-	local iy = axis({ Enum.KeyCode.W, Enum.KeyCode.Up }, { Enum.KeyCode.S, Enum.KeyCode.Down })
+	local ix = axis({ Enum.KeyCode.D, Enum.KeyCode.Right }, { Enum.KeyCode.A, Enum.KeyCode.Left }) + touchMove.X
+	local iy = axis({ Enum.KeyCode.W, Enum.KeyCode.Up }, { Enum.KeyCode.S, Enum.KeyCode.Down }) - touchMove.Y
 	local fx, fz = -math.sin(cam.yaw), -math.cos(cam.yaw)
 	local rx, rz = math.cos(cam.yaw), -math.sin(cam.yaw)
 	local wx, wz = fx * iy + rx * ix, fz * iy + rz * ix
@@ -10509,10 +11328,47 @@ local function move(root: BasePart, dt: number): number
 		end
 	end
 	local boosted = now() < (root:GetAttribute("SpeedUntil") :: number? or 0)
+	local cooling = me.body.dashCooldown > 0
+	local dashBefore = me.body.dashTime
 	local top, crashed = Movement.step(me.body, dt, now(), wx, wz, dashPressed, frozen, mass, d, vehicle(root), boosted, city and city.colliders, city and city.bounds, solids)
 	dashPressed = false
+	if me.body.dashTime > dashBefore then
+		-- Dash: whoosh, FOV kick, dust at the wheels.
+		Feel.play("dash")
+		Feel.kickFov(7)
+		Feel.dust(Vector3.new(me.body.x, ground(me.body.x, me.body.z), me.body.z) * K, d * 0.6 * K, 4)
+	elseif cooling and me.body.dashCooldown <= 0 then
+		Feel.play("dashReady", 0.5)
+	end
 	if crashed then
 		CrashEvent:FireServer()
+		Feel.play("stun")
+		Feel.trauma(0.35)
+		Feel.sparks(Vector3.new(me.body.x, ground(me.body.x, me.body.z) + d * 0.5, me.body.z) * K, 14, (3 + d) * K)
+	end
+	-- Bumper cars against machines neither side can eat (push only ours; theirs is driven elsewhere).
+	local machines = workspace:FindFirstChild("Machines")
+	if machines and not frozen then
+		local myLook = root:GetAttribute("Look") :: string? or "collector"
+		for _, m in machines:GetChildren() do
+			local other = m:FindFirstChild("Root") :: BasePart?
+			if other and other ~= root then
+				local od = other:GetAttribute("Diameter") :: number? or G.startDiameter
+				local oLook = other:GetAttribute("Look") :: string? or "collector"
+				local t = now()
+				local safe = t < (other:GetAttribute("InvulnerableUntil") :: number? or 0) or t < (root:GetAttribute("InvulnerableUntil") :: number? or 0)
+				local iEat = d >= od * A.eatRatio * WebConfig.vehicles[myLook].eatRatio and t >= (other:GetAttribute("ShieldUntil") :: number? or 0)
+				local theyEat = od >= d * A.eatRatio * WebConfig.vehicles[oLook].eatRatio and t >= (root:GetAttribute("ShieldUntil") :: number? or 0)
+				if safe or not (iEat or theyEat) then
+					local op = other.Position / K
+					if Movement.bump(me.body, d, op.X, op.Z, od, other.AssemblyLinearVelocity.Magnitude / K, 1) and os.clock() - lastBoing > 0.8 then
+						lastBoing = os.clock()
+						Feel.play("boing")
+						Feel.trauma(0.15)
+					end
+				end
+			end
+		end
 	end
 	local y = ground(me.body.x, me.body.z)
 	local ap = root:FindFirstChildOfClass("AlignPosition")
@@ -10565,12 +11421,15 @@ local function updateCamera(dt: number, x: number, z: number, heading: number, s
 	local s, c = math.sin(cam.yaw), math.cos(cam.yaw)
 	local look = Vector3.new(x - s * CAM.lookAheadPerMetre * d, g + CAM.lookHeightPerMetre * d + 0.1, z - c * CAM.lookAheadPerMetre * d) * K
 	local desired = Vector3.new(x + s * dist, g + height, z + c * dist) * K
+	-- Feel: trauma shake, timed pull-back (tier up, landmark), dash FOV kick (systems/Effects.ts).
+	local shake, distMul, fovExtra = Feel.camera(dt, dist * K)
+	desired = look + (desired - look) * distMul
 	local k = 1 - math.exp(-CAM.followSharpness * dt)
 	cam.pos = if cam.pos then cam.pos:Lerp(desired, k) else desired
 	local fov = math.min(CAM.fovMax, CAM.fovBase + CAM.fovPerMetre * d)
 	cam.fov += (fov - cam.fov) * k
-	camera.FieldOfView = cam.fov
-	camera.CFrame = CFrame.lookAt(cam.pos :: Vector3, look)
+	camera.FieldOfView = cam.fov + fovExtra
+	camera.CFrame = CFrame.lookAt((cam.pos :: Vector3) + shake, look + shake * 0.5)
 end
 
 -- Name tags over other machines: "Name · 1,234 kg" with ⚠ (it can eat you) or ✓ (you can eat it).
@@ -10697,7 +11556,7 @@ end)
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="30">
+  <Item class="Workspace" referent="32">
     <Properties>
       <string name="Name">Workspace</string>
       <bool name="NeedsPivotMigration">false</bool>

@@ -22,6 +22,7 @@ for (const f of readdirSync(new URL('roblox/assets/cities/', root))) {
     L.push(`\t\t{ "${o.type}", ${n(o.x)}, ${n(o.y)}, ${n(o.z)}, ${n(o.yaw)}, "${o.color}", ${sup}, ${o.anchored} },`);
   }
   L.push('\t},');
+  L.push(`\tblocks = { ${c.blocks.map((b) => `{ ${b.slice(0, 6).map(n).join(', ')}, "${b[6]}" }`).join(', ')} },`);
   L.push(`\tcolliders = { ${c.colliders.map((b) => `{ ${b.map(n).join(', ')} }`).join(', ')} },`);
   L.push(`\tground = { x0 = ${c.ground.x0}, z0 = ${c.ground.z0}, rows = {`);
   for (const r of c.ground.rows) L.push(`\t\t"${r}",`);

@@ -99,6 +99,12 @@ end }
 local World = load("server/World")
 local city = World.build("shanghai")
 check(#World.objects == #city.objects, "every layout object is in the world")
+do
+	local arena = harness.workspace:FindFirstChild("Arena")
+	local fb = arena and arena:FindFirstChild("FallbackScenery")
+	local n = if fb then #fb:GetChildren() else 0
+	check(n > 50 and n < 3000, "fallback street scenery built without the scenery model (" .. n .. " parts)")
+end
 -- Pull: a can 1 m from a starting machine reaches the intake within the web's time limit.
 local CC = WebConfig.collection
 local can
@@ -118,6 +124,15 @@ while t < 3 and not done do
 	done = World.stepPull(can, 1 / 60, ox, oz, 0, 0, d, 1.1)
 end
 check(done and t <= CC.maxPullSeconds / 1.1 + 0.02, string.format("can absorbed in %.2f s (limit %.2f)", t, CC.maxPullSeconds / 1.1))
+-- Refill: an eaten can comes back home once due and no machine is near; landmark parts never do.
+World.remove(can)
+check(can.refillAt ~= nil, "eaten can is queued for refill")
+can.refillAt = 0
+World.refill({ { can.home[1], can.home[3], 0.35 } })
+check(can.state == "gone", "no refill while a machine is right there")
+World.refill({})
+check(can.state == "idle" and can.x == can.home[1] and can.z == can.home[3], "can refilled at home")
+
 -- Collapse: eating the Pearl Tower's three legs drops the lower sphere, which lands on the ground.
 local legs, sphere = {}, nil
 for _, o in World.objects do
@@ -132,6 +147,7 @@ check(not World.eligible(sphere, 100, true), "anchored sphere cannot be eaten wh
 -- Web rule: a "collapse" part falls as soon as any one support goes, and everything above it follows.
 World.remove(legs[1])
 check(sphere.state == "falling", "sphere falls when one leg is eaten")
+check(legs[1].refillAt == nil, "landmark parts are never refilled")
 local fallingCount = 0
 for _, o in World.objects do
 	if o.state == "falling" then
@@ -160,6 +176,16 @@ do
 	local firstBuild = string.find(main, "World.build(", 1, true)
 	check(connect ~= nil and firstBuild ~= nil and connect < firstBuild, "PlayerAdded is connected before the first World.build")
 	check(string.find(main, "task.spawn(onPlayerAdded, player)", 1, true) ~= nil, "players who joined earlier are handled")
+end
+
+-- The server names machine models by actor id; clients must look their own machine up the same way.
+do
+	for _, f in { "client/Play.client.luau", "client/Hud.client.luau" } do
+		local src = fs.readFile(ROOT .. f)
+		check(not string.find(src, "FindFirstChild(player.Name)", 1, true), f .. " finds the local machine by ActorId, not player.Name")
+	end
+	local main = fs.readFile(ROOT .. "server/Main.server.luau")
+	check(string.find(main, "m.Name = a.id", 1, true) ~= nil and string.find(main, 'player:SetAttribute("ActorId", a.id)', 1, true) ~= nil, "server names machines by actor id and tells the player")
 end
 
 print(string.format("%d checks passed, %d failed", passes, failures))

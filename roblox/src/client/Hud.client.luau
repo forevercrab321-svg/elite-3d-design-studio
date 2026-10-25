@@ -8,7 +8,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
-local SoundService = game:GetService("SoundService")
 local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
@@ -19,6 +18,7 @@ local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local AbsorbedEvent = remotes:WaitForChild("Absorbed") :: RemoteEvent
 local RoundEvent = remotes:WaitForChild("RoundState") :: RemoteEvent
 local NoticeEvent = remotes:WaitForChild("Notice") :: RemoteEvent
+local Feel = require(script.Parent:WaitForChild("Feel"))
 
 local ORANGE = Color3.fromHex("ffb347")
 local ORANGE_DARK = Color3.fromHex("d97a14")
@@ -30,20 +30,6 @@ local CITY_TEXT: { [string]: { city: string, landmark: string } } = {
 	newyork = { city = "New York", landmark = "Empire State Building" },
 	paris = { city = "Paris", landmark = "Eiffel Tower" },
 }
-
--- Built-in engine sounds (no uploaded audio needed yet).
-local function sound(id: string, volume: number): Sound
-	local s = Instance.new("Sound")
-	s.SoundId = id
-	s.Volume = volume
-	s.Parent = SoundService
-	return s
-end
-local sndPop = sound("rbxasset://sounds/electronicpingshort.wav", 0.3)
-local sndBig = sound("rbxasset://sounds/swoosh.wav", 0.6)
-local sndTier = sound("rbxasset://sounds/victory.wav", 0.5)
-local sndBeep = sound("rbxasset://sounds/clickfast.wav", 0.6)
-local sndEaten = sound("rbxasset://sounds/uuhhh.mp3", 0.7)
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "GrowHud"
@@ -247,7 +233,7 @@ shadow(status)
 -- Controls legend (bottom-right).
 local legend = text(gui, "Legend", 12, Enum.Font.GothamBold, ORANGE)
 legend.AnchorPoint = Vector2.new(1, 1)
-legend.Position = UDim2.new(1, -20, 1, -20)
+legend.Position = UDim2.new(1, -20, 1, -18)
 legend.Size = UDim2.fromOffset(320, 18)
 legend.TextXAlignment = Enum.TextXAlignment.Right
 legend.Text = "WASD MOVE · SPACE DASH · DRAG LOOK"
@@ -396,6 +382,223 @@ local function addFeed(s: string, tone: string?)
 	end)
 end
 
+-- Minimap (184 px, north-up, refreshed every 90 ms; arena/ArenaUi.ts): class ≥ 6 objects and
+-- landmark parts (green = you can eat it, landmark orange, grey while locked), crates as dots,
+-- machines as slot-colour dots (red ring = can eat you, green = you can eat it, white = you).
+local MAP = 184
+local minimap = Instance.new("Frame")
+minimap.Name = "Minimap"
+minimap.AnchorPoint = Vector2.new(1, 1)
+minimap.Position = UDim2.new(1, -20, 1, -46)
+minimap.Size = UDim2.fromOffset(MAP, MAP)
+minimap.BackgroundColor3 = PANEL
+minimap.BackgroundTransparency = 0.35
+minimap.ClipsDescendants = true
+minimap.Parent = gui
+corner(minimap, 10)
+local mapPool: { Frame } = {}
+local mapUsed = 0
+local function mapDot(): Frame
+	mapUsed += 1
+	local f = mapPool[mapUsed]
+	if not f then
+		local nf = Instance.new("Frame")
+		nf.BorderSizePixel = 0
+		nf.AnchorPoint = Vector2.new(0.5, 0.5)
+		local stroke = Instance.new("UIStroke")
+		stroke.Name = "Ring"
+		stroke.Thickness = 2
+		stroke.Parent = nf
+		local c = Instance.new("UICorner")
+		c.Name = "Round"
+		c.Parent = nf
+		nf.Parent = minimap
+		mapPool[mapUsed] = nf
+		f = nf
+	end
+	f.Visible = true
+	return f
+end
+local mapCity: any = nil
+local mapCityId = ""
+local function drawMinimap()
+	local arena = workspace:FindFirstChild("Arena")
+	local cityId = arena and arena:GetAttribute("City") :: string?
+	if not cityId then
+		minimap.Visible = false
+		return
+	end
+	minimap.Visible = true
+	if cityId ~= mapCityId then
+		mapCityId = cityId
+		mapCity = require(Shared:WaitForChild("Cities"):WaitForChild(cityId)) :: any
+	end
+	local b = mapCity.bounds
+	local pad = 6
+	local k = (MAP - pad * 2) / math.max(b.maxX - b.minX, b.maxZ - b.minZ)
+	local function at(x: number, z: number): UDim2
+		return UDim2.fromOffset(pad + (x - b.minX) * k, pad + (z - b.minZ) * k)
+	end
+	mapUsed = 0
+	local myD = player:GetAttribute("Diameter") :: number? or WebConfig.growth.startDiameter
+	local open = workspace:GetAttribute("LandmarkOpen") == true
+	local objects = arena and arena:FindFirstChild("Objects")
+	if objects then
+		for _, m in objects:GetChildren() do
+			local typeId = m:GetAttribute("Type") :: string?
+			local def = typeId and WebConfig.objects[typeId]
+			if def and m:GetAttribute("State") ~= "pulled" then
+				local x, z = m:GetAttribute("X") :: number? or 0, m:GetAttribute("Z") :: number? or 0
+				if def.power or def.bonus then
+					local f = mapDot()
+					f.Size = UDim2.fromOffset(4, 4)
+					f.Rotation = 0
+					f.BackgroundColor3 = if def.power == "speed" then Color3.fromHex("3fa9ff") elseif def.power == "magnet" then Color3.fromHex("b05cff") elseif def.power == "shield" then Color3.fromHex("3fe0c0") else Color3.fromHex("ffd35a")
+					f.BackgroundTransparency = 0
+					f.Position = at(x, z)
+					;(f:FindFirstChild("Ring") :: UIStroke).Enabled = false
+					;(f:FindFirstChild("Round") :: UICorner).CornerRadius = UDim.new(1, 0)
+				elseif def.objectClass >= 6 or def.climax then
+					local edible = myD >= Growth.requiredPower(typeId :: string) and (open or not def.climax) and m:GetAttribute("Anchored") ~= true
+					local f = mapDot()
+					f.Size = UDim2.fromOffset(math.max(2, def.size[1] * k), math.max(2, def.size[3] * k))
+					f.Rotation = -math.deg(m:GetAttribute("Yaw") :: number? or 0)
+					f.Position = at(x, z)
+					;(f:FindFirstChild("Ring") :: UIStroke).Enabled = false
+					;(f:FindFirstChild("Round") :: UICorner).CornerRadius = UDim.new(0, 0)
+					if def.climax then
+						f.BackgroundColor3 = if edible then ORANGE elseif not open then Color3.fromRGB(170, 176, 186) else ORANGE
+						f.BackgroundTransparency = if edible then 0 elseif not open then 0.5 else 0.45
+					else
+						f.BackgroundColor3 = if edible then Color3.fromRGB(140, 224, 122) else Color3.fromRGB(210, 214, 220)
+						f.BackgroundTransparency = if edible then 0.45 elseif def.objectClass >= 7 then 0.66 else 0.82
+					end
+				end
+			end
+		end
+	end
+	local machines = workspace:FindFirstChild("Machines")
+	local myId = tostring(player:GetAttribute("ActorId"))
+	if machines then
+		for _, m in machines:GetChildren() do
+			local root = m:FindFirstChild("Root") :: BasePart?
+			if root then
+				local p = root.Position / 10
+				local d = root:GetAttribute("Diameter") :: number? or 0.35
+				local slot = root:GetAttribute("Slot") :: number? or 1
+				local f = mapDot()
+				f.Size = UDim2.fromOffset(9, 9)
+				f.Rotation = 0
+				f.BackgroundColor3 = SLOT[(slot - 1) % #SLOT + 1]
+				f.BackgroundTransparency = 0
+				f.Position = at(p.X, p.Z)
+				;(f:FindFirstChild("Round") :: UICorner).CornerRadius = UDim.new(1, 0)
+				local ring = f:FindFirstChild("Ring") :: UIStroke
+				ring.Enabled = true
+				if m.Name == myId then
+					ring.Color = Color3.new(1, 1, 1)
+				elseif d >= myD * WebConfig.arena.eatRatio then
+					ring.Color = Color3.fromRGB(255, 70, 70)
+				elseif myD >= d * WebConfig.arena.eatRatio then
+					ring.Color = Color3.fromRGB(110, 230, 110)
+				else
+					ring.Enabled = false
+				end
+			end
+		end
+	end
+	for i = mapUsed + 1, #mapPool do
+		mapPool[i].Visible = false
+	end
+end
+task.spawn(function()
+	while true do
+		drawMinimap()
+		task.wait(0.09)
+	end
+end)
+
+-- Vehicle picker (between rounds, like the web lobby's "Pick a vehicle" with stat bars).
+local PickEvent = remotes:WaitForChild("PickVehicle") :: RemoteEvent
+local picker = Instance.new("Frame")
+picker.Name = "VehiclePicker"
+picker.AnchorPoint = Vector2.new(0.5, 1)
+picker.Position = UDim2.new(0.5, 0, 1, -24)
+picker.Size = UDim2.fromOffset(4 * 150 + 3 * 10, 150)
+picker.BackgroundTransparency = 1
+picker.Visible = false
+picker.Parent = gui
+local pickerList = Instance.new("UIListLayout")
+pickerList.FillDirection = Enum.FillDirection.Horizontal
+pickerList.Padding = UDim.new(0, 10)
+pickerList.Parent = picker
+local pickerTitle = text(picker, "Title", 14, Enum.Font.GothamBlack, ORANGE)
+pickerTitle.Text = "PICK A VEHICLE"
+pickerTitle.Position = UDim2.fromOffset(0, -24)
+pickerTitle.Size = UDim2.new(1, 0, 0, 20)
+pickerTitle.AnchorPoint = Vector2.new(0, 0)
+local cards: { [string]: Frame } = {}
+local STATS = { { "speed", "Speed" }, { "accel", "Accel" }, { "reach", "Reach" }, { "pull", "Pull" } }
+for _, look in { "collector", "dozer", "racer", "magnet" } do
+	local v = WebConfig.vehicles[look]
+	local card = Instance.new("TextButton")
+	card.Name = look
+	card.AutoButtonColor = true
+	card.Text = ""
+	card.Size = UDim2.fromOffset(150, 150)
+	card.BackgroundColor3 = PANEL
+	card.BackgroundTransparency = 0.15
+	card.Parent = picker
+	corner(card, 10)
+	local stroke = Instance.new("UIStroke")
+	stroke.Name = "Selected"
+	stroke.Color = ORANGE
+	stroke.Thickness = 2
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Parent = card
+	local title = text(card, "Name", 16, Enum.Font.GothamBlack)
+	title.Text = string.upper(v.name)
+	title.Position = UDim2.fromOffset(0, 8)
+	title.Size = UDim2.new(1, 0, 0, 20)
+	local blurb = text(card, "Blurb", 11, Enum.Font.Gotham, DIM)
+	blurb.Text = v.blurb
+	blurb.TextWrapped = true
+	blurb.Position = UDim2.fromOffset(8, 28)
+	blurb.Size = UDim2.new(1, -16, 0, 28)
+	for i, st in STATS do
+		local y = 60 + (i - 1) * 20
+		local lab = text(card, "L" .. i, 11, Enum.Font.GothamBold, DIM)
+		lab.Text = st[2]
+		lab.TextXAlignment = Enum.TextXAlignment.Left
+		lab.Position = UDim2.fromOffset(10, y)
+		lab.Size = UDim2.fromOffset(50, 16)
+		local track = Instance.new("Frame")
+		track.BackgroundColor3 = Color3.fromRGB(60, 60, 66)
+		track.BorderSizePixel = 0
+		track.Position = UDim2.fromOffset(58, y + 6)
+		track.Size = UDim2.fromOffset(80, 5)
+		track.Parent = card
+		local fillBar = Instance.new("Frame")
+		fillBar.BackgroundColor3 = ORANGE
+		fillBar.BorderSizePixel = 0
+		-- 0.7 … 1.4 maps to the bar (the four vehicles' range).
+		fillBar.Size = UDim2.fromScale(math.clamp((v[st[1]] - 0.7) / 0.7, 0.08, 1), 1)
+		fillBar.Parent = track
+	end
+	card.Activated:Connect(function()
+		PickEvent:FireServer(look)
+	end)
+	cards[look] = card :: any
+end
+local function refreshPicker()
+	local mine = player:GetAttribute("Look") :: string?
+	for look, card in cards do
+		(card:FindFirstChild("Selected") :: UIStroke).Enabled = look == mine
+	end
+end
+player:GetAttributeChangedSignal("Look"):Connect(refreshPicker)
+refreshPicker()
+
 -- Mass panel refresh ----------------------------------------------------------------------------
 local shownMass = 0
 local function refreshMass()
@@ -443,11 +646,20 @@ local comboText = ""
 local comboUntil = 0
 AbsorbedEvent.OnClientEvent:Connect(function(info: { [string]: any })
 	popGain(info.gain)
-	if info.cls >= 3 then
-		sndBig:Play()
-	else
-		sndPop.PlaybackSpeed = 1 + math.random() * 0.2
-		sndPop:Play()
+	Feel.absorb(info.cls, info.size)
+	-- Pop at the intake; big objects (class ≥ 3) burst and shake by size relative to the machine.
+	local machines = workspace:FindFirstChild("Machines")
+	local m = machines and machines:FindFirstChild(tostring(player:GetAttribute("ActorId")))
+	local root = m and m:FindFirstChild("Root") :: BasePart?
+	if root then
+		local d = root:GetAttribute("Diameter") :: number? or 0.35
+		local intake = root.CFrame * CFrame.new(0, 0, -d * 0.3 * 10)
+		if info.cls >= 3 then
+			Feel.burst(intake.Position, ORANGE, 12, math.max(0.2, d * 2))
+			Feel.trauma(WebConfig.feel.largePickupTrauma * math.min(1, info.size / d))
+		else
+			Feel.burst(intake.Position, Color3.new(1, 1, 1), 4, math.max(0.1, d))
+		end
 	end
 	if info.combo then
 		comboText = string.format("Combo ×%.1f", info.combo)
@@ -464,25 +676,30 @@ end)
 
 NoticeEvent.OnClientEvent:Connect(function(n: { [string]: any })
 	if n.kind == "unlock" then
-		sndBig:Play()
+		Feel.play("unlock")
 		showBanner("UNLOCKED: " .. string.upper(Growth.classLabel(n.cls)), "SIZE CLASS " .. n.cls, 1.6)
 	elseif n.kind == "tier" then
-		sndTier:Play()
+		Feel.play("tier")
+		Feel.pullBack(0.28, 1.6)
+		Feel.trauma(WebConfig.feel.tierUpTrauma)
 		showBanner("TIER " .. n.tier, "NOW EATING: " .. string.upper(Growth.classLabel(n.cls)), 2.4)
 	elseif n.kind == "landmarkOpen" then
 		local t = CITY_TEXT[n.city]
-		sndTier:Play()
+		Feel.play("unlock")
 		showBanner("LANDMARK OPEN!", "TOPPLE THE " .. string.upper(t and t.landmark or "LANDMARK"), 2.6)
 	elseif n.kind == "landmarkDown" then
 		local t = CITY_TEXT[n.city]
-		sndTier:Play()
+		Feel.play("landmark")
+		Feel.pullBack(0.35, 2.6)
 		showBanner(string.upper(t and t.landmark or "LANDMARK") .. " DOWN!", n.name .. " · LANDMARK BONUS +25%", 3)
 	elseif n.kind == "ate" then
-		sndBig:Play()
+		Feel.play("burp")
+		Feel.trauma(0.5)
 		local v, u = Growth.massText(n.gain)
 		showBanner("ATE " .. string.upper(n.name) .. "!", "+" .. v .. " " .. string.upper(u) .. (if n.first then " · FIRST BLOOD" else ""), 2)
 	elseif n.kind == "eaten" then
-		sndEaten:Play()
+		Feel.play("eaten")
+		Feel.trauma(0.7)
 		if n.lives and n.lives <= 0 then
 			showBanner("ELIMINATED", "Eaten by " .. n.name .. " · spectating", 3)
 		else
@@ -502,7 +719,6 @@ NoticeEvent.OnClientEvent:Connect(function(n: { [string]: any })
 		centerSub.Text = ""
 		showToast("RESPAWN · " .. WebConfig.arena.invulnerableSeconds .. " s INVULNERABLE")
 	elseif n.kind == "crash" then
-		sndEaten:Play()
 		showToast(n.text, Color3.fromRGB(255, 120, 120))
 		addFeed("Dashed into something too big: stunned, mass lost", "bad")
 	elseif n.kind == "feed" then
@@ -520,6 +736,7 @@ RoundEvent.OnClientEvent:Connect(function(msg: { [string]: any })
 	local t = CITY_TEXT[msg.city or ""]
 	local cityLine = if t then string.format("%s · %s %d/%d", t.city, t.landmark, msg.climaxEaten or 0, msg.climaxTotal or 0) else ""
 	results.Visible = p == "Results"
+	picker.Visible = p == "Intermission" or p == "Waiting"
 	if msg.board then
 		renderBoard(msg.board)
 	end
@@ -534,8 +751,7 @@ RoundEvent.OnClientEvent:Connect(function(msg: { [string]: any })
 		subline.Text = "Waiting for players…"
 		lockLine.Text = ""
 	elseif p == "Countdown" then
-		sndBeep.PlaybackSpeed = 1
-		sndBeep:Play()
+		Feel.play("beep_low")
 		center.Text = tostring(msg.timeLeft)
 		centerSub.Text = "GET READY"
 		timer.Text = fmt(WebConfig.arena.roundSeconds)
@@ -545,8 +761,7 @@ RoundEvent.OnClientEvent:Connect(function(msg: { [string]: any })
 		timer.Text = fmt(msg.timeLeft)
 		subline.Text = cityLine
 		if msg.go then
-			sndBeep.PlaybackSpeed = 1.6
-			sndBeep:Play()
+			Feel.play("beep_high")
 			center.Text = "GO"
 			centerSub.Text = "EAT!"
 			task.delay(1.2, function()
@@ -567,6 +782,9 @@ RoundEvent.OnClientEvent:Connect(function(msg: { [string]: any })
 		lockLine.Text = ""
 		local rows = msg.rows or {}
 		local champion = rows[1]
+		if champion and champion.userId == player.UserId then
+			Feel.play("win")
+		end
 		resultsTitle.Text = "Round over"
 		local lines = {}
 		if champion then
@@ -601,7 +819,7 @@ RunService.Heartbeat:Connect(function()
 		table.insert(lines, comboText)
 	end
 	local machines = workspace:FindFirstChild("Machines")
-	local m = machines and machines:FindFirstChild(player.Name)
+	local m = machines and machines:FindFirstChild(tostring(player:GetAttribute("ActorId")))
 	local root = m and m:FindFirstChild("Root")
 	if root then
 		local t = workspace:GetServerTimeNow()

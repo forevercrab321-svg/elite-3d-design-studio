@@ -25,6 +25,7 @@ for _, o in World.objects do
 end
 
 local clock = 0
+World.clock = function() return clock end
 local actors = {}
 for slot = 1, 4 do
 	local sp = city.spawns[slot]
@@ -123,6 +124,13 @@ while clock < 300 do
 			end
 		end
 	end
+	refillClock = (refillClock or 0) + dt
+	if refillClock >= A.refillCheckSeconds then
+		refillClock = 0
+		local ms = {}
+		for _, a in actors do if a.alive then table.insert(ms, { a.body.x, a.body.z, a.diameter }) end end
+		refilled = (refilled or 0) + World.refill(ms)
+	end
 	if nextReport <= #report and clock >= report[nextReport] then
 		local masses = {}
 		for _, a in actors do table.insert(masses, a.mass) end
@@ -138,4 +146,5 @@ while clock < 300 do
 end
 local firstCar = math.huge
 for _, a in actors do if a.firstCar then firstCar = math.min(firstCar, a.firstCar) end end
+print("refilled objects:", refilled)
 print(string.format("first car (class 5) at %s s; kills %d; idle frames %.1f%%", if firstCar < math.huge then string.format("%.0f", firstCar) else "never", (function() local k = 0 for _, a in actors do k += a.kills end return k end)(), stuckFrames / (300 * 30 * 4) * 100))

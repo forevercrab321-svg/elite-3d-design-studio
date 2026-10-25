@@ -171,12 +171,14 @@ async function run() {
     spawns: city.spawns,
     starterRing: city.starterRing ?? null,
     trees: city.dressing.trees,
-    canopyScale: (city.dressing as { canopyScale?: number }).canopyScale ?? 1,
+    canopyScale: (city.dressing as { crown?: number }).crown ?? 1,
     sceneryBox: { min: box.min.toArray(), max: box.max.toArray() },
     scenery: { name: `City_${id}`, tris: meshes.reduce((a, m) => a + m.tris, 0), meshes, skipped: [...new Set(skipped)] },
     tinted,
     objects,
     // Collision exactly as the web World resolves it: circle vs these boxes, plus the bounds.
+    // Static buildings as boxes (fallback scenery if the scenery model cannot be loaded).
+    blocks: city.staticBlocks.map((b) => [b.x, b.y ?? 0, b.z, b.w, b.h, b.d, b.material]),
     colliders: world.staticColliders.map((b) => [+b.cx.toFixed(3), +b.cz.toFixed(3), +b.hx.toFixed(3), +b.hz.toFixed(3), +b.yaw.toFixed(4)]),
     // Ground height on a 1 m grid, run-length encoded per row ("height*count,…").
     ground: (() => {

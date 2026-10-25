@@ -45,9 +45,15 @@ export type Obj = {
 	-- fall
 	fallVy: number,
 	tilt: number,
+	-- refill (ArenaGame refill): home pose, the colours to rebuild it, when it may come back
+	home: { number },
+	base0: Color3,
+	refillAt: number?,
 }
 
 local World = {}
+-- Time source for refills (tests run on simulated time).
+World.clock = os.clock
 World.city = nil :: any
 World.objects = {} :: { Obj }
 World.ground = function(_x: number, _z: number): number
@@ -115,6 +121,77 @@ local function syncAttributes(o: Obj)
 	m:SetAttribute("Anchored", o.anchored)
 end
 
+-- Fallback street scenery from the city data when the scenery model cannot be loaded: the ground
+-- grid as asphalt (roads) and raised pavement (kerb height), and the static buildings as boxes.
+local BLOCK_COLORS: { [string]: Color3 } = {
+	brick = Color3.fromRGB(150, 82, 62), darkBrick = Color3.fromRGB(96, 70, 60), plaster = Color3.fromRGB(196, 186, 166),
+	concrete = Color3.fromRGB(150, 150, 146), steel = Color3.fromRGB(120, 130, 140),
+}
+local BLOCK_MATERIALS: { [string]: Enum.Material } = {
+	brick = Enum.Material.Brick, darkBrick = Enum.Material.Brick, plaster = Enum.Material.Concrete,
+	concrete = Enum.Material.Concrete, steel = Enum.Material.Metal,
+}
+local function fallbackScenery(city: any, parent: Instance)
+	local folder = Instance.new("Folder")
+	folder.Name = "FallbackScenery"
+	folder.Parent = parent
+	local function slab(x0: number, x1: number, z0: number, z1: number, h: number)
+		local p = Instance.new("Part")
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		local top = math.max(h, 0.001)
+		p.Size = Vector3.new((x1 - x0) * K, (top + 0.5) * K, (z1 - z0) * K)
+		p.CFrame = CFrame.new((x0 + x1) / 2 * K, (top - 0.5) / 2 * K, (z0 + z1) / 2 * K)
+		if h > 0.01 then
+			p.Color = Color3.fromRGB(176, 174, 168)
+			p.Material = Enum.Material.Pavement
+		else
+			p.Color = Color3.fromRGB(70, 70, 72)
+			p.Material = Enum.Material.Asphalt
+		end
+		p.Parent = folder
+	end
+	-- Rows of runs → rectangles, merging identical consecutive rows.
+	local g = city.ground
+	local prevRow: string? = nil
+	local startZ = g.z0
+	local function flush(row: string, z0: number, z1: number)
+		local x = g.x0
+		for h, n in string.gmatch(row, "([%-%d%.]+)%*(%d+)") do
+			local count = tonumber(n) :: number
+			slab(x, x + count, z0, z1, tonumber(h) :: number)
+			x += count
+		end
+	end
+	for i, row in g.rows do
+		local z = g.z0 + i - 1
+		if row ~= prevRow then
+			if prevRow then
+				flush(prevRow, startZ, z)
+			end
+			prevRow = row
+			startZ = z
+		end
+	end
+	if prevRow then
+		flush(prevRow, startZ, g.z0 + #g.rows)
+	end
+	for _, b in city.blocks or {} do
+		local p = Instance.new("Part")
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.Size = Vector3.new(b[4], b[5], b[6]) * K
+		p.CFrame = CFrame.new(b[1] * K, (b[2] + b[5] / 2) * K, b[3] * K)
+		p.Color = BLOCK_COLORS[b[7]] or BLOCK_COLORS.concrete
+		p.Material = BLOCK_MATERIALS[b[7]] or Enum.Material.Concrete
+		p.Parent = folder
+	end
+end
+
 -- Build a city; returns its module. Yields while models load.
 function World.build(cityId: string)
 	if arena then
@@ -151,7 +228,8 @@ function World.build(cityId: string)
 		end
 		scenery.Parent = root
 	else
-		warn("World: scenery " .. city.scenery .. " missing")
+		warn("World: scenery " .. city.scenery .. " missing, building the fallback street scenery")
+		fallbackScenery(city, root)
 	end
 	-- Fallback ground so machines never fall through when the scenery did not load.
 	local base = Instance.new("Part")
@@ -162,6 +240,36 @@ function World.build(cityId: string)
 	base.Color = Color3.fromRGB(80, 79, 78)
 	base.Material = Enum.Material.Asphalt
 	base.Parent = root
+
+	-- Street-tree canopies: the web's leaf cards (alpha-tested) cannot be MeshParts, so each crown
+	-- is a cluster of leafy balls where the web crown sits (trunk 2.6–3.4 m, crown 1.6–2.2 m above
+	-- it, radius 1.9–2.5 m × the city's crown scale, squashed to 0.72 in height).
+	local canopies = Instance.new("Folder")
+	canopies.Name = "Canopies"
+	canopies.Parent = root
+	local leafRng = Random.new(1)
+	for _, t in city.trees do
+		local tx, treeBase, tz = t[1], t[2], t[3]
+		local radius = (1.9 + leafRng:NextNumber() * 0.6) * (city.canopyScale or 1)
+		local cy = treeBase + 3 + 1.9
+		local green = Color3.fromRGB(70 + leafRng:NextInteger(0, 25), 110 + leafRng:NextInteger(0, 30), 55 + leafRng:NextInteger(0, 15))
+		for k = 1, 4 do
+			local a = k * 2.1 + leafRng:NextNumber()
+			local off = if k == 1 then Vector3.zero else Vector3.new(math.cos(a) * radius * 0.45, (leafRng:NextNumber() - 0.3) * radius * 0.3, math.sin(a) * radius * 0.45)
+			local r = if k == 1 then radius else radius * (0.6 + leafRng:NextNumber() * 0.2)
+			local ball = Instance.new("Part")
+			ball.Shape = Enum.PartType.Ball
+			ball.Anchored = true
+			ball.CanCollide = false
+			ball.CanQuery = false
+			ball.CanTouch = false
+			ball.Material = Enum.Material.LeafyGrass
+			ball.Color = green
+			ball.Size = Vector3.one * r * 2 * K
+			ball.CFrame = CFrame.new((Vector3.new(tx, cy, tz) + off) * K)
+			ball.Parent = canopies
+		end
+	end
 
 	local folder = Instance.new("Folder")
 	folder.Name = "Objects"
@@ -196,6 +304,9 @@ function World.build(cityId: string)
 			spin = 0,
 			fallVy = 0,
 			tilt = 0,
+			home = { x, y, z, yaw },
+			base0 = base0,
+			refillAt = nil,
 		}
 		local m = Models.clone(typeId, 1, color, base0)
 		if m then
@@ -304,9 +415,14 @@ local function release(removed: Obj, from: Obj)
 	end
 end
 
--- Remove an absorbed object and release what it held up.
+-- Remove an absorbed object and release what it held up. Small and medium props that are not
+-- landmark parts and not stacked come back at home later (arena refill).
+local A = WebConfig.arena
 function World.remove(o: Obj)
 	o.state = "gone"
+	if o.def.objectClass <= A.refillMaxClass and not o.def.climax and #o.supports == 0 then
+		o.refillAt = World.clock() + A.refillDelay + o.def.objectClass * A.refillPerClass
+	end
 	if o.model then
 		o.model:Destroy()
 		o.model = nil
@@ -393,6 +509,49 @@ function World.stepFalling(dt: number): { Obj }
 		end
 	end
 	return landed
+end
+
+-- Refill due objects whose home is clear of machines ({x, z, diameter} each); at most
+-- refillPerCheck per call. Returns how many came back.
+function World.refill(machines: { { number } }): number
+	local n = 0
+	local t = World.clock()
+	local folder = arena and arena:FindFirstChild("Objects")
+	for _, o in World.objects do
+		if n >= A.refillPerCheck then
+			break
+		end
+		if o.state == "gone" and o.refillAt and t >= o.refillAt then
+			local hx, hy, hz, hyaw = o.home[1], o.home[2], o.home[3], o.home[4]
+			local clear = true
+			for _, m in machines do
+				local need = A.refillClearance + math.min(2 * m[3], A.refillClearanceMaxExtra) + o.radius
+				if (m[1] - hx) ^ 2 + (m[2] - hz) ^ 2 < need * need then
+					clear = false
+					break
+				end
+			end
+			if clear then
+				o.x, o.y, o.z, o.yaw, o.tilt = hx, hy, hz, hyaw, 0
+				o.state = "idle"
+				o.refillAt = nil
+				o.vx, o.vy, o.vz = 0, 0, 0
+				local m = Models.clone(o.type, 1, o.color, o.base0)
+				if m and folder then
+					m.Name = tostring(o.id)
+					m:SetAttribute("Id", o.id)
+					m:SetAttribute("Type", o.type)
+					o.model = m
+					place(o)
+					syncAttributes(o)
+					m.Parent = folder
+				end
+				addToGrid(o)
+				n += 1
+			end
+		end
+	end
+	return n
 end
 
 -- Solid for a machine of this power (web World.isSolid): held up in the air = pass underneath.

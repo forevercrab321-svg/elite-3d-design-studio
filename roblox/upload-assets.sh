@@ -36,10 +36,15 @@ i=0; ok=0; fail=0
 for NAME in $NAMES; do
   i=$((i+1))
   if grep -q "^$NAME=" "$OUT"; then ok=$((ok+1)); continue; fi
-  if ! curl -fsSL -o "$TMP/m.glb" "$BASE/glb/$NAME.glb"; then echo "[$i/$TOTAL] $NAME 下载失败"; fail=$((fail+1)); continue; fi
-  REQ="{\"assetType\":\"Model\",\"displayName\":\"GE $NAME\",\"description\":\"GROW EVERYTHING model $NAME\",\"creationContext\":{\"creator\":{\"userId\":\"$USER_ID\"}}}"
+  # Models are assets/glb/<NAME>.glb; the sound sprite is assets/audio/<NAME>.ogg (names starting with "Grow").
+  case "$NAME" in
+    GrowSfx*) SRC="$BASE/audio/$NAME.ogg"; TYPE="Audio"; MIME="audio/ogg"; FILE="$TMP/a.ogg" ;;
+    *) SRC="$BASE/glb/$NAME.glb"; TYPE="Model"; MIME="model/gltf-binary"; FILE="$TMP/m.glb" ;;
+  esac
+  if ! curl -fsSL -o "$FILE" "$SRC"; then echo "[$i/$TOTAL] $NAME 下载失败"; fail=$((fail+1)); continue; fi
+  REQ="{\"assetType\":\"$TYPE\",\"displayName\":\"GE $NAME\",\"description\":\"GROW EVERYTHING $NAME\",\"creationContext\":{\"creator\":{\"userId\":\"$USER_ID\"}}}"
   RESP="$(curl -sS -X POST "https://apis.roblox.com/assets/v1/assets" -H "x-api-key: $KEY" \
-    -F "request=$REQ" -F "fileContent=@$TMP/m.glb;type=model/gltf-binary")"
+    -F "request=$REQ" -F "fileContent=@$FILE;type=$MIME")"
   OP="$(printf '%s' "$RESP" | grep -o '"path": *"operations/[^"]*"' | head -1 | sed 's/.*"operations\///; s/"$//')"
   ID="$(printf '%s' "$RESP" | grep -o '"assetId": *"[0-9]*"' | head -1 | grep -o '[0-9][0-9]*')"
   tries=0

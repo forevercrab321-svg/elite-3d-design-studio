@@ -21,6 +21,7 @@ local WebConfig = require(Shared:WaitForChild("WebConfig"))
 local Growth = require(Shared:WaitForChild("Growth"))
 local Collision = require(Shared:WaitForChild("Collision"))
 local Movement = require(Shared:WaitForChild("Movement"))
+local Feel = require(script.Parent:WaitForChild("Feel"))
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local ClaimEvent = remotes:WaitForChild("Claim") :: RemoteEvent
 local CrashEvent = remotes:WaitForChild("Crash") :: RemoteEvent
@@ -42,6 +43,8 @@ end
 
 -- City data -------------------------------------------------------------------------------------
 type Rec = { id: number, model: Model, type: string, def: any, req: number, radius: number, x: number, y: number, z: number, yaw: number, state: string, anchored: boolean }
+-- The local machine: its root and the movement body driven by Movement.step.
+local me = { root = nil :: BasePart?, body = Movement.new(0, 0, 0) }
 local recs: { [number]: Rec } = {}
 local cells: { [number]: { Rec } } = {}
 local CELL = 8
@@ -112,7 +115,34 @@ local function track(m: Instance)
 	addToGrid(r)
 	m.AttributeChanged:Connect(function(name)
 		if name == "State" then
+			local before = r.state
 			r.state = m:GetAttribute("State") :: string? or "idle"
+			local size = math.max(r.def.size[1], r.def.size[2], r.def.size[3])
+			local pos = Vector3.new(r.x, r.y + r.def.size[2] / 2, r.z) * K
+			local cls = r.def.objectClass
+			if r.state == "pulled" and cls >= 4 then
+				-- Destruction beat (ArenaGame.startPull): shards, dust, sparks for crush/collapse.
+				local pp = m.PrimaryPart or m:FindFirstChildWhichIsA("BasePart")
+				Feel.shards(pos, if pp then pp.Color else Color3.new(0.6, 0.6, 0.6), 12, math.max(0.3, size * 0.09 * K), (2 + size * 0.9) * K)
+				Feel.dust(Vector3.new(r.x, r.y, r.z) * K, size * 0.5 * K, if cls >= 6 then 6 else 3)
+				if r.def.destructionType == "crush" or r.def.destructionType == "collapse" then
+					Feel.sparks(Vector3.new(r.x, r.y + r.def.size[2] * 0.8, r.z) * K, 10, (1.5 + size * 0.6) * K)
+				end
+				if m:GetAttribute("Owner") == player:GetAttribute("ActorId") then
+					Feel.crunch(cls)
+					local myD = me.root and me.root:GetAttribute("Diameter") :: number? or G.startDiameter
+					local rel = math.min(1.5, size / myD)
+					Feel.trauma(math.min(0.45, (0.08 + 0.035 * cls) * math.min(1, 0.25 + 0.6 * rel)))
+				end
+			elseif before == "falling" and r.state == "idle" then
+				-- A landmark part landing: dust and a rumble that fades with distance.
+				Feel.dust(Vector3.new(r.x, r.y, r.z) * K, size * 0.6 * K, 12)
+				local dist = math.sqrt((r.x - me.body.x) ^ 2 + (r.z - me.body.z) ^ 2)
+				if dist < (45 + size * 3) * 2 then
+					Feel.play("collapse")
+					Feel.traumaAt(math.min(0.5, 0.12 + size * 0.02), dist, size)
+				end
+			end
 		elseif name == "Anchored" then
 			r.anchored = m:GetAttribute("Anchored") == true
 		elseif name == "X" or name == "Z" or name == "Y" or name == "Yaw" then
@@ -239,12 +269,11 @@ local function cleanupVisuals()
 end
 
 -- Local machine --------------------------------------------------------------------------------
-local me = { root = nil :: BasePart?, body = Movement.new(0, 0, 0) }
 local cam = { yaw = 0, pitch = 1, idle = 0, pos = nil :: Vector3?, fov = CAM.fovBase }
 
 local function myRoot(): BasePart?
 	local machines = workspace:FindFirstChild("Machines")
-	local m = machines and machines:FindFirstChild(player.Name)
+	local m = machines and machines:FindFirstChild(tostring(player:GetAttribute("ActorId")))
 	local root = m and m:FindFirstChild("Root") :: BasePart?
 	return root
 end
@@ -283,6 +312,67 @@ UserInputService.InputChanged:Connect(function(input: InputObject)
 	end
 end)
 
+-- Touch (web touch layout): drag on the left half to steer, drag on the right half to look,
+-- DASH button bottom-right.
+local touchMove = Vector2.zero
+local moveTouch: InputObject? = nil
+local moveOrigin = Vector2.zero
+local lookTouch: InputObject? = nil
+if UserInputService.TouchEnabled then
+	local touchGui = Instance.new("ScreenGui")
+	touchGui.Name = "TouchControls"
+	touchGui.ResetOnSpawn = false
+	touchGui.Parent = player:WaitForChild("PlayerGui")
+	local dash = Instance.new("TextButton")
+	dash.Name = "Dash"
+	dash.AnchorPoint = Vector2.new(1, 1)
+	dash.Position = UDim2.new(1, -28, 1, -200)
+	dash.Size = UDim2.fromOffset(84, 84)
+	dash.Text = "DASH"
+	dash.Font = Enum.Font.GothamBlack
+	dash.TextSize = 16
+	dash.TextColor3 = Color3.fromRGB(30, 20, 5)
+	dash.BackgroundColor3 = Color3.fromHex("ffb347")
+	dash.Parent = touchGui
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(1, 0)
+	c.Parent = dash
+	dash.Activated:Connect(function()
+		dashPressed = true
+	end)
+	UserInputService.TouchStarted:Connect(function(input: InputObject, processed: boolean)
+		if processed then
+			return
+		end
+		local p = Vector2.new(input.Position.X, input.Position.Y)
+		if p.X < camera.ViewportSize.X / 2 and not moveTouch then
+			moveTouch = input
+			moveOrigin = p
+		elseif not lookTouch then
+			lookTouch = input
+		end
+	end)
+	UserInputService.TouchMoved:Connect(function(input: InputObject)
+		if input == moveTouch then
+			local delta = Vector2.new(input.Position.X, input.Position.Y) - moveOrigin
+			local r = 70
+			touchMove = if delta.Magnitude > r then delta.Unit else delta / r
+		elseif input == lookTouch then
+			cam.yaw -= input.Delta.X * CAM.mouseYawPerPixel
+			cam.pitch = math.clamp(cam.pitch + input.Delta.Y * CAM.mousePitchPerPixel, 0.45, 1.8)
+			cam.idle = 0
+		end
+	end)
+	UserInputService.TouchEnded:Connect(function(input: InputObject)
+		if input == moveTouch then
+			moveTouch = nil
+			touchMove = Vector2.zero
+		elseif input == lookTouch then
+			lookTouch = nil
+		end
+	end)
+end
+
 local function axis(pos: { Enum.KeyCode }, neg: { Enum.KeyCode }): number
 	local v = 0
 	for _, k in pos do
@@ -304,14 +394,15 @@ local function vehicle(root: BasePart): any
 	return WebConfig.vehicles[root:GetAttribute("Look") :: string? or "collector"]
 end
 
+local lastBoing = 0
 local function move(root: BasePart, dt: number): number
 	local d = root:GetAttribute("Diameter") :: number? or G.startDiameter
 	local mass = root:GetAttribute("Mass") :: number? or G.startMass
 	local p = phase()
 	local frozen = p == "Countdown" or p == "Results" or p == "Loading"
 	-- Camera-relative input.
-	local ix = axis({ Enum.KeyCode.D, Enum.KeyCode.Right }, { Enum.KeyCode.A, Enum.KeyCode.Left })
-	local iy = axis({ Enum.KeyCode.W, Enum.KeyCode.Up }, { Enum.KeyCode.S, Enum.KeyCode.Down })
+	local ix = axis({ Enum.KeyCode.D, Enum.KeyCode.Right }, { Enum.KeyCode.A, Enum.KeyCode.Left }) + touchMove.X
+	local iy = axis({ Enum.KeyCode.W, Enum.KeyCode.Up }, { Enum.KeyCode.S, Enum.KeyCode.Down }) - touchMove.Y
 	local fx, fz = -math.sin(cam.yaw), -math.cos(cam.yaw)
 	local rx, rz = math.cos(cam.yaw), -math.sin(cam.yaw)
 	local wx, wz = fx * iy + rx * ix, fz * iy + rz * ix
@@ -323,10 +414,47 @@ local function move(root: BasePart, dt: number): number
 		end
 	end
 	local boosted = now() < (root:GetAttribute("SpeedUntil") :: number? or 0)
+	local cooling = me.body.dashCooldown > 0
+	local dashBefore = me.body.dashTime
 	local top, crashed = Movement.step(me.body, dt, now(), wx, wz, dashPressed, frozen, mass, d, vehicle(root), boosted, city and city.colliders, city and city.bounds, solids)
 	dashPressed = false
+	if me.body.dashTime > dashBefore then
+		-- Dash: whoosh, FOV kick, dust at the wheels.
+		Feel.play("dash")
+		Feel.kickFov(7)
+		Feel.dust(Vector3.new(me.body.x, ground(me.body.x, me.body.z), me.body.z) * K, d * 0.6 * K, 4)
+	elseif cooling and me.body.dashCooldown <= 0 then
+		Feel.play("dashReady", 0.5)
+	end
 	if crashed then
 		CrashEvent:FireServer()
+		Feel.play("stun")
+		Feel.trauma(0.35)
+		Feel.sparks(Vector3.new(me.body.x, ground(me.body.x, me.body.z) + d * 0.5, me.body.z) * K, 14, (3 + d) * K)
+	end
+	-- Bumper cars against machines neither side can eat (push only ours; theirs is driven elsewhere).
+	local machines = workspace:FindFirstChild("Machines")
+	if machines and not frozen then
+		local myLook = root:GetAttribute("Look") :: string? or "collector"
+		for _, m in machines:GetChildren() do
+			local other = m:FindFirstChild("Root") :: BasePart?
+			if other and other ~= root then
+				local od = other:GetAttribute("Diameter") :: number? or G.startDiameter
+				local oLook = other:GetAttribute("Look") :: string? or "collector"
+				local t = now()
+				local safe = t < (other:GetAttribute("InvulnerableUntil") :: number? or 0) or t < (root:GetAttribute("InvulnerableUntil") :: number? or 0)
+				local iEat = d >= od * A.eatRatio * WebConfig.vehicles[myLook].eatRatio and t >= (other:GetAttribute("ShieldUntil") :: number? or 0)
+				local theyEat = od >= d * A.eatRatio * WebConfig.vehicles[oLook].eatRatio and t >= (root:GetAttribute("ShieldUntil") :: number? or 0)
+				if safe or not (iEat or theyEat) then
+					local op = other.Position / K
+					if Movement.bump(me.body, d, op.X, op.Z, od, other.AssemblyLinearVelocity.Magnitude / K, 1) and os.clock() - lastBoing > 0.8 then
+						lastBoing = os.clock()
+						Feel.play("boing")
+						Feel.trauma(0.15)
+					end
+				end
+			end
+		end
 	end
 	local y = ground(me.body.x, me.body.z)
 	local ap = root:FindFirstChildOfClass("AlignPosition")
@@ -379,12 +507,15 @@ local function updateCamera(dt: number, x: number, z: number, heading: number, s
 	local s, c = math.sin(cam.yaw), math.cos(cam.yaw)
 	local look = Vector3.new(x - s * CAM.lookAheadPerMetre * d, g + CAM.lookHeightPerMetre * d + 0.1, z - c * CAM.lookAheadPerMetre * d) * K
 	local desired = Vector3.new(x + s * dist, g + height, z + c * dist) * K
+	-- Feel: trauma shake, timed pull-back (tier up, landmark), dash FOV kick (systems/Effects.ts).
+	local shake, distMul, fovExtra = Feel.camera(dt, dist * K)
+	desired = look + (desired - look) * distMul
 	local k = 1 - math.exp(-CAM.followSharpness * dt)
 	cam.pos = if cam.pos then cam.pos:Lerp(desired, k) else desired
 	local fov = math.min(CAM.fovMax, CAM.fovBase + CAM.fovPerMetre * d)
 	cam.fov += (fov - cam.fov) * k
-	camera.FieldOfView = cam.fov
-	camera.CFrame = CFrame.lookAt(cam.pos :: Vector3, look)
+	camera.FieldOfView = cam.fov + fovExtra
+	camera.CFrame = CFrame.lookAt((cam.pos :: Vector3) + shake, look + shake * 0.5)
 end
 
 -- Name tags over other machines: "Name · 1,234 kg" with ⚠ (it can eat you) or ✓ (you can eat it).

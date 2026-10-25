@@ -38,6 +38,6 @@ Config.CLAIM_SLACK = 1.6
 Config.GAMEPASS_VIP_TRAIL = 0
 
 -- Remote names (created by the server in ReplicatedStorage.Remotes).
-Config.REMOTES = { "Claim", "Crash", "Absorbed", "RoundState", "Notice" }
+Config.REMOTES = { "Claim", "Crash", "Absorbed", "RoundState", "Notice", "PickVehicle" }
 
 return Config

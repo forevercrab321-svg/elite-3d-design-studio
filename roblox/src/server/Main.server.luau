@@ -42,6 +42,7 @@ local CrashEvent = remotes:WaitForChild("Crash") :: RemoteEvent
 local AbsorbedEvent = remotes:WaitForChild("Absorbed") :: RemoteEvent
 local RoundEvent = remotes:WaitForChild("RoundState") :: RemoteEvent
 local NoticeEvent = remotes:WaitForChild("Notice") :: RemoteEvent
+local PickVehicleEvent = remotes:WaitForChild("PickVehicle") :: RemoteEvent
 
 local machinesFolder = Instance.new("Folder")
 machinesFolder.Name = "Machines"
@@ -325,6 +326,8 @@ local function onPlayerAdded(player: Player)
 		end
 	end
 	local a = newActor("player", player, player.DisplayName, slot, look)
+	player:SetAttribute("ActorId", a.id)
+	player:SetAttribute("Look", look)
 	table.insert(actors, a)
 	byPlayer[player] = a
 	if World.city then
@@ -436,6 +439,23 @@ ClaimEvent.OnServerEvent:Connect(function(player: Player, ids: any)
 		return
 	end
 	tryClaim(a, ids, Config.CLAIM_SLACK)
+end)
+
+-- Lobby: pick one of the four web vehicles (between rounds only; it changes stats, not just looks).
+PickVehicleEvent.OnServerEvent:Connect(function(player: Player, look: any)
+	local a = byPlayer[player]
+	if not a or typeof(look) ~= "string" or not WebConfig.vehicles[look] or not table.find(Config.MACHINE_LOOKS, look) then
+		return
+	end
+	if phase ~= "Intermission" and phase ~= "Waiting" and phase ~= "Loading" then
+		return
+	end
+	a.look = look
+	a.vehicle = WebConfig.vehicles[look]
+	player:SetAttribute("Look", look)
+	if a.root then
+		a.root:SetAttribute("Look", look)
+	end
 end)
 
 -- A player's client reports dashing into something too big: the web penalty (3% of mass).
@@ -588,6 +608,20 @@ local botGame = {
 	end,
 }
 
+-- Bumper cars for AI machines (players push themselves on their clients).
+local function bumpBots()
+	for _, a in actors do
+		if a.kind == "bot" and a.alive then
+			for _, b in actors do
+				if b ~= a and b.alive and not ((canEat(a, b) and not spares(a, b)) or (canEat(b, a) and not spares(b, a))) then
+					local bx, _, bz = position(b)
+					Movement.bump(a.body, a.diameter, bx, bz, b.diameter, math.abs(b.body.speed), if b.kind == "bot" then 0.5 else 1)
+				end
+			end
+		end
+	end
+end
+
 local function stepBots(dt: number)
 	botGame.time = os.clock()
 	botGame.matchTime = matchTime()
@@ -662,6 +696,7 @@ RunService.Heartbeat:Connect(function(dt: number)
 	end
 	stepBots(dt)
 	if phase == "Round" then
+		bumpBots()
 		pvp()
 	end
 end)
@@ -816,8 +851,21 @@ task.spawn(function()
 		phase = "Round"
 		roundStart = os.clock()
 		broadcast({ phase = phase, timeLeft = Config.ROUND_SECONDS, go = true })
+		local refillClock = 0
 		while true do
 			task.wait(1)
+			refillClock += 1
+			if refillClock >= A.refillCheckSeconds then
+				refillClock = 0
+				local machines = {}
+				for _, a in actors do
+					if a.alive then
+						local x, _, z = position(a)
+						table.insert(machines, { x, z, a.diameter })
+					end
+				end
+				World.refill(machines)
+			end
 			local elapsed = os.clock() - roundStart
 			local left = math.max(0, math.ceil(Config.ROUND_SECONDS - elapsed))
 			if not landmarkOpen and elapsed >= A.landmarkOpenSeconds then
