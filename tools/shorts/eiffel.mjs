@@ -8,13 +8,14 @@
 //   CAPTURE_BASE=http://127.0.0.1:5195/game/ node tools/shorts/eiffel.mjs
 import { chromium } from '@playwright/test';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+const DRY = !!process.env.DRY; // simulate only (pick a seed where our machine is the one that topples the tower)
 const out = process.env.SHORT_OUT ?? '/tmp/claude-0/shorts/eiffel';
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const p = await b.newPage({ viewport: { width: 540, height: 960 }, deviceScaleFactor: +(process.env.CAPTURE_DSF ?? 1) });
 p.on('pageerror', (e) => console.log('PAGEERROR', e.message));
-await p.goto(`${process.env.CAPTURE_BASE ?? 'http://127.0.0.1:5195/game/'}?mode=arena&net=solo&test=1&quality=medium&name=You&lang=en&clip=1`);
+await p.goto(`${process.env.CAPTURE_BASE ?? 'http://127.0.0.1:5195/game/'}?mode=arena&net=solo&test=1&quality=medium&name=You&lang=en&clip=1&seed=${process.env.SEED ?? 1337}`);
 await p.waitForFunction(() => window.__ARENA__?.ready, null, { timeout: 180000 });
 await p.evaluate(async () => {
   const S = __ARENA__.session; S.setCity('paris'); S.start();
@@ -37,14 +38,16 @@ const acts = {};
 const state = () => p.evaluate(() => { const G = __ARENA__.game(); const a = G.local; return { t: G.matchTime, ph: G.phase, mass: a.mass, d: a.diameter, left: G.climaxLeft(), x: a.x, z: a.z }; });
 async function frames(count, simPerFrame, each) {
   for (let i = 0; i < count; i++) {
-    const s = await p.evaluate(async ({ dt, aim }) => {
+    const s = await p.evaluate(async ({ dt, aim, dry }) => {
       for (let t = 0; t < dt - 1e-6; t += 0.05) { if (aim) __aim(true); __ARENA__.step(Math.min(0.05, dt)); }
-      __ARENA__.render();
+      if (!dry) __ARENA__.render();
       const G = __ARENA__.game();
-      return { t: G.matchTime, ph: G.phase, left: G.climaxLeft(), mass: G.local.mass };
-    }, { dt: simPerFrame, aim: !!each?.aim });
+      const big = [...G.actors].sort((a, b) => b.mass - a.mass)[0];
+      return { t: G.matchTime, ph: G.phase, left: G.climaxLeft(), mass: G.local.mass, top: big.kind === 'local' ? 'me' : big.name };
+    }, { dt: simPerFrame, aim: !!each?.aim, dry: DRY });
     if (s.ph !== 'playing' && !each?.allowEnd) return s;
-    await p.screenshot({ path: `${out}/f${String(n++).padStart(5, '0')}.png` });
+    if (!DRY) await p.screenshot({ path: `${out}/f${String(n).padStart(5, '0')}.png` });
+    n++;
     if (each?.until?.(s)) return s;
   }
   return state();
