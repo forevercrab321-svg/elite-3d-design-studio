@@ -29,6 +29,15 @@ export const movementConfig = {
   baseTurnRate: 11, // rad/s
   turnMassDrag: 0.3, // turning gets heavier with ln(mass ratio)
   lateralGrip: 16, // how fast sideways slide is killed
+  // Keyboard driving (W/S throttle, A/D steer). Joystick and AI keep driving towards a direction.
+  steerRate: 2.9, // rad/s at full lock and start mass (heavier machines turn slower via turnMassDrag)
+  steerResponse: 10, // 1/s: how fast the wheel reaches full lock (a tap is a small correction)
+  steerReturn: 16, // 1/s: how fast it re-centres on release
+  steerDashFactor: 0.6, // turn rate multiplier while dashing (fast = wider arcs)
+  reverseSpeedRatio: 0.55, // reverse top speed / forward top speed
+  reverseSteerBlend: 0.3, // steering fully mirrors at this fraction of top speed in reverse
+  stickRelatchRate: 3, // 1/s: joystick frame eases to the camera while the stick points up the screen
+  brakeFactor: 2.4, // S while rolling forward brakes this much harder than coasting
   dash: { speedMultiplier: 2.1, duration: 0.28, cooldown: 1.1 },
 } as const;
 
@@ -65,6 +74,9 @@ export const cameraConfig = {
   mousePitchPerPixel: 0.003,
   autoAlignDelay: 1.2, // s without mouse input before the camera swings behind the player
   autoAlignRate: 1.8,
+  // Keyboard driving: the camera stays behind the machine like a chase cam.
+  chaseAlignDelay: 0.35, // s after a mouse drag before it swings back
+  chaseAlignRate: 4,
   // First-person camera (toggle V / 🎥): eye in the cab, FOV opens with speed.
   fpEyeHeight: 0.62, // × diameter above the ground
   fpEyeForward: 0.38, // × diameter ahead of the machine centre (front of the cab)

@@ -70,6 +70,8 @@ export interface Actor {
   heading: number;
   speed: number;
   turnVelocity: number;
+  /** Keyboard steering wheel position (−1..1), eased towards the A/D input. */
+  steer: number;
   mass: number;
   diameter: number;
   targetDiameter: number;
@@ -163,7 +165,7 @@ export class ArenaGame {
   readonly camera = new THREE.PerspectiveCamera(56, 16 / 9, 0.03, 700);
   readonly world: World;
   readonly rig: CameraRig;
-  readonly hud = new Hud(L('<kbd>WASD</kbd> 移动 · <kbd>空格</kbd> 冲刺<br><kbd>拖动</kbd> 转视角 · <kbd>V</kbd> 切换视角 · <kbd>M</kbd> 声音', '<kbd>WASD</kbd> MOVE · <kbd>SPACE</kbd> DASH<br><kbd>DRAG</kbd> LOOK · <kbd>V</kbd> VIEW · <kbd>M</kbd> SOUND'));
+  readonly hud = new Hud(L('<kbd>W</kbd><kbd>S</kbd> 前进/倒车 · <kbd>A</kbd><kbd>D</kbd> 转向 · <kbd>空格</kbd> 冲刺<br><kbd>拖动</kbd> 转视角 · <kbd>V</kbd> 切换视角 · <kbd>M</kbd> 声音', '<kbd>W</kbd><kbd>S</kbd> DRIVE · <kbd>A</kbd><kbd>D</kbd> STEER · <kbd>SPACE</kbd> DASH<br><kbd>DRAG</kbd> LOOK · <kbd>V</kbd> VIEW · <kbd>M</kbd> SOUND'));
   readonly effects: Effects;
   readonly sun: THREE.DirectionalLight;
   readonly sky: THREE.Mesh;
@@ -208,6 +210,8 @@ export class ArenaGame {
   private spectate = 0;
   /** Where each object started (refill puts it back there) and which ones may refill. */
   private readonly homes: { x: number; y: number; z: number; yaw: number }[] = [];
+  /** Camera yaw and stick direction latched when the touch joystick was pushed. */
+  private stickLatch: { yaw: number } | null = null;
   private readonly refillable = new Set<number>();
   private readonly absorbedAt = new Map<number, number>();
 
@@ -300,6 +304,7 @@ export class ArenaGame {
       heading: spawn.heading,
       speed: 0,
       turnVelocity: 0,
+      steer: 0,
       mass: growthConfig.startMass,
       diameter: d,
       targetDiameter: d,
@@ -434,6 +439,9 @@ export class ArenaGame {
     }
 
     this.world.refreshGrid();
+    // Chase camera only while the local machine is being driven from the keyboard (not while spectating).
+    this.rig.chase = !!intents.tank && !!this.local?.alive && playing;
+    if (!this.local?.alive || !intents.stick) this.stickLatch = null;
     for (const a of this.actors) {
       if (a.kind === 'remote' || (a.kind === 'bot' && !a.owned)) {
         this.followNetwork(a, dt);
@@ -445,10 +453,27 @@ export class ArenaGame {
       }
       if (!playing) continue;
       if (a.kind === 'local') {
-        // Camera-relative keyboard intents → world direction.
-        const sy = Math.sin(this.rig.controlYaw);
-        const cy = Math.cos(this.rig.controlYaw);
-        this.moveActor(a, dt, -sy * intents.forward + cy * intents.right, -cy * intents.forward - sy * intents.right, intents.dash);
+        if (intents.tank) this.driveActor(a, dt, intents.forward, intents.right, intents.dash);
+        else {
+          // Camera-relative joystick intents → world direction. While the stick is held its frame is
+          // latched: the camera swinging behind the machine must not rotate the direction being held
+          // (that feedback made the machine circle). The latch takes the camera's yaw on a fresh push
+          // or a camera orbit, and eases over to it only while the stick points up the screen, where
+          // camera, heading and target all converge on the same direction.
+          let yaw = this.rig.controlYaw;
+          const held = Math.hypot(intents.forward, intents.right) > 0.2;
+          if (intents.stick && held) {
+            if (!this.stickLatch || this.rig.sinceDrag < 0.1) this.stickLatch = { yaw };
+            else if (Math.abs(Math.atan2(intents.right, intents.forward)) < 0.5) {
+              const d = Math.atan2(Math.sin(yaw - this.stickLatch.yaw), Math.cos(yaw - this.stickLatch.yaw));
+              this.stickLatch.yaw += d * Math.min(1, MC.stickRelatchRate * dt);
+            }
+            yaw = this.stickLatch.yaw;
+          } else this.stickLatch = null;
+          const sy = Math.sin(yaw);
+          const cy = Math.cos(yaw);
+          this.moveActor(a, dt, -sy * intents.forward + cy * intents.right, -cy * intents.forward - sy * intents.right, intents.dash);
+        }
       } else if (a.bot) {
         const i = a.bot.intents(this, a);
         this.moveActor(a, dt, i.dx, i.dz, i.dash);
@@ -552,13 +577,8 @@ export class ArenaGame {
     return MC.baseTopSpeed * a.vehicle.speed * boost * Math.pow(a.targetDiameter / growthConfig.startDiameter, MC.topSpeedExponent);
   }
 
-  private moveActor(a: Actor, dt: number, wx: number, wz: number, dash: boolean): void {
-    const massLog = Math.log(a.mass / growthConfig.startMass);
-    const top = this.topSpeed(a);
-    const accel = (top / (MC.accelSeconds * (1 + MC.accelMassDrag * massLog))) * a.vehicle.accel;
-    const turnRate = (MC.baseTurnRate / (1 + MC.turnMassDrag * massLog)) * a.vehicle.turn;
-    const stunned = this.matchTime < a.stunUntil;
-    let mag = stunned ? 0 : Math.min(1, Math.hypot(wx, wz));
+  /** Dash timers and trigger, shared by both driving modes. */
+  private updateDash(a: Actor, dt: number, dash: boolean, stunned: boolean): void {
     const cooling = a.dashCooldown > 0;
     a.dashCooldown = Math.max(0, a.dashCooldown - dt);
     if (cooling && a.dashCooldown <= 0 && a.kind === 'local') {
@@ -576,6 +596,55 @@ export class ArenaGame {
         this.onEvent?.({ kind: 'dash' });
       }
     }
+  }
+
+  /**
+   * Keyboard driving: W/S are throttle and brake/reverse, A/D turn the wheel. The turn rate is
+   * steady and eased in and out, so holding a key draws a clean arc and a tap is a small
+   * correction (the old camera-relative mapping chased the camera and spun the machine).
+   */
+  private driveActor(a: Actor, dt: number, throttle: number, steerIn: number, dash: boolean): void {
+    const massLog = Math.log(a.mass / growthConfig.startMass);
+    const top = this.topSpeed(a);
+    const accel = (top / (MC.accelSeconds * (1 + MC.accelMassDrag * massLog))) * a.vehicle.accel;
+    const stunned = this.matchTime < a.stunUntil;
+    this.updateDash(a, dt, dash, stunned);
+    if (stunned) {
+      throttle = 0;
+      steerIn = 0;
+      a.steer = 0;
+    }
+    const response = Math.abs(steerIn) > Math.abs(a.steer) && Math.sign(steerIn) !== -Math.sign(a.steer) ? MC.steerResponse : MC.steerReturn;
+    a.steer += (steerIn - a.steer) * Math.min(1, response * dt);
+    const dashing = a.dashTime > 0 && !stunned;
+    const turnRate = ((MC.steerRate / (1 + MC.turnMassDrag * massLog)) * a.vehicle.turn) * (dashing ? MC.steerDashFactor : 1);
+    // Rolling backwards steers like a car (nose swings the other way), blended in with reverse
+    // speed so the turn never flips in a frame. Holding W never inverts (a bounce-back stays sane).
+    const dir = throttle > 0 ? 1 : THREE.MathUtils.clamp(1 + (2 * a.speed) / (MC.reverseSteerBlend * top), -1, 1);
+    const turn = -a.steer * dir * turnRate * dt;
+    a.heading += turn;
+    a.turnVelocity = turn / dt / turnRate;
+    let targetSpeed = throttle > 0 ? throttle * top : throttle < 0 ? throttle * top * MC.reverseSpeedRatio : 0;
+    // A dash goes the way you are driving: backwards while reversing (no lurch forwards).
+    if (dashing) targetSpeed = top * MC.dash.speedMultiplier * (throttle < 0 || (throttle === 0 && a.speed < 0) ? -MC.reverseSpeedRatio : 1);
+    const dv = targetSpeed - a.speed;
+    const braking = (throttle < 0 && a.speed > 0) || (throttle > 0 && a.speed < 0);
+    const rate = accel * (braking ? MC.brakeFactor : dv < 0 && throttle === 0 ? 1.6 : 1);
+    a.speed += Math.sign(dv) * Math.min(Math.abs(dv), rate * dt);
+    const r = this.world.resolveStatic(a.x - Math.sin(a.heading) * a.speed * dt, a.z - Math.cos(a.heading) * a.speed * dt, a.diameter * 0.47);
+    a.x = r.x;
+    a.z = r.z;
+  }
+
+  private moveActor(a: Actor, dt: number, wx: number, wz: number, dash: boolean): void {
+    const massLog = Math.log(a.mass / growthConfig.startMass);
+    const top = this.topSpeed(a);
+    const accel = (top / (MC.accelSeconds * (1 + MC.accelMassDrag * massLog))) * a.vehicle.accel;
+    const turnRate = (MC.baseTurnRate / (1 + MC.turnMassDrag * massLog)) * a.vehicle.turn;
+    const stunned = this.matchTime < a.stunUntil;
+    let mag = stunned ? 0 : Math.min(1, Math.hypot(wx, wz));
+    this.updateDash(a, dt, dash, stunned);
+    a.steer = 0;
     let targetSpeed = 0;
     let turn = 0;
     if (mag > 0.05) {
@@ -622,7 +691,13 @@ export class ArenaGame {
           this.onEvent?.({ kind: 'stun', size: a.diameter });
           this.onFeed?.(L('冲刺撞上吃不动的东西：眩晕并掉质量', 'Dashed into something too big: stunned, mass lost'), 'bad');
         }
-      } else if (a.speed > this.topSpeed(a) * 0.45) a.speed *= 0.4;
+      } else {
+        // Shed only the part of the speed that drives into the object: a head-on hit stops,
+        // a glancing touch slides along it instead of sticking.
+        const into = (Math.sin(a.heading) * this.contact.nx + Math.cos(a.heading) * this.contact.nz) * Math.sign(a.speed);
+        const cap = this.topSpeed(a) * (1 - Math.max(0, into));
+        if (into > 0 && Math.abs(a.speed) > cap) a.speed = Math.sign(a.speed) * cap;
+      }
     }
   }
 
@@ -1083,6 +1158,7 @@ export class ArenaGame {
     a.z = best.z;
     a.heading = best.heading;
     a.speed = 0;
+    a.steer = 0;
     a.alive = true;
     a.diameter = a.targetDiameter;
     a.invulnerableUntil = this.matchTime + A.invulnerableSeconds;

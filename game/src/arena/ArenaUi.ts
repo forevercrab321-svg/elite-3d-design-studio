@@ -147,7 +147,8 @@ const CSS = `
 #arena .center { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); text-align: center; text-shadow: 0 3px 14px rgba(0,0,0,.6); }
 #arena .center b { display: block; font-size: 96px; font-weight: 900; line-height: 1; }
 #arena .center span { font-size: 15px; font-weight: 800; letter-spacing: .24em; }
-#arena .combo { position: absolute; left: calc(290px + var(--ge-sl)); bottom: calc(30px + var(--ge-sb)); font-size: 22px; font-weight: 900; color: #ffd35a; text-shadow: 0 2px 8px rgba(0,0,0,.5); }
+/* Combo / catch-up / power-up lines: centred just above the emote bar (clear of the mass panel, minimap and timer). */
+#arena .combo { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(16px + var(--ge-tap) + 8px + var(--ge-sb)); font-size: 22px; font-weight: 900; line-height: 1.15; color: #ffd35a; text-align: center; white-space: nowrap; text-shadow: 0 2px 8px rgba(0,0,0,.5); }
 #arena .map { position: absolute; right: calc(16px + var(--ge-sr)); bottom: calc(64px + var(--ge-sb)); width: 184px; height: 184px; border-radius: var(--ge-r3); background: rgba(16,18,20,.55); backdrop-filter: blur(6px); }
 #arena .tag.edge { background: rgba(16,18,20,.75); }
 #arena .tag.hunter { background: rgba(120,0,24,.82); color: #fff; border: 1px solid #ff2d55; font-size: var(--ge-fs-sm); letter-spacing: .04em; }
@@ -216,7 +217,7 @@ body:has(#arena .lobby:not([hidden])) .ge-full { display: none; }
   #arena .board { top: calc(6px + var(--ge-st)); right: calc(8px + var(--ge-sr)); width: 156px; padding: 4px 8px; } #arena .row { font-size: 11px; line-height: 14px; gap: 5px; padding: 1px 0; grid-template-columns: 10px 8px 1fr auto; } #arena .row .lv2, #arena .row .hp { display: none; } #arena .row .ms { min-width: 0; }
   #arena .map { width: 96px; height: 96px; top: calc(114px + var(--ge-st)); right: calc(8px + var(--ge-sr)); bottom: auto; left: auto; }
   #arena .feed { top: calc(84px + var(--ge-st)); left: calc(8px + var(--ge-sl)); right: auto; width: 230px; align-items: flex-start; } #arena .feed div { font-size: 10.5px; padding: 3px 8px; }
-  #arena .combo { left: calc(168px + var(--ge-sl)); bottom: auto; top: calc(8px + var(--ge-st)); font-size: 14px; }
+  #arena .combo { bottom: calc(6px + var(--ge-tap) + 4px + var(--ge-sb)); font-size: 14px; }
   #arena .center b { font-size: 56px; } #arena .center span { font-size: 12px; }
   #arena .emotes { left: 50%; right: auto; transform: translateX(-50%); bottom: calc(6px + var(--ge-sb)); flex-direction: row; gap: 4px; } #arena .emotes button { width: var(--ge-tap); height: var(--ge-tap); font-size: 20px; background: rgba(16,18,20,.4); }
   #arena .warm { top: calc(50px + var(--ge-st)); font-size: 11px; padding: 3px 4px 3px 10px; gap: 6px; } #arena .warm .btn { min-height: 32px; padding: 4px 9px; font-size: 11px; } #arena .warm .wl { display: none; } #arena .warm .ws { display: inline; }
@@ -249,6 +250,8 @@ body:has(#arena .lobby:not([hidden])) .ge-full { display: none; }
   #arena .btn.cta { min-height: 48px; font-size: 16px; padding: 4px 18px; }
 }
 @media (max-height: 520px) and (max-width: 700px) { #arena .foot label.tog { padding: 0 6px; } #arena .btn.cta small { display: none; } #arena .foot [data-a="join"] { padding-inline: 10px; } }
+/* Narrow portrait: the mass panel moves to the top, so the combo lines take the free bottom-left corner (centred they would touch the minimap). */
+@media (max-width: 700px) and (min-height: 521px) { #arena .combo { left: calc(12px + var(--ge-sl)); transform: none; text-align: left; } }
 `;
 
 const STAT = (v: number, lo: number, hi: number) => Math.round(Math.max(0.08, Math.min(1, (v - lo) / (hi - lo))) * 100);

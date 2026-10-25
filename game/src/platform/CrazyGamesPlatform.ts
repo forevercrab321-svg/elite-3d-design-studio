@@ -130,6 +130,8 @@ export class CrazyGamesPlatform implements Platform {
   private loadingStopped = false;
   /** Last room state sent to the SDK ('' = none): reportRoom forwards changes only. */
   private roomKey = '';
+  /** Room whose invite link has been built already. */
+  private invitedFor = '';
 
   get adsAvailable(): boolean {
     return this.ready;
@@ -218,6 +220,12 @@ export class CrazyGamesPlatform implements Platform {
       return;
     }
     safeCall(() => sdk.game.updateRoom?.({ roomId: room.code, isJoinable: joinable, inviteParams: { [INVITE_PARAM]: room.code } }));
+    // Build the room's invite link as soon as the room exists (not only when the share sheet
+    // opens): CrazyGames' QA tool checks that inviteLink is used during a multiplayer session.
+    if (joinable && this.invitedFor !== room.code) {
+      this.invitedFor = room.code;
+      this.inviteLink(room.code);
+    }
     if (USE_INVITE_BUTTON) {
       if (joinable) this.showInviteButton(room.code);
       else this.hideInviteButton();

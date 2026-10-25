@@ -16,6 +16,8 @@ export class CameraRig {
   yaw = 0;
   pitch = 1; // multiplier on camera height
   mode: CameraMode = 'third';
+  /** Keyboard driving: swing back behind the machine quickly, even when slow or turning on the spot. */
+  chase = false;
   /** First person: look-around offsets from a drag (radians), eased back to straight ahead. */
   private lookYaw = 0;
   private lookPitch = 0;
@@ -34,6 +36,12 @@ export class CameraRig {
     return this.yaw;
   }
 
+  /** Seconds since the last drag that orbited the third-person camera (a first-person look-around does not count). */
+  get sinceDrag(): number {
+    return this.orbitIdle;
+  }
+  private orbitIdle = 99;
+
   drag(dx: number, dy: number): void {
     if (this.mode === 'first') {
       this.lookYaw = THREE.MathUtils.clamp(this.lookYaw - dx * C.mouseYawPerPixel, -C.fpLookYawMax, C.fpLookYawMax);
@@ -42,6 +50,7 @@ export class CameraRig {
       return;
     }
     this.yaw -= dx * C.mouseYawPerPixel;
+    this.orbitIdle = 0;
     this.pitch = THREE.MathUtils.clamp(this.pitch + dy * C.mousePitchPerPixel, 0.45, 1.8);
     this.idle = 0;
   }
@@ -53,9 +62,10 @@ export class CameraRig {
 
   update(dt: number, x: number, z: number, heading: number, speedRatio: number, diameter: number, snap = false): void {
     this.idle += dt;
-    if (this.idle > C.autoAlignDelay && speedRatio > 0.25) {
+    this.orbitIdle += dt;
+    if (this.chase ? this.idle > C.chaseAlignDelay : this.idle > C.autoAlignDelay && speedRatio > 0.25) {
       const diff = Math.atan2(Math.sin(heading - this.yaw), Math.cos(heading - this.yaw));
-      this.yaw += diff * Math.min(1, C.autoAlignRate * speedRatio * dt);
+      this.yaw += diff * Math.min(1, (this.chase ? C.chaseAlignRate : C.autoAlignRate * speedRatio) * dt);
     }
     const dist = C.distanceBase + C.distancePerMetre * diameter;
     const height = (C.heightBase + C.heightPerMetre * diameter) * this.pitch;
@@ -79,6 +89,16 @@ export class CameraRig {
     const sharpness = hit ? C.occludedSharpness : C.followSharpness;
     const k = snap ? 1 : 1 - Math.exp(-sharpness * dt);
     this.camera.position.lerp(this.desired, k);
+    // The eased path between two clear spots can cut through a building corner when the machine
+    // turns round it: check the position we actually ended up at and stop in front of the wall.
+    if (!snap) {
+      const toCam = this.dir.copy(this.camera.position).sub(origin);
+      const camLen = toCam.length();
+      this.ray.set(origin, toCam.normalize());
+      this.ray.far = camLen;
+      const block = this.ray.intersectObjects(this.occluders, false)[0];
+      if (block) this.camera.position.copy(origin).addScaledVector(toCam, Math.max(0.3, block.distance - Math.max(0.3, 0.1 * diameter)));
+    }
     this.distance = this.camera.position.distanceTo(this.look);
     const fov = Math.min(C.fovMax, C.fovBase + C.fovPerMetre * diameter);
     if (Math.abs(this.camera.fov - fov) > 0.01) {

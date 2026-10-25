@@ -14,7 +14,7 @@
  * See the adapters for the SDK doc URLs and platform rules.
  */
 
-export type PlatformName = 'web' | 'crazygames' | 'poki' | 'gamedistribution';
+export type PlatformName = 'web' | 'crazygames' | 'poki' | 'gamedistribution' | 'playgama';
 
 export type RewardedPlacement = 'revive' | 'double_coins';
 
@@ -135,6 +135,7 @@ function candidateHosts(): string[] {
  *   'gamedistribution' → GameDistribution SDK build
  *   'nosdk'           → no third-party SDK code at all (GamePix requires "GamePix SDK or none")
  *   'crazygames'      → CrazyGames SDK only (their terms: no other portal's SDK or branding in the build)
+ *   'playgama'        → Playgama Bridge SDK build
  * Constant-folded by Vite, so the unused adapters' dynamic imports are dropped from the bundle.
  */
 export const PORTAL_TARGET: string = (import.meta.env.VITE_PORTAL as string | undefined) ?? '';
@@ -152,6 +153,7 @@ export function detectPlatform(): PlatformName {
   if (PORTAL_TARGET === 'gamedistribution') return 'gamedistribution';
   if (PORTAL_TARGET === 'nosdk') return 'web';
   if (PORTAL_TARGET === 'crazygames') return 'crazygames';
+  if (PORTAL_TARGET === 'playgama') return 'playgama';
   try {
     const q = new URLSearchParams(location.search).get('platform');
     if (q === 'crazygames' || q === 'poki' || q === 'web') return q;
@@ -217,6 +219,9 @@ async function buildPlatform(): Promise<Platform> {
   if (PORTAL_TARGET === 'gamedistribution') {
     const { GameDistributionPlatform } = await import('./GameDistributionPlatform');
     platform = new GameDistributionPlatform();
+  } else if (PORTAL_TARGET === 'playgama') {
+    const { PlaygamaPlatform } = await import('./PlaygamaPlatform');
+    platform = new PlaygamaPlatform();
   } else if (PORTAL_TARGET !== 'nosdk' && name === 'crazygames') {
     const { CrazyGamesPlatform } = await import('./CrazyGamesPlatform');
     platform = new CrazyGamesPlatform();

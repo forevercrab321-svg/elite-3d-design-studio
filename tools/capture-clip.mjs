@@ -16,7 +16,7 @@ const ffmpeg = process.env.FFMPEG ?? execFileSync('python3', ['-c', 'import imag
 const viewport = orient === 'portrait' ? { width: 540, height: 960 } : { width: 960, height: 540 };
 
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
-const p = await b.newPage({ viewport, deviceScaleFactor: 2 });
+const p = await b.newPage({ viewport, deviceScaleFactor: +(process.env.CAPTURE_DSF ?? 2) });
 await p.goto(`${process.env.CAPTURE_BASE ?? 'http://127.0.0.1:5195/game/'}?mode=arena&net=solo&test=1&quality=medium&name=You&lang=${lang}&clip=1`);
 await p.waitForFunction(() => window.__ARENA__?.ready, null, { timeout: 180000 });
 await p.evaluate(async ({ city, startAt }) => {

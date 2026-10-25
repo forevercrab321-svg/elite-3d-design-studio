@@ -56,7 +56,9 @@ export class CinematicOutputPass extends OutputPass {
         vec3 c = toneMap(hdr);
         float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
         c = mix(vec3(l), c, uSaturation);
-        c = clamp((c - 0.5) * uContrast + 0.5, 0.0, 1.0);
+        // Contrast pivots on linear mid-grey as a power curve: a linear pivot at 0.5 (≈ sRGB 188)
+        // clipped every value below ≈ 0.037 linear (sRGB ≈ 53) to pure black, so shaded facades went black.
+        c = clamp(pow(max(c, 0.0) / 0.18, vec3(uContrast)) * 0.18, 0.0, 1.0);
         c *= mix(uShadowTint, uHighlightTint, smoothstep(0.1, 0.75, l));
         float v = smoothstep(0.85, 0.25, length(dc * vec2(1.0, 0.8)));
         c *= mix(1.0 - uVignette, 1.0, v);

@@ -6,10 +6,14 @@ import { L } from '../i18n';
  * playtest bot can drive the same code path by writing `override`.
  */
 export interface Intents {
-  forward: number; // −1..1, camera-relative
-  right: number;
+  forward: number; // −1..1, camera-relative (or throttle when `tank`)
+  right: number; // −1..1, camera-relative (or steering when `tank`)
   dash: boolean;
   restart: boolean;
+  /** Keyboard driving: forward = throttle/reverse, right = steering. Unset = a direction to drive towards. */
+  tank?: boolean;
+  /** The touch joystick is held (its direction is latched to the camera it was pushed in). */
+  stick?: boolean;
 }
 
 /** Input types that take typed text (a checkbox/range/button does not). */
@@ -44,6 +48,8 @@ export function installTypingGuard(): void {
 
 export class Input {
   private readonly keys = new Set<string>();
+  /** Last device that steered: keyboard drives car-style, the touch stick drives towards a direction. */
+  private device: 'keys' | 'touch' = matchMedia('(pointer: coarse)').matches ? 'touch' : 'keys';
   private dashLatch = false;
   private restartLatch = false;
   /** When set (playtest bot), replaces keyboard intents. */
@@ -65,6 +71,7 @@ export class Input {
         if (e.code === 'KeyR') this.restartLatch = true;
       }
       this.keys.add(e.code);
+      if (/^(Key[WASD]|Arrow)/.test(e.code)) this.device = 'keys';
     });
     addEventListener('keyup', (e) => this.keys.delete(e.code));
     addEventListener('blur', () => this.keys.clear());
@@ -81,6 +88,7 @@ export class Input {
       if (e.pointerType === 'touch' && e.clientX < innerWidth * 0.5 && this.stick.id < 0) {
         this.ensureTouchUi();
         this.stick = { x: 0, y: 0, id: e.pointerId, ox: e.clientX, oy: e.clientY };
+        this.device = 'touch';
         this.placeStick(e.clientX, e.clientY, 0, 0);
         return;
       }
@@ -167,6 +175,8 @@ export class Input {
       right: clamp((k('KeyD', 'ArrowRight') ? 1 : 0) - (k('KeyA', 'ArrowLeft') ? 1 : 0) + this.stick.x),
       dash: this.dashLatch,
       restart: this.restartLatch,
+      tank: this.device === 'keys',
+      stick: this.stick.id >= 0,
     };
     this.dashLatch = false;
     this.restartLatch = false;

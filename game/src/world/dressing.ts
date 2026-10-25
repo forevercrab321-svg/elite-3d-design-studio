@@ -348,7 +348,7 @@ export function buildDressing(spec: DressingSpec): Dressing {
       `#include <alphatest_fragment>
        float camD = length(vViewPosition);
        float keep = smoothstep(uFadeNear * 0.6, uFadeNear, camD);
-       if (keep < 1.0 && fract(sin(dot(floor(gl_FragCoord.xy), vec2(12.9898, 78.233))) * 43758.5453) > keep) discard;`,
+       if (keep < 1.0 && fract(sin(dot(floor(gl_FragCoord.xy), vec2(12.9898, 78.233))) * 43758.5453) >= keep) discard; // >=: the hash hits exactly 0 on ~0.5% of pixels, which left green specks over the screen at keep = 0`,
     );
     shader.vertexShader = 'uniform float uTime;\n' + shader.vertexShader.replace(
       '#include <begin_vertex>',

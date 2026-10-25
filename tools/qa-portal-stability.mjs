@@ -3,7 +3,8 @@
 // 'crazygames', records every call), CPU throttled ×4, driving the real UI (no test hooks for input).
 // Backend scenarios: refuse (Supabase connection refused), hang (Supabase never answers),
 // slow (answers after 3 s with 503).
-//   node tools/qa-portal-stability.mjs --dir <unzipped package> [--backend refuse,hang] [--play 60] [--cpu 4]
+//   node tools/qa-portal-stability.mjs --dir <unzipped package> [--backend refuse,hang] [--play 60] [--cpu 4] [--out <dir>]
+// The Playgama Bridge is stubbed too, so a playgama package runs under the same script.
 // Report: renders/review/qa/stability/report.json + screenshots.
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
@@ -61,6 +62,22 @@ const SDK_STUB = `(() => {
   } };
 })();`;
 
+// Playgama Bridge stand-in (used when the package loads bridge.playgama.com): every call logged to window.__cg like the CrazyGames stub;
+// ads open, reward and close right away.
+const PLAYGAMA_STUB = `(() => {
+  const log = (k, a) => { (window.__cg ??= []).push([k, Math.round(performance.now()), a ?? null]); };
+  const emitter = () => { const h = {}; return { on: (e, f) => { (h[e] ??= []).push(f); }, off: (e, f) => { h[e] = (h[e] ?? []).filter((x) => x !== f); }, emit: (e, v) => (h[e] ?? []).forEach((f) => f(v)) }; };
+  const ads = emitter(), platform = emitter();
+  const play = (ev, rewarded) => { setTimeout(() => { ads.emit(ev, 'opened'); setTimeout(() => { if (rewarded) ads.emit(ev, 'rewarded'); ads.emit(ev, 'closed'); }, 300); }, 50); };
+  window.bridge = {
+    initialize: async () => log('initialize'),
+    platform: { ...platform, sendMessage: async (m) => log('platform.' + m) },
+    advertisement: { ...ads, isInterstitialSupported: true, isRewardedSupported: true,
+      showInterstitial: () => { log('ad.interstitial'); play('interstitial_state_changed', false); },
+      showRewarded: () => { log('ad.rewarded'); play('rewarded_state_changed', true); } },
+  };
+})();`;
+
 const report = { date: new Date().toISOString(), dir, cpu, playSeconds, scenarios: {} };
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
 
@@ -81,6 +98,7 @@ for (const backend of scenarios) {
   });
   page.on('pageerror', (e) => r.errors.push('PAGEERROR ' + String(e).slice(0, 300)));
   await ctx.route('https://sdk.crazygames.com/**', (route) => route.fulfill({ status: 200, contentType: 'text/javascript', body: SDK_STUB }));
+  await ctx.route('https://bridge.playgama.com/**', (route) => route.fulfill({ status: 200, contentType: 'text/javascript', body: PLAYGAMA_STUB }));
   await ctx.route(/supabase\.co/, async (route) => {
     r.requests.supabase++;
     if (backend === 'refuse') return route.abort('connectionrefused');
@@ -93,7 +111,7 @@ for (const backend of scenarios) {
     return route.abort('timedout').catch(() => {});
   });
   // Anything else external (fonts, analytics): refuse, as a sandboxed QA box would not.
-  await ctx.route(/^https?:\/\/(?!127\.0\.0\.1)(?!sdk\.crazygames)(?!.*supabase\.co)/, (route) => route.abort('connectionrefused'));
+  await ctx.route(/^https?:\/\/(?!127\.0\.0\.1)(?!sdk\.crazygames)(?!bridge\.playgama)(?!.*supabase\.co)/, (route) => route.abort('connectionrefused'));
   const cdp = await ctx.newCDPSession(page);
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: cpu });
 
