@@ -23,11 +23,13 @@
 
 素材用 `tools/capture-clip.mjs` 渲染（竖版、自动驾驶、确定性回放），文件在 `renders/marketing/`：
 
-| # | 文件 | 标题 | 开头字幕（前 2 秒） |
+| # | 文件 | 标题 | 开头字幕（前 2.8 秒） |
 | --- | --- | --- | --- |
-| 1 | `short-shanghai-final.mp4` | I started as a tiny car and ate all of Shanghai 🌆 #shorts | Tiny car → eats a whole city? |
-| 2 | `short-newyork-final.mp4` | Eating New York until the Empire State falls 🗽 #shorts | Can a car eat New York? |
-| 3 | `short-paris-final.mp4` | I ate Paris… even the Eiffel Tower 🗼 #shorts | Start: smaller than a bench |
+| 1 | `release/youtube-shorts/short1-shanghai.mp4` | Tiny car to 377 tonnes in one round of Shanghai 🌆 #shorts | From 5 kg to 377 TONNES |
+| 2 | `release/youtube-shorts/short2-newyork.mp4` | 5 kg to 363 tonnes in New York 🗽 #shorts | From 5 kg to 363 TONNES |
+| 3 | `release/youtube-shorts/short3-paris.mp4` | I ate Paris until the Eiffel Tower was 7/8 gone 🗼 #shorts | From 5 kg to 621 TONNES |
+
+> 10/25 重录（修复后的版本，自动驾驶整局延时 0.5 秒/帧）。标题只写视频里真实发生的事：三局都没有吃掉整个地标（上海 4/7、纽约 3/5、巴黎 7/8 块），所以不写「吃掉东方明珠」。纽约那条剪掉了开头 0.6 秒摄像机钻进货车的画面。
 
 描述模板（N = 1、2、3）：
 
