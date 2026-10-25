@@ -98,3 +98,7 @@ City_shanghai
 City_newyork
 City_paris
 GrowSfx
+GrowMusic_shanghai
+GrowMusic_newyork
+GrowMusic_paris
+GrowMusic_victory

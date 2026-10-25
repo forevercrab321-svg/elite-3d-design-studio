@@ -91,6 +91,49 @@ function Feel.crunch(cls: number)
 	playSound(if cls >= 8 then "crunch_8" elseif cls >= 6 then "crunch_6" else "crunch_4")
 end
 
+-- Music: the web game's city tracks (public/music/<city>.mp3) looped quietly under the effects
+-- (web FILE_TRACK_GAIN 0.5 × music 0.22); 10% faster in the last 30 s (setTension); victory jingle.
+local music: Sound? = nil
+local musicCity = ""
+function Feel.music(cityId: string?)
+	if cityId == musicCity then
+		return
+	end
+	musicCity = cityId or ""
+	if music then
+		music:Destroy()
+		music = nil
+	end
+	local id = cityId and AssetIds["GrowMusic_" .. cityId]
+	if not id then
+		return
+	end
+	local s = Instance.new("Sound")
+	s.Name = "Music"
+	s.SoundId = "rbxassetid://" .. id
+	s.Looped = true
+	s.Volume = 0.3
+	s.Parent = SoundService
+	s:Play()
+	music = s
+end
+function Feel.tension(on: boolean)
+	if music then
+		music.PlaybackSpeed = if on then 1.1 else 1
+	end
+end
+function Feel.victory()
+	local id = AssetIds.GrowMusic_victory
+	if id then
+		local s = Instance.new("Sound")
+		s.SoundId = "rbxassetid://" .. id
+		s.Volume = 0.6
+		s.Parent = SoundService
+		s:Play()
+		Debris:AddItem(s, 8)
+	end
+end
+
 -- Camera feel ------------------------------------------------------------------------------------
 local trauma = 0
 local pull, pullUntil, pullTotal = 0, 0, 1

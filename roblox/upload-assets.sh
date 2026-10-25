@@ -36,9 +36,9 @@ i=0; ok=0; fail=0
 for NAME in $NAMES; do
   i=$((i+1))
   if grep -q "^$NAME=" "$OUT"; then ok=$((ok+1)); continue; fi
-  # Models are assets/glb/<NAME>.glb; the sound sprite is assets/audio/<NAME>.ogg (names starting with "Grow").
+  # Models are assets/glb/<NAME>.glb; sounds and music are assets/audio/<NAME>.ogg (names starting with "Grow").
   case "$NAME" in
-    GrowSfx*) SRC="$BASE/audio/$NAME.ogg"; TYPE="Audio"; MIME="audio/ogg"; FILE="$TMP/a.ogg" ;;
+    Grow*) SRC="$BASE/audio/$NAME.ogg"; TYPE="Audio"; MIME="audio/ogg"; FILE="$TMP/a.ogg" ;;
     *) SRC="$BASE/glb/$NAME.glb"; TYPE="Model"; MIME="model/gltf-binary"; FILE="$TMP/m.glb" ;;
   esac
   if ! curl -fsSL -o "$FILE" "$SRC"; then echo "[$i/$TOTAL] $NAME 下载失败"; fail=$((fail+1)); continue; fi

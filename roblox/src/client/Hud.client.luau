@@ -736,6 +736,8 @@ RoundEvent.OnClientEvent:Connect(function(msg: { [string]: any })
 	local t = CITY_TEXT[msg.city or ""]
 	local cityLine = if t then string.format("%s · %s %d/%d", t.city, t.landmark, msg.climaxEaten or 0, msg.climaxTotal or 0) else ""
 	results.Visible = p == "Results"
+	Feel.music(msg.city)
+	Feel.tension(p == "Round" and (msg.timeLeft or 999) <= 30)
 	picker.Visible = p == "Intermission" or p == "Waiting"
 	if msg.board then
 		renderBoard(msg.board)
@@ -784,6 +786,7 @@ RoundEvent.OnClientEvent:Connect(function(msg: { [string]: any })
 		local champion = rows[1]
 		if champion and champion.userId == player.UserId then
 			Feel.play("win")
+			Feel.victory()
 		end
 		resultsTitle.Text = "Round over"
 		local lines = {}
