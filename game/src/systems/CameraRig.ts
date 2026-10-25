@@ -36,10 +36,11 @@ export class CameraRig {
     return this.yaw;
   }
 
-  /** Seconds since the last mouse / touch drag on the camera. */
+  /** Seconds since the last drag that orbited the third-person camera (a first-person look-around does not count). */
   get sinceDrag(): number {
-    return this.idle;
+    return this.orbitIdle;
   }
+  private orbitIdle = 99;
 
   drag(dx: number, dy: number): void {
     if (this.mode === 'first') {
@@ -49,6 +50,7 @@ export class CameraRig {
       return;
     }
     this.yaw -= dx * C.mouseYawPerPixel;
+    this.orbitIdle = 0;
     this.pitch = THREE.MathUtils.clamp(this.pitch + dy * C.mousePitchPerPixel, 0.45, 1.8);
     this.idle = 0;
   }
@@ -60,6 +62,7 @@ export class CameraRig {
 
   update(dt: number, x: number, z: number, heading: number, speedRatio: number, diameter: number, snap = false): void {
     this.idle += dt;
+    this.orbitIdle += dt;
     if (this.chase ? this.idle > C.chaseAlignDelay : this.idle > C.autoAlignDelay && speedRatio > 0.25) {
       const diff = Math.atan2(Math.sin(heading - this.yaw), Math.cos(heading - this.yaw));
       this.yaw += diff * Math.min(1, (this.chase ? C.chaseAlignRate : C.autoAlignRate * speedRatio) * dt);

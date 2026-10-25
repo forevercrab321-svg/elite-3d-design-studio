@@ -12,7 +12,7 @@ const touch = (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touch
 async function hold(name, dx, dy, secs) {
   await touch('touchStart', 150, 250); await touch('touchMove', 150 + dx, 250 + dy);
   const hs = [];
-  for (let t = 0; t < secs; t += 0.1) { await p.evaluate(() => __ARENA__.step(0.1)); hs.push(await p.evaluate(() => __ARENA__.game().local.heading)); }
+  for (let t = 0; t < secs; t += 0.1) { await p.evaluate(() => __ARENA__.step(0.1)); hs.push(await p.evaluate(() => __ARENA__.game().local.heading)); if (process.env.DBG) console.log(await p.evaluate(() => { const g = __ARENA__.game(); const a = g.local; return [a.heading.toFixed(2), a.speed.toFixed(2), g.rig.yaw.toFixed(2), a.x.toFixed(1), a.z.toFixed(1)].join(" "); })); }
   await touch('touchEnd');
   let turned = 0; for (let i = 1; i < hs.length; i++) { let d = hs[i] - hs[i - 1]; turned += Math.atan2(Math.sin(d), Math.cos(d)); }
   console.log(`${name}: turned ${(turned * 180 / Math.PI).toFixed(0)}° | per 0.5s:`, hs.filter((_, i) => i % 5 === 4).map((h) => Math.round(((h - hs[0]) * 180) / Math.PI)).join(' '));

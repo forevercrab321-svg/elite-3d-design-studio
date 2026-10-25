@@ -35,6 +35,8 @@ export const movementConfig = {
   steerReturn: 16, // 1/s: how fast it re-centres on release
   steerDashFactor: 0.6, // turn rate multiplier while dashing (fast = wider arcs)
   reverseSpeedRatio: 0.55, // reverse top speed / forward top speed
+  reverseSteerBlend: 0.3, // steering fully mirrors at this fraction of top speed in reverse
+  stickRelatchRate: 3, // 1/s: joystick frame eases to the camera while the stick points up the screen
   brakeFactor: 2.4, // S while rolling forward brakes this much harder than coasting
   dash: { speedMultiplier: 2.1, duration: 0.28, cooldown: 1.1 },
 } as const;

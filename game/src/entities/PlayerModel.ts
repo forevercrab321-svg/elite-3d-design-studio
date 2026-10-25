@@ -332,7 +332,7 @@ export class PlayerModel {
     this.roller.rotation.x -= dt * (6 + (speed / diameter) * 8);
     this.lidar.rotation.y += dt * 5;
     this.bob += dt * (4 + (speed * 3) / Math.max(diameter, 0.2));
-    this.chassis.position.y = Math.abs(Math.sin(this.bob)) * 0.008 * Math.min(1, speed);
+    this.chassis.position.y = Math.abs(Math.sin(this.bob)) * 0.008 * Math.min(1, Math.abs(speed));
     this.chassis.rotation.z = THREE.MathUtils.lerp(this.chassis.rotation.z, -lean * 0.1, 1 - Math.exp(-10 * dt));
     this.chassis.rotation.x = THREE.MathUtils.lerp(this.chassis.rotation.x, -Math.min(1, speed / (4 * diameter + 1)) * 0.03, 1 - Math.exp(-6 * dt));
     this.glow.emissiveIntensity += (2.4 - this.glow.emissiveIntensity) * (1 - Math.exp(-5 * dt));

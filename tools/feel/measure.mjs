@@ -37,5 +37,7 @@ await run('C W, tap D 0.1s, W', [[['KeyW'], 0.5], [['KeyW', 'KeyD'], 0.1], [['Ke
 await run('D hold D only 3s', [[['KeyD'], 3]]);
 await run('E press S 1.5s', [[['KeyS'], 1.5]]);
 await run('F W 1s then S 1.5s', [[['KeyW'], 1], [['KeyS'], 1.5]]);
+await run('H S 1s then S+Space 0.5s', [[['KeyS'], 1], [['KeyS','Space'], 0.5]]);
+await run('I D pivot 0.5s then D+S 1s', [[['KeyD'], 0.5], [['KeyD','KeyS'], 1]]);
 await run('G W+D 1s release to W 1s', [[['KeyW','KeyD'], 1], [['KeyW'], 1]]);
 await b.close();

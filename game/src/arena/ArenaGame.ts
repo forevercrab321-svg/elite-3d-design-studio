@@ -211,7 +211,7 @@ export class ArenaGame {
   /** Where each object started (refill puts it back there) and which ones may refill. */
   private readonly homes: { x: number; y: number; z: number; yaw: number }[] = [];
   /** Camera yaw and stick direction latched when the touch joystick was pushed. */
-  private stickLatch: { yaw: number; dir: number } | null = null;
+  private stickLatch: { yaw: number } | null = null;
   private readonly refillable = new Set<number>();
   private readonly absorbedAt = new Map<number, number>();
 
@@ -439,6 +439,9 @@ export class ArenaGame {
     }
 
     this.world.refreshGrid();
+    // Chase camera only while the local machine is being driven from the keyboard (not while spectating).
+    this.rig.chase = !!intents.tank && !!this.local?.alive && playing;
+    if (!this.local?.alive || !intents.stick) this.stickLatch = null;
     for (const a of this.actors) {
       if (a.kind === 'remote' || (a.kind === 'bot' && !a.owned)) {
         this.followNetwork(a, dt);
@@ -450,18 +453,21 @@ export class ArenaGame {
       }
       if (!playing) continue;
       if (a.kind === 'local') {
-        this.rig.chase = !!intents.tank;
         if (intents.tank) this.driveActor(a, dt, intents.forward, intents.right, intents.dash);
         else {
           // Camera-relative joystick intents → world direction. While the stick is held its frame is
           // latched: the camera swinging behind the machine must not rotate the direction being held
-          // (that feedback made the machine circle). Re-latch on a new direction or a camera drag.
+          // (that feedback made the machine circle). The latch takes the camera's yaw on a fresh push
+          // or a camera orbit, and eases over to it only while the stick points up the screen, where
+          // camera, heading and target all converge on the same direction.
           let yaw = this.rig.controlYaw;
           const held = Math.hypot(intents.forward, intents.right) > 0.2;
           if (intents.stick && held) {
-            const dir = Math.atan2(intents.right, intents.forward);
-            const turned = this.stickLatch && Math.abs(Math.atan2(Math.sin(dir - this.stickLatch.dir), Math.cos(dir - this.stickLatch.dir))) > 0.6;
-            if (!this.stickLatch || turned || this.rig.sinceDrag < 0.1) this.stickLatch = { yaw, dir };
+            if (!this.stickLatch || this.rig.sinceDrag < 0.1) this.stickLatch = { yaw };
+            else if (Math.abs(Math.atan2(intents.right, intents.forward)) < 0.5) {
+              const d = Math.atan2(Math.sin(yaw - this.stickLatch.yaw), Math.cos(yaw - this.stickLatch.yaw));
+              this.stickLatch.yaw += d * Math.min(1, MC.stickRelatchRate * dt);
+            }
             yaw = this.stickLatch.yaw;
           } else this.stickLatch = null;
           const sy = Math.sin(yaw);
@@ -606,18 +612,21 @@ export class ArenaGame {
     if (stunned) {
       throttle = 0;
       steerIn = 0;
+      a.steer = 0;
     }
     const response = Math.abs(steerIn) > Math.abs(a.steer) && Math.sign(steerIn) !== -Math.sign(a.steer) ? MC.steerResponse : MC.steerReturn;
     a.steer += (steerIn - a.steer) * Math.min(1, response * dt);
     const dashing = a.dashTime > 0 && !stunned;
     const turnRate = ((MC.steerRate / (1 + MC.turnMassDrag * massLog)) * a.vehicle.turn) * (dashing ? MC.steerDashFactor : 1);
-    // Rolling backwards steers like a car (nose swings the other way).
-    const dir = a.speed < -0.15 * top ? -1 : 1;
+    // Rolling backwards steers like a car (nose swings the other way), blended in with reverse
+    // speed so the turn never flips in a frame. Holding W never inverts (a bounce-back stays sane).
+    const dir = throttle > 0 ? 1 : THREE.MathUtils.clamp(1 + (2 * a.speed) / (MC.reverseSteerBlend * top), -1, 1);
     const turn = -a.steer * dir * turnRate * dt;
     a.heading += turn;
     a.turnVelocity = turn / dt / turnRate;
     let targetSpeed = throttle > 0 ? throttle * top : throttle < 0 ? throttle * top * MC.reverseSpeedRatio : 0;
-    if (dashing) targetSpeed = top * MC.dash.speedMultiplier;
+    // A dash goes the way you are driving: backwards while reversing (no lurch forwards).
+    if (dashing) targetSpeed = top * MC.dash.speedMultiplier * (throttle < 0 || (throttle === 0 && a.speed < 0) ? -MC.reverseSpeedRatio : 1);
     const dv = targetSpeed - a.speed;
     const braking = (throttle < 0 && a.speed > 0) || (throttle > 0 && a.speed < 0);
     const rate = accel * (braking ? MC.brakeFactor : dv < 0 && throttle === 0 ? 1.6 : 1);
@@ -1149,6 +1158,7 @@ export class ArenaGame {
     a.z = best.z;
     a.heading = best.heading;
     a.speed = 0;
+    a.steer = 0;
     a.alive = true;
     a.diameter = a.targetDiameter;
     a.invulnerableUntil = this.matchTime + A.invulnerableSeconds;
