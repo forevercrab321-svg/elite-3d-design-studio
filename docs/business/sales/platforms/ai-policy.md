@@ -174,3 +174,10 @@
 - [ ] 确认所有 Suno 曲目都在 Pro/Premier 付费期间生成，截图存档。
 - [ ] 决定是否替换 Suno（建议：Steam / Newgrounds 提交前替换），替换后回信 Armor Games。
 - [ ] GamePix、Addicting Games、YouTube Playables：提交时直接问对方 AI 政策，并把回复补进本文件。
+
+## 用户决定（2026-10-25）
+
+- 保留 Suno 音乐，不做「无 AI 音乐」版本。理由：全部曲目在用户长期续费的 Suno 付费会员期间生成，商用版权归我们（见 `public/music/README.md`）。
+- 版权和平台的 AI 政策是两回事：要求声明的平台照实声明（itch.io 勾 Sound 和 Code，Steam 问卷申报音乐，Kongregate 在介绍里写明）。
+- 明确排斥 AI 素材的平台（Armor Games 已拒，Newgrounds 风险高）暂不投。
+- 平台问到版权时，出示 Suno 付费会员的账单或订阅记录作为证明。
