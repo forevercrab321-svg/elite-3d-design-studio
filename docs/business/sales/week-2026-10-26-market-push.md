@@ -12,7 +12,7 @@
 | CrazyGames | 10/2 被拒；10/22 有登录记录 | Google 登录提醒邮件 | 状态待确认（提示词 B）。**不要点 Remove game** |
 | Playgama | 沙盒已上线 | https://playgama.ai/play/tp5qyqvjydddtn | 进审核要 100 次有效游玩、平均 5:00；要真实玩家（第 3 节） |
 | Newgrounds | 材料就绪，是否发布待确认 | `release/newgrounds/newgrounds-bundle.zip` | 确认后发布（提示词 C） |
-| Armor Games | 回复草稿 10/21 写好，未发送 | Gmail 草稿 | 等用户说「发送 Armor」 |
+| Armor Games | 10/25 已回复 NEX | Gmail 已发送 | 等回复，11/1 跟进 |
 | 定制版（Drimify、Brame、CataBoom、Gamify、Flarie） | 5 封草稿未发送；只有 Flarie 有收件人 | Gmail 草稿 | 其余 4 家的联系邮箱由 side agent 从官网取（提示词 D），用户确认后发送 |
 | GameDistribution | 9/29 被拒 | 拒信 | 等有 Playgama 或 CrazyGames 数据再申请复审 |
 | YouTube Playables | 10/5 交了申请表，未回复 | — | 通过发行商申请 + 自有频道发 Shorts（第 2 节） |
