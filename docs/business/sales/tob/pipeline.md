@@ -15,7 +15,7 @@
 | Y8 | 1 资格确认 | 送审；广告分成 | 开发者 50% | `dist-portal.zip`（SDK 要求待看） | 注册后读门户里的 SDK 要求 | 用户 → 工程 | D2 |
 | GameDistribution | X 被拒（2026-09-29 邮件："does not fit with our catalog"） | 分发到发行网络；广告分成 | 开发者得净收入 33% | `release/gamedistribution/grow-everything-gd.zip`（rev 3，已打好） | 按对方邮件：拿到其他平台的真实数据后，通过 Customer Support 页面附数据再申请复审；先上 CrazyGames 拿数据 | BD | 拿到 CrazyGames 数据后 |
 | GamePix | 1 资格确认 | 独家或允许分发（上传时勾选） | 官方未查到 | `dist-portal-nosdk.zip` | 640×480 iframe 测试；用户注册 | 工程 + 用户 | D4 |
-| Armor Games | 3 已联系（9/28 NEX 回复；10/25 我方已回复） | 策展；冠名或限时独占（邮件谈） | 官方未查到 | iframe 指向我们的网站 | 等回复；11/1 跟进一次 | BD | 11/1 |
+| Armor Games | X 被拒（10/25 NEX："we cannot consider games made with generative AI for the assets"） | — | — | — | 感谢回信草稿待用户确认；不再跟进 | — | — |
 | MSN Games | X 退信（暂缓） | 广告分成计划（2007 年公布，现行条款未知） | 未查到 | `dist-portal.zip` | 9/24 首封邮件被退信（550 拒收）；先查现行投稿入口，查到前不再发送 | BD | — |
 | Addicting Games | 1 资格确认 | 授权、赞助、独占 | 未查到 | 待定 | 用户在开发者中心提交；与 Armor 同期询价 | 用户 | D4 |
 | Poki | 暂缓（已选多平台） | 一次性非独占授权费 | 按游戏单独定，无分成 | `dist-portal.zip` | 其他平台上线、有数据后再询价 | BD | D14+ |
@@ -24,6 +24,8 @@
 ## 推进记录
 
 <!-- 格式：日期 · 平台 · 做了什么 · 对方原话或门户状态 · 下一步 -->
+
+- 2026-10-25 · Armor Games · NEX 当天回复，原话：「Thanks for the disclosure. Unfortunately, we cannot consider games made with generative AI for the assets.」（音乐用 Suno、代码用 AI 助手，不符合其政策）· 门户：拒绝 · 写了简短感谢回信（Gmail 草稿，未发送），不再跟进。教训：其他平台申请前先查 AI 政策
 
 - 2026-10-25 · Armor Games · 用户说「发给 ARMOR」后，从 cityhunters2025@gmail.com 在原邮件串里回复 NEX（nex@armorgames.com，抄送 mygame@armorgames.com）：如实说明 AI 使用范围、更正回合时长、列出已修的稳定性问题、附最新试玩链接（utm_source=armorgames），再问赞助或限时独占 · 已发送，未回复 · 11/1 跟进一次
 
