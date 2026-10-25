@@ -35,7 +35,7 @@ export type Obj = {
 	requiredPower: number,
 	radius: number,
 	-- pull
-	owner: Player?,
+	owner: any,
 	pullTime: number,
 	phase: number,
 	vx: number,
@@ -56,6 +56,43 @@ end
 World.colliders = {} :: { Collision.Box }
 
 local arena: Folder? = nil
+
+-- Broad phase: 8 m cells (World.ts GRID_CELL). Objects that move (fall) are re-added; stale
+-- entries are skipped by checking the object's current cell.
+local CELL = 8
+local grid: { [number]: { Obj } } = {}
+local function cellKey(cx: number, cz: number): number
+	return (cx + 4096) * 8192 + (cz + 4096)
+end
+local function addToGrid(o: Obj)
+	local k = cellKey(math.floor(o.x / CELL), math.floor(o.z / CELL))
+	local list = grid[k]
+	if not list then
+		list = {}
+		grid[k] = list
+	end
+	table.insert(list, o)
+end
+
+-- Objects whose footprint may touch a circle at (x, z, r).
+function World.near(x: number, z: number, r: number): { Obj }
+	local out: { Obj } = {}
+	local seen: { [Obj]: boolean } = {}
+	for cx = math.floor((x - r - 6) / CELL), math.floor((x + r + 6) / CELL) do
+		for cz = math.floor((z - r - 6) / CELL), math.floor((z + r + 6) / CELL) do
+			local list = grid[cellKey(cx, cz)]
+			if list then
+				for _, o in list do
+					if not seen[o] and o.state ~= "gone" then
+						seen[o] = true
+						table.insert(out, o)
+					end
+				end
+			end
+		end
+	end
+	return out
+end
 
 local function place(o: Obj)
 	local m = o.model
@@ -88,6 +125,7 @@ function World.build(cityId: string)
 	World.ground = Collision.groundLookup(city.ground)
 	World.colliders = city.colliders
 	World.objects = {}
+	table.clear(grid)
 
 	local names: { string } = { city.scenery }
 	local seen: { [string]: boolean } = {}
@@ -170,9 +208,29 @@ function World.build(cityId: string)
 			m.Parent = folder
 		end
 		World.objects[i] = o
+		addToGrid(o)
 	end
 	root.Parent = workspace
 	arena = root
+	-- Self-check in the Output window: what loaded, where the scenery sits, what is missing.
+	local withModel, missing = 0, {}
+	for _, o in World.objects do
+		if o.model then
+			withModel += 1
+		else
+			missing[o.type] = true
+		end
+	end
+	local missingList = {}
+	for t in missing do
+		table.insert(missingList, t)
+	end
+	local sceneryInfo = "missing"
+	if scenery then
+		local box, size = scenery:GetBoundingBox()
+		sceneryInfo = string.format("centre %s size %s studs (expected size %s)", tostring(box.Position), tostring(size), tostring(Models.expectedSize(city.scenery)))
+	end
+	print(string.format("[GrowEverything] %s: scenery %s; %d/%d objects with models; missing types: %s", cityId, sceneryInfo, withModel, #World.objects, if #missingList > 0 then table.concat(missingList, ", ") else "none"))
 	return city
 end
 
@@ -188,7 +246,7 @@ function World.eligible(o: Obj, power: number, landmarkOpen: boolean): boolean
 end
 
 -- Start pulling an object into a machine (the server granted the claim).
-function World.startPull(o: Obj, owner: Player)
+function World.startPull(o: Obj, owner: any)
 	o.state = "pulled"
 	o.owner = owner
 	o.pullTime = 0
@@ -199,7 +257,7 @@ function World.startPull(o: Obj, owner: Player)
 	o.phase = if cls >= 4 then 0.25 * (1 + math.max(0, cls - 5) * WebConfig.collection.heavyPhasePerClass) else 0
 	if o.model then
 		o.model:SetAttribute("State", "pulled")
-		o.model:SetAttribute("Owner", owner.UserId)
+		o.model:SetAttribute("Owner", owner.id)
 	end
 end
 
@@ -328,6 +386,7 @@ function World.stepFalling(dt: number): { Obj }
 				o.fallVy, o.vx, o.vz = 0, 0, 0
 				o.tilt = math.clamp(o.tilt, -0.12, 0.12)
 				syncAttributes(o)
+				addToGrid(o)
 				table.insert(landed, o)
 			end
 			place(o)

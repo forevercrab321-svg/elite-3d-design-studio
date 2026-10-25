@@ -11,9 +11,10 @@ local luau = require("@lune/luau")
 local roblox = require("@lune/roblox")
 local Instance = roblox.Instance
 
+local harness = require("./harness")
 local ROOT = "roblox/src/"
-local game = Instance.new("DataModel")
-local workspace = game:GetService("Workspace")
+local load = harness.load
+local stubs = harness.stubs
 local failures, passes = 0, 0
 local function check(ok: boolean, msg: string)
 	if ok then
@@ -26,68 +27,6 @@ end
 local function near(a: number, b: number, tol: number?): boolean
 	return math.abs(a - b) <= (tol or 1e-6) * math.max(1, math.abs(b))
 end
-
--- Module loader ------------------------------------------------------------------------------
-local stubs = {}
-local cache = {}
-local env
-local function node(path: string)
-	return setmetatable({ __file = path }, {
-		__index = function(self, k)
-			if k == "WaitForChild" or k == "FindFirstChild" then
-				return function(_, name)
-					return node(path .. "/" .. name)
-				end
-			end
-			return nil
-		end,
-	})
-end
-local function load(path: string)
-	if stubs[path] then
-		return stubs[path]
-	end
-	if cache[path] ~= nil then
-		return cache[path]
-	end
-	local src = fs.readFile(ROOT .. path .. ".luau")
-	local dir = string.match(path, "^(.*)/") or ""
-	-- Lune replaces the environment's metatable, so every global is copied in flat.
-	local e = { script = { Parent = node(dir) }, require = env.require, game = env.game, workspace = workspace, warn = function() end, task = env.task }
-	for k, v in roblox do
-		e[k] = v
-	end
-	local fn = luau.load(src, { debugName = path, environment = e, injectGlobals = true })
-	cache[path] = fn()
-	return cache[path]
-end
-local replicated = {
-	WaitForChild = function(_, name)
-		if name == "Shared" then
-			return node("shared")
-		end
-		return Instance.new("Folder")
-	end,
-}
-env = {
-	game = { GetService = function(_, n)
-		if n == "ReplicatedStorage" then
-			return replicated
-		end
-		if n == "InsertService" then
-			return { LoadAsset = function()
-				error("no network in tests")
-			end }
-		end
-		return game:GetService(n)
-	end },
-	require = function(m)
-		return load(m.__file)
-	end,
-	task = { wait = function() end, spawn = function(f, ...)
-		f(...)
-	end, delay = function() end },
-}
 
 -- Golden values from the web code ----------------------------------------------------------------
 print("Collision + growth vs the web code")

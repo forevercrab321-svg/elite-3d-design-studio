@@ -102,6 +102,12 @@ function Models.load(name: string): Model?
 	return model
 end
 
+-- Real size in studs a model should have (for the self-check).
+function Models.expectedSize(name: string): Vector3?
+	local info = ModelInfo[name]
+	return if info then info.size * K else nil
+end
+
 -- Load many models in parallel and wait for all of them.
 function Models.preload(names: { string })
 	local pending = 0

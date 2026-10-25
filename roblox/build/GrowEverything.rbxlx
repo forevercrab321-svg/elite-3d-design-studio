@@ -5925,7 +5925,7 @@ Config.CLAIM_SLACK = 1.6
 Config.GAMEPASS_VIP_TRAIL = 0
 
 -- Remote names (created by the server in ReplicatedStorage.Remotes).
-Config.REMOTES = { "Claim", "Input", "Absorbed", "RoundState", "Notice" }
+Config.REMOTES = { "Claim", "Crash", "Absorbed", "RoundState", "Notice" }
 
 return Config
 ]]></string>
@@ -6196,6 +6196,125 @@ return {
         </Properties>
       </Item>
       <Item class="ModuleScript" referent="17">
+        <Properties>
+          <string name="Name">Movement</string>
+          <string name="Source"><![CDATA[--!strict
+-- The web arena's machine movement (arena/ArenaGame.ts moveActor + collideObjects), shared by the
+-- local player's client and the server's AI rivals. Metres and seconds.
+
+local WebConfig = require(script.Parent:WaitForChild("WebConfig"))
+local Collision = require(script.Parent:WaitForChild("Collision"))
+
+local MC = WebConfig.movement
+local A = WebConfig.arena
+local G = WebConfig.growth
+
+local Movement = {}
+
+export type Body = {
+	x: number,
+	z: number,
+	heading: number,
+	speed: number,
+	dashTime: number,
+	dashCooldown: number,
+	stunUntil: number,
+}
+
+export type Solid = { x: number, z: number, radius: number, box: Collision.Box }
+
+function Movement.new(x: number, z: number, heading: number): Body
+	return { x = x, z = z, heading = heading, speed = 0, dashTime = 0, dashCooldown = 0, stunUntil = 0 }
+end
+
+function Movement.topSpeed(vehicle: any, diameter: number, boosted: boolean): number
+	return MC.baseTopSpeed * vehicle.speed * (if boosted then A.speedMul else 1) * (diameter / G.startDiameter) ^ MC.topSpeedExponent
+end
+
+-- One step. (wx, wz) is the wanted world direction (length ≤ 1); solids are the nearby objects too
+-- big to eat. Returns the top speed and whether the machine crashed while dashing (stunned).
+function Movement.step(b: Body, dt: number, now: number, wx: number, wz: number, dashPressed: boolean, frozen: boolean, mass: number, diameter: number, vehicle: any, boosted: boolean, colliders: { Collision.Box }?, bounds: any?, solids: { Solid }?): (number, boolean)
+	local massLog = math.log(mass / G.startMass)
+	local top = Movement.topSpeed(vehicle, diameter, boosted)
+	local accel = (top / (MC.accelSeconds * (1 + MC.accelMassDrag * massLog))) * vehicle.accel
+	local turnRate = (MC.baseTurnRate / (1 + MC.turnMassDrag * massLog)) * vehicle.turn
+	local stunned = frozen or now < b.stunUntil
+	local mag = if stunned then 0 else math.min(1, math.sqrt(wx * wx + wz * wz))
+	b.dashCooldown = math.max(0, b.dashCooldown - dt)
+	b.dashTime = math.max(0, b.dashTime - dt)
+	if dashPressed and not stunned and b.dashCooldown <= 0 then
+		b.dashTime = MC.dash.duration
+		b.dashCooldown = MC.dash.cooldown * vehicle.dashCooldown
+	end
+	local targetSpeed = 0
+	if mag > 0.05 then
+		wx /= mag
+		wz /= mag
+		local want = math.atan2(-wx, -wz)
+		local diff = math.atan2(math.sin(want - b.heading), math.cos(want - b.heading))
+		b.heading += math.clamp(diff, -turnRate * dt, turnRate * dt)
+		targetSpeed = mag * top * math.clamp(math.cos(diff), 0.25, 1)
+	else
+		mag = 0
+	end
+	if b.dashTime > 0 and not stunned then
+		targetSpeed = math.max(targetSpeed, top) * MC.dash.speedMultiplier
+	end
+	local dv = targetSpeed - b.speed
+	local rate = accel * (if dv < 0 and mag < 0.05 then 1.6 else 1) * dt
+	b.speed += math.sign(dv) * math.min(math.abs(dv), rate)
+	local r = diameter * 0.47
+	local nx, nz = b.x - math.sin(b.heading) * b.speed * dt, b.z - math.cos(b.heading) * b.speed * dt
+	if colliders and bounds then
+		nx, nz = Collision.resolveStatic(nx, nz, r, colliders, bounds)
+	end
+	b.x, b.z = nx, nz
+	local crashed = false
+	if solids then
+		for _, o in solids do
+			if math.abs(o.x - b.x) <= o.radius + r and math.abs(o.z - b.z) <= o.radius + r then
+				local cx, cz, depth = Collision.circleVsObb(b.x, b.z, r, o.box)
+				if cx then
+					b.x += cx * (depth :: number)
+					b.z += (cz :: number) * (depth :: number)
+					-- Slamming something too big at dash speed stuns (and costs mass, server side).
+					if b.dashTime > 0 and b.speed > top * 1.2 and now > b.stunUntil then
+						b.stunUntil = now + A.crashStunSeconds
+						b.speed *= -0.3
+						crashed = true
+					elseif b.speed > top * 0.45 then
+						b.speed *= 0.4
+					end
+				end
+			end
+		end
+	end
+	return top, crashed
+end
+
+-- Is a circle at (x, z) blocked by static boxes or solids? (ArenaGame.isBlocked, for the AI.)
+function Movement.blocked(x: number, z: number, r: number, colliders: { Collision.Box }, bounds: any, solids: { Solid }): boolean
+	if x < bounds.minX + r or x > bounds.maxX - r or z < bounds.minZ + r or z > bounds.maxZ - r then
+		return true
+	end
+	for _, b in colliders do
+		if Collision.circleVsObb(x, z, r, b) then
+			return true
+		end
+	end
+	for _, o in solids do
+		if Collision.circleVsObb(x, z, r, o.box) then
+			return true
+		end
+	end
+	return false
+end
+
+return Movement
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="18">
         <Properties>
           <string name="Name">WebConfig</string>
           <string name="Source"><![CDATA[--!nocheck
@@ -7785,45 +7904,242 @@ return {
       </Item>
     </Item>
   </Item>
-  <Item class="ServerScriptService" referent="18">
+  <Item class="ServerScriptService" referent="19">
     <Properties>
       <string name="Name">ServerScriptService</string>
     </Properties>
-    <Item class="Folder" referent="19">
+    <Item class="Folder" referent="20">
       <Properties>
         <string name="Name">Server</string>
       </Properties>
-      <Item class="Script" referent="20">
+      <Item class="ModuleScript" referent="21">
+        <Properties>
+          <string name="Name">Bot</string>
+          <string name="Source"><![CDATA[--!strict
+-- AI rival, ported from the web arena (arena/ArenaBot.ts). Priorities, re-evaluated every few
+-- hundred ms: 1. flee a machine that can eat it, 2. hunt a machine it can eat when one is close,
+-- 3. otherwise collect the best nearby object (golden crates and power-ups favoured, squared
+-- distance against diminishing reward). Skill (0..1) softens rookie rounds: slower decisions, a
+-- shorter hunt radius, rarer dashes and no hunting humans during a grace period.
+-- Output: a world direction (metres) and whether to dash, like the player's camera-mapped input.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local WebConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("WebConfig"))
+
+local A = WebConfig.arena
+
+-- What the bot needs from the round (Main builds it).
+export type Game = {
+	time: number,
+	matchTime: number,
+	skill: number,
+	actors: { any },
+	objects: { any },
+	canEat: (any, any) -> boolean,
+	spares: (any, any) -> boolean,
+	eligible: (any, number) -> boolean,
+	reward: (any) -> number,
+	isBlocked: (number, number, number, number, any) -> boolean,
+}
+
+local Bot = {}
+Bot.__index = Bot
+
+export type Bot = typeof(setmetatable({} :: {
+	target: any,
+	prey: any,
+	threat: any,
+	thinkAt: number,
+	checkAt: number,
+	lastDist: number,
+	blacklist: { [number]: number },
+	wanderUntil: number,
+	wx: number,
+	wz: number,
+	nextDash: number,
+	huntStart: number,
+	spared: { [string]: number },
+	rand: Random,
+}, Bot))
+
+function Bot.new(seed: number): Bot
+	return setmetatable({
+		target = nil,
+		prey = nil,
+		threat = nil,
+		thinkAt = 0,
+		checkAt = 0,
+		lastDist = math.huge,
+		blacklist = {},
+		wanderUntil = 0,
+		wx = 0,
+		wz = -1,
+		nextDash = 0,
+		huntStart = 0,
+		spared = {},
+		rand = Random.new(seed),
+	}, Bot)
+end
+
+local function hypot(x: number, z: number): number
+	return math.sqrt(x * x + z * z)
+end
+
+function Bot.think(self: Bot, g: Game, me: any)
+	local skill = math.clamp(g.skill, 0, 1)
+	self.thinkAt = g.time + (0.25 + self.rand:NextNumber() * 0.15) * (1 + (1 - skill) * A.botThinkSlow)
+	local huntRange = A.botHuntRangeRookie + (1 - A.botHuntRangeRookie) * skill
+	local graceOver = g.matchTime >= A.botHumanGraceSeconds * (1 - skill)
+	local prevPrey = self.prey
+	self.threat = nil
+	self.prey = nil
+	local bestThreat, bestPrey = math.huge, math.huge
+	for _, o in g.actors do
+		if o ~= me and o.alive then
+			local d = hypot(o.body.x - me.body.x, o.body.z - me.body.z)
+			if g.canEat(o, me) and d < 10 + o.diameter * 3 and d < bestThreat then
+				bestThreat = d
+				self.threat = o
+			elseif
+				g.canEat(me, o)
+				and d < (22 + me.diameter * 3) * huntRange
+				and (o.kind == "bot" or graceOver)
+				and d < bestPrey
+				and (o.mass >= me.mass * A.botPreyMinShare or d < me.diameter)
+				and not g.spares(me, o)
+				and (self.spared[o.id] or 0) <= g.time
+			then
+				bestPrey = d
+				self.prey = o
+			end
+		end
+	end
+	if self.prey ~= prevPrey then
+		self.huntStart = g.time
+	elseif self.prey and g.time - self.huntStart > A.botHuntGiveUp then
+		self.spared[self.prey.id] = g.time + A.botHuntGiveUp
+		self.prey = nil
+	end
+	if self.target and not g.eligible(self.target, me.diameter) then
+		self.target = nil
+	end
+	if not self.target then
+		local best, bestScore = nil, math.huge
+		for _, o in g.objects do
+			if g.eligible(o, me.diameter) and (self.blacklist[o.id] or 0) <= g.time then
+				local d = hypot(o.x - me.body.x, o.z - me.body.z)
+				-- Worth the trip: diminishing reward, golden crates ×2, power-ups ×6, own class ×1.4.
+				local value = math.sqrt(math.max(0.05, g.reward(o))) * (if o.def.bonus then 2 elseif o.def.power then 6 else 1) * (if o.def.objectClass == me.cls then 1.4 else 1)
+				local score = (d + 1.5) * (d + 1.5) / value
+				if score < bestScore then
+					bestScore = score
+					best = o
+				end
+			end
+		end
+		self.target = best
+		self.lastDist = math.huge
+		self.checkAt = g.time + 0.8
+	end
+end
+
+function Bot.avoid(self: Bot, g: Game, me: any, dx: number, dz: number): (number, number)
+	local r = me.diameter * 0.5
+	local ahead = me.diameter * 0.9 + 0.4
+	for _, deg in { 0, 30, -30, 60, -60, 90, -90, 120, -120 } do
+		local a = math.rad(deg)
+		local cx = dx * math.cos(a) - dz * math.sin(a)
+		local cz = dx * math.sin(a) + dz * math.cos(a)
+		if not g.isBlocked(me.body.x + cx * ahead, me.body.z + cz * ahead, r, me.diameter, self.target) then
+			return cx, cz
+		end
+	end
+	return dx, dz
+end
+
+function Bot.intents(self: Bot, g: Game, me: any): (number, number, boolean)
+	local t = g.time
+	if t >= self.thinkAt then
+		self:think(g, me)
+	end
+	local dx, dz, dash = 0, -1, false
+	if t < self.wanderUntil then
+		dx, dz = self.wx, self.wz
+	elseif self.threat then
+		dx = me.body.x - self.threat.body.x
+		dz = me.body.z - self.threat.body.z
+		dash = t > self.nextDash
+	elseif self.prey then
+		dx = self.prey.body.x - me.body.x
+		dz = self.prey.body.z - me.body.z
+		dash = hypot(dx, dz) < 6 + me.diameter * 2 and t > self.nextDash
+	elseif self.target then
+		dx = self.target.x - me.body.x
+		dz = self.target.z - me.body.z
+		local dist = hypot(dx, dz)
+		if t >= self.checkAt then
+			-- Stuck (not getting closer): blacklist the target for 6 s and sidestep.
+			if self.lastDist ~= math.huge and self.lastDist - dist < 0.08 * math.max(1, me.diameter) then
+				self.blacklist[self.target.id] = t + 6
+				self.target = nil
+				local side = if self.rand:NextNumber() < 0.5 then 1 else -1
+				self.wx = (-dz / math.max(dist, 1e-3)) * side
+				self.wz = (dx / math.max(dist, 1e-3)) * side
+				self.wanderUntil = t + 0.7
+			end
+			self.lastDist = dist
+			self.checkAt = t + 0.8
+		end
+		dash = dist > 4 + me.diameter * 3 and t > self.nextDash
+	end
+	if dash then
+		self.nextDash = t + (2.2 + self.rand:NextNumber() * 1.5) * (1 + (1 - g.skill) * A.botThinkSlow)
+	end
+	local len = hypot(dx, dz)
+	if len < 1e-6 then
+		len = 1
+	end
+	dx, dz = self:avoid(g, me, dx / len, dz / len)
+	return dx, dz, dash
+end
+
+return Bot
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="Script" referent="22">
         <Properties>
           <string name="Name">Main</string>
           <token name="RunContext">0</token>
           <string name="Source"><![CDATA[--!strict
--- GROW EVERYTHING (Roblox) server: rounds over the web cities, player machines, absorbing
--- (claims checked here, pull animation and mass on the server), growth, combo, landmark lock and
--- bonus, and machines eating machines. Numbers come from the web game (Shared.WebConfig).
---
--- Each machine is a Model in workspace.Machines with an invisible Root ball owned by its player:
--- the client drives it with the web movement rules (Play.client) through AlignPosition /
--- AlignOrientation, and draws the web machine model around it. Root attributes: UserId, Look,
--- Slot, Diameter (m), Mass (kg), Invulnerable, SpeedUntil, MagnetUntil, ShieldUntil (server time).
+-- GROW EVERYTHING (Roblox) server: the web arena's rules on the web cities.
+-- Actors are players and AI rivals alike (AI fills the room to arena.maxPlayers). Each machine is
+-- a Model in workspace.Machines with an invisible Root ball: a player's client drives its own
+-- (Play.client, network-owned), the server drives the AI (Bot + shared Movement). The server owns
+-- the rules: claims checked here, objects pulled in with the web formula, mass with combo and
+-- catch-up, lives and respawns, machines eating machines, landmark lock and bonus, round end.
+-- Root attributes: ActorId, Look, Slot, Name, IsBot, Diameter (m), Mass (kg), Lives,
+-- InvulnerableUntil, SpeedUntil, MagnetUntil, ShieldUntil (server time).
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local MarketplaceService = game:GetService("MarketplaceService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local WebConfig = require(Shared:WaitForChild("WebConfig"))
 local Growth = require(Shared:WaitForChild("Growth"))
 local Collision = require(Shared:WaitForChild("Collision"))
+local Movement = require(Shared:WaitForChild("Movement"))
 local World = require(script.Parent:WaitForChild("World"))
 local Models = require(script.Parent:WaitForChild("Models"))
+local Bot = require(script.Parent:WaitForChild("Bot"))
 
 local K = Config.STUDS_PER_METER
 local A = WebConfig.arena
 local G = WebConfig.growth
 local CC = WebConfig.collection
+local BOT_NAMES = { "Rustbucket", "Magna", "Gearjaw", "Scrapper", "Hoover-9", "Chomp" }
 
 -- Remotes ------------------------------------------------------------------------------------
 local remotes = Instance.new("Folder")
@@ -7835,6 +8151,7 @@ for _, name in Config.REMOTES do
 end
 remotes.Parent = ReplicatedStorage
 local ClaimEvent = remotes:WaitForChild("Claim") :: RemoteEvent
+local CrashEvent = remotes:WaitForChild("Crash") :: RemoteEvent
 local AbsorbedEvent = remotes:WaitForChild("Absorbed") :: RemoteEvent
 local RoundEvent = remotes:WaitForChild("RoundState") :: RemoteEvent
 local NoticeEvent = remotes:WaitForChild("Notice") :: RemoteEvent
@@ -7843,29 +8160,39 @@ local machinesFolder = Instance.new("Folder")
 machinesFolder.Name = "Machines"
 machinesFolder.Parent = workspace
 
--- Player state -------------------------------------------------------------------------------
-type State = {
-	player: Player,
+-- Actors ---------------------------------------------------------------------------------------
+type Actor = {
+	id: string,
+	kind: string, -- "player" | "bot"
+	player: Player?,
+	name: string,
 	slot: number,
 	look: string,
 	vehicle: any,
 	mass: number,
 	diameter: number,
+	body: Movement.Body,
 	model: Model?,
 	root: BasePart?,
 	alive: boolean,
+	lives: number,
+	eliminatedAt: number,
 	invulnerableUntil: number,
 	combo: number,
 	comboAt: number,
-	eaten: number,
+	objects: number,
 	kills: number,
+	deaths: number,
 	cls: number,
 	tier: number,
 	speedUntil: number,
 	magnetUntil: number,
 	shieldUntil: number,
+	bot: any,
+	eatCooldown: { [string]: number },
 }
-local states: { [Player]: State } = {}
+local actors: { Actor } = {}
+local byPlayer: { [Player]: Actor } = {}
 local joined = 0
 local phase = "Loading"
 local roundStart = 0
@@ -7873,70 +8200,86 @@ local landmarkOpen = false
 local climaxTotal = 0
 local climaxEaten = 0
 local firstBlood = false
+local roundsPlayed = 0
 
 local function now(): number
 	return workspace:GetServerTimeNow()
 end
+local function matchTime(): number
+	return if phase == "Round" then os.clock() - roundStart else 0
+end
 
-local function updateStats(st: State)
-	local ls = st.player:FindFirstChild("leaderstats")
-	local mass = ls and ls:FindFirstChild("Mass") :: IntValue?
-	if mass then
-		mass.Value = math.floor(st.mass)
+local function notice(a: Actor, msg: { [string]: any })
+	if a.player then
+		NoticeEvent:FireClient(a.player, msg)
 	end
-	st.player:SetAttribute("Mass", st.mass)
-	st.player:SetAttribute("Diameter", st.diameter)
-	local root = st.root
+end
+local function feed(text: string, tone: string?)
+	NoticeEvent:FireAllClients({ kind = "feed", text = text, tone = tone or "info" })
+end
+
+local function sync(a: Actor)
+	if a.player then
+		local ls = a.player:FindFirstChild("leaderstats")
+		local mass = ls and ls:FindFirstChild("Mass") :: IntValue?
+		if mass then
+			mass.Value = math.floor(a.mass)
+		end
+		a.player:SetAttribute("Mass", a.mass)
+		a.player:SetAttribute("Diameter", a.diameter)
+		a.player:SetAttribute("Lives", a.lives)
+	end
+	local root = a.root
 	if root then
-		root:SetAttribute("Mass", st.mass)
-		root:SetAttribute("Diameter", st.diameter)
-		root.Size = Vector3.one * st.diameter * K
+		root:SetAttribute("Mass", a.mass)
+		root:SetAttribute("Diameter", a.diameter)
+		root:SetAttribute("Lives", a.lives)
+		root:SetAttribute("SpeedUntil", a.speedUntil)
+		root:SetAttribute("MagnetUntil", a.magnetUntil)
+		root:SetAttribute("ShieldUntil", a.shieldUntil)
+		root.Size = Vector3.one * math.max(0.05, a.diameter * K)
 	end
 end
 
--- Set mass, and tell the player when growth unlocks a class or a tier (ArenaGame announcements).
-local function setMass(st: State, mass: number, quiet: boolean?)
-	st.mass = math.max(G.startMass, mass)
-	st.diameter = Growth.diameterForMass(st.mass)
-	local cls = Growth.classForPower(st.diameter)
+-- Set mass; tell a player when growth unlocks a class or a tier (ArenaGame announcements).
+local function setMass(a: Actor, mass: number, quiet: boolean?)
+	a.mass = math.max(G.startMass, mass)
+	a.diameter = Growth.diameterForMass(a.mass)
+	local cls = Growth.classForPower(a.diameter)
 	local tier = Growth.tierForClass(cls)
-	if not quiet and cls > st.cls then
-		if tier > st.tier then
-			NoticeEvent:FireClient(st.player, { kind = "tier", tier = tier, cls = cls })
+	if not quiet and cls > a.cls then
+		if tier > a.tier then
+			notice(a, { kind = "tier", tier = tier, cls = cls })
 		else
-			NoticeEvent:FireClient(st.player, { kind = "unlock", cls = cls })
+			notice(a, { kind = "unlock", cls = cls })
 		end
 	end
-	st.cls = cls
-	st.tier = tier
-	updateStats(st)
+	a.cls = cls
+	a.tier = tier
+	sync(a)
 end
 
-local function machinePosition(st: State): (number, number, number, number)
-	local root = st.root
-	if not root then
-		return 0, 0, 0, 0
+-- Where a machine is: a player's from its (client-driven) root, an AI's from its body.
+local function position(a: Actor): (number, number, number, number)
+	local root = a.root
+	if a.kind == "player" and root then
+		local p = root.Position / K
+		local look = root.CFrame.LookVector
+		a.body.x, a.body.z = p.X, p.Z
+		a.body.heading = math.atan2(-look.X, -look.Z)
 	end
-	local p = root.Position / K
-	local look = root.CFrame.LookVector
-	return p.X, p.Y - st.diameter / 2, p.Z, math.atan2(-look.X, -look.Z)
+	return a.body.x, World.ground(a.body.x, a.body.z), a.body.z, a.body.heading
 end
 
-local function spawnPoint(st: State): (number, number, number)
-	local city = World.city
-	local spawns = city.spawns
-	local sp = spawns[(st.slot - 1) % #spawns + 1]
-	return sp.x, sp.z, sp.heading
-end
-
--- (Re)create a player's machine at a spawn. The client drives it; the server owns the rules.
-local function spawnMachine(st: State, x: number, z: number, heading: number)
-	if st.model then
-		st.model:Destroy()
+-- (Re)create a machine at a spawn point.
+local function spawnMachine(a: Actor, x: number, z: number, heading: number)
+	if a.model then
+		a.model:Destroy()
 	end
-	local d = st.diameter
+	a.body = Movement.new(x, z, heading)
+	local d = a.diameter
 	local m = Instance.new("Model")
-	m.Name = st.player.Name
+	m.Name = a.id
 	local root = Instance.new("Part")
 	root.Name = "Root"
 	root.Shape = Enum.PartType.Ball
@@ -7960,36 +8303,113 @@ local function spawnMachine(st: State, x: number, z: number, heading: number)
 	ao.RigidityEnabled = true
 	ao.CFrame = root.CFrame.Rotation
 	ao.Parent = root
-	root:SetAttribute("UserId", st.player.UserId)
-	root:SetAttribute("Look", st.look)
-	root:SetAttribute("Slot", st.slot)
-	root:SetAttribute("Name", st.player.DisplayName)
+	root:SetAttribute("ActorId", a.id)
+	root:SetAttribute("UserId", if a.player then a.player.UserId else 0)
+	root:SetAttribute("Look", a.look)
+	root:SetAttribute("Slot", a.slot)
+	root:SetAttribute("Name", a.name)
+	root:SetAttribute("IsBot", a.kind == "bot")
 	root.Parent = m
 	m.PrimaryPart = root
 	m.Parent = machinesFolder
-	root:SetNetworkOwner(st.player)
-	st.model = m
-	st.root = root
-	st.alive = true
-	st.invulnerableUntil = now() + A.invulnerableSeconds
-	root:SetAttribute("InvulnerableUntil", st.invulnerableUntil)
-	updateStats(st)
+	if a.player then
+		root:SetNetworkOwner(a.player)
+	end
+	a.model = m
+	a.root = root
+	a.alive = true
+	a.invulnerableUntil = now() + A.invulnerableSeconds
+	root:SetAttribute("InvulnerableUntil", a.invulnerableUntil)
+	sync(a)
 end
 
-local function resetForRound(st: State, mass: number)
-	st.combo, st.comboAt, st.eaten, st.kills = 0, 0, 0, 0
-	st.speedUntil, st.magnetUntil, st.shieldUntil = 0, 0, 0
-	st.cls, st.tier = 0, 1
-	setMass(st, mass, true)
-	local x, z, h = spawnPoint(st)
-	spawnMachine(st, x, z, h)
+local function slotSpawn(a: Actor): (number, number, number)
+	local spawns = World.city.spawns
+	local sp = spawns[(a.slot - 1) % #spawns + 1]
+	return sp.x, sp.z, sp.heading
+end
+
+-- Respawn at the spawn farthest from the biggest rival (ArenaGame.respawn).
+local function farSpawn(a: Actor): (number, number, number)
+	local threat: Actor? = nil
+	for _, b in actors do
+		if b ~= a and b.alive and (not threat or b.mass > threat.mass) then
+			threat = b
+		end
+	end
+	if not threat then
+		return slotSpawn(a)
+	end
+	local best, bestD = nil, -1
+	for _, sp in World.city.spawns do
+		local d = math.sqrt((sp.x - threat.body.x) ^ 2 + (sp.z - threat.body.z) ^ 2)
+		if d > bestD then
+			best, bestD = sp, d
+		end
+	end
+	return best.x, best.z, best.heading
+end
+
+local function newActor(kind: string, player: Player?, name: string, slot: number, look: string): Actor
+	local a: Actor = {
+		id = if player then tostring(player.UserId) else ("bot" .. slot),
+		kind = kind,
+		player = player,
+		name = name,
+		slot = slot,
+		look = look,
+		vehicle = WebConfig.vehicles[look],
+		mass = G.startMass,
+		diameter = G.startDiameter,
+		body = Movement.new(0, 0, 0),
+		model = nil,
+		root = nil,
+		alive = false,
+		lives = A.lives,
+		eliminatedAt = 0,
+		invulnerableUntil = 0,
+		combo = 0,
+		comboAt = 0,
+		objects = 0,
+		kills = 0,
+		deaths = 0,
+		cls = 0,
+		tier = 1,
+		speedUntil = 0,
+		magnetUntil = 0,
+		shieldUntil = 0,
+		bot = nil,
+		eatCooldown = {},
+	}
+	return a
+end
+
+local function resetForRound(a: Actor, mass: number)
+	a.combo, a.comboAt, a.objects, a.kills, a.deaths = 0, 0, 0, 0, 0
+	a.speedUntil, a.magnetUntil, a.shieldUntil = 0, 0, 0
+	a.lives, a.eliminatedAt = A.lives, 0
+	a.cls, a.tier = 0, 1
+	a.eatCooldown = {}
+	setMass(a, mass, true)
+	local x, z, h = slotSpawn(a)
+	spawnMachine(a, x, z, h)
+end
+
+local function removeActor(a: Actor)
+	if a.model then
+		a.model:Destroy()
+	end
+	local i = table.find(actors, a)
+	if i then
+		table.remove(actors, i)
+	end
 end
 
 local function medianMass(): number
 	local list = {}
-	for _, st in states do
-		if st.alive then
-			table.insert(list, st.mass)
+	for _, a in actors do
+		if a.alive then
+			table.insert(list, a.mass)
 		end
 	end
 	table.sort(list)
@@ -8008,31 +8428,27 @@ local function onPlayerAdded(player: Player)
 	ls.Parent = player
 	joined += 1
 	local look = Config.MACHINE_LOOKS[(joined - 1) % #Config.MACHINE_LOOKS + 1]
-	local st: State = {
-		player = player,
-		slot = joined,
-		look = look,
-		vehicle = WebConfig.vehicles[look],
-		mass = G.startMass,
-		diameter = G.startDiameter,
-		model = nil,
-		root = nil,
-		alive = false,
-		invulnerableUntil = 0,
-		combo = 0,
-		comboAt = 0,
-		eaten = 0,
-		kills = 0,
-		cls = 0,
-		tier = 1,
-		speedUntil = 0,
-		magnetUntil = 0,
-		shieldUntil = 0,
-	}
-	states[player] = st
+	-- Take a free seat: replace an AI rival if the room is full of them (web drop-in).
+	local slot = #actors + 1
+	for _, b in actors do
+		if b.kind == "bot" then
+			slot = b.slot
+			removeActor(b)
+			break
+		end
+	end
+	local a = newActor("player", player, player.DisplayName, slot, look)
+	table.insert(actors, a)
+	byPlayer[player] = a
 	if World.city then
-		-- Drop in: a third of the field's median mass during a round (arena dropInMassShare).
-		resetForRound(st, if phase == "Round" then math.max(G.startMass, medianMass() * A.dropInMassShare) else G.startMass)
+		if phase == "Round" and matchTime() > Config.ROUND_SECONDS - A.dropInCutoffSeconds then
+			a.alive = false -- too late to drop in: watch, play the next round
+		else
+			resetForRound(a, if phase == "Round" then math.max(G.startMass, medianMass() * A.dropInMassShare) else G.startMass)
+			if phase == "Round" then
+				feed(a.name .. " joined the match")
+			end
+		end
 	end
 end
 
@@ -8043,143 +8459,305 @@ for _, player in Players:GetPlayers() do
 end
 
 Players.PlayerRemoving:Connect(function(player: Player)
-	local st = states[player]
-	if st and st.model then
-		st.model:Destroy()
+	local a = byPlayer[player]
+	if a then
+		removeActor(a)
+		byPlayer[player] = nil
+		if phase == "Round" then
+			feed(a.name .. " left the match")
+		end
 	end
-	states[player] = nil
 end)
 
--- Absorbing ------------------------------------------------------------------------------------
+-- Rules ------------------------------------------------------------------------------------------
 
-local function reach(st: State): number
-	local magnet = if now() < st.magnetUntil then A.magnetMul else 1
-	return (st.diameter / 2 + st.diameter * CC.reachFactor + CC.reachFlat) * st.vehicle.reach * magnet
+local function canEat(a: Actor, b: Actor): boolean
+	local t = now()
+	if a == b or not a.alive or not b.alive or t < b.invulnerableUntil or t < a.invulnerableUntil or t < b.shieldUntil then
+		return false
+	end
+	return a.diameter >= b.diameter * A.eatRatio * a.vehicle.eatRatio
 end
 
-ClaimEvent.OnServerEvent:Connect(function(player: Player, ids: any)
-	local st = states[player]
-	if phase ~= "Round" or not st or not st.alive or typeof(ids) ~= "table" then
-		return
-	end
-	local x, _, z = machinePosition(st)
-	local r = reach(st) * Config.CLAIM_SLACK
-	for i, id in ids do
-		if i > 64 then
-			break
+local function botSkill(): number
+	return math.clamp(A.botSkillRookie + (1 - A.botSkillRookie) * roundsPlayed / A.botSkillRounds, 0, 1)
+end
+
+-- Training wheels: a rookie AI spares a human worth less than (1 − skill) × 40% of its mass.
+local function spares(a: Actor, b: Actor): boolean
+	return a.kind == "bot" and b.kind ~= "bot" and b.mass < a.mass * (1 - botSkill()) * A.botRookieHumanPreyShare
+end
+
+local function eligible(o: World.Obj, power: number): boolean
+	return World.eligible(o, power, landmarkOpen)
+end
+
+-- Object gain multiplier: catch-up when behind the leader, drag when far ahead (ArenaGame.catchUp).
+local function catchUp(a: Actor): number
+	local lead = 0
+	for _, b in actors do
+		if b.alive and b ~= a then
+			lead = math.max(lead, b.mass)
 		end
-		local o = typeof(id) == "number" and World.objects[id] or nil
-		if o and World.eligible(o, st.diameter, landmarkOpen) then
-			local rr = if o.radius * 2 < st.diameter * CC.vacuumSizeRatio then r * CC.vacuumReachMultiplier else r
+	end
+	if lead <= 0 then
+		return 1
+	end
+	if lead > a.mass then
+		return 1 + A.catchUpMax * math.min(1, math.log(lead / a.mass) / math.log(A.catchUpFullRatio))
+	end
+	local ahead = a.mass / (lead * A.leaderDragFrom)
+	return if ahead <= 1 then 1 else math.max(A.leaderDragMin, (1 / ahead) ^ A.leaderDragExp)
+end
+
+local function reach(a: Actor): number
+	local magnet = if now() < a.magnetUntil then A.magnetMul else 1
+	return (a.diameter / 2 + a.diameter * CC.reachFactor + CC.reachFlat) * a.vehicle.reach * magnet
+end
+
+-- Claim every eligible object in reach for this actor (checked against the server's state).
+local function tryClaim(a: Actor, ids: { number }?, slack: number)
+	local x, _, z = position(a)
+	local r = reach(a) * slack
+	local list: { World.Obj } = {}
+	if ids then
+		for i, id in ids do
+			if i > 64 then
+				break
+			end
+			local o = typeof(id) == "number" and World.objects[id] or nil
+			if o then
+				table.insert(list, o)
+			end
+		end
+	else
+		list = World.near(x, z, r * CC.vacuumReachMultiplier)
+	end
+	for _, o in list do
+		if eligible(o, a.diameter) then
+			local rr = if o.radius * 2 < a.diameter * CC.vacuumSizeRatio then r * CC.vacuumReachMultiplier else r
 			if Collision.circleVsObb(x, z, rr, World.box(o)) then
-				World.startPull(o, player)
+				World.startPull(o, a)
 			end
 		end
 	end
+end
+
+ClaimEvent.OnServerEvent:Connect(function(player: Player, ids: any)
+	local a = byPlayer[player]
+	if phase ~= "Round" or not a or not a.alive or typeof(ids) ~= "table" then
+		return
+	end
+	tryClaim(a, ids, Config.CLAIM_SLACK)
 end)
 
-local function absorb(st: State, o: World.Obj)
+-- A player's client reports dashing into something too big: the web penalty (3% of mass).
+local function crash(a: Actor)
+	local lost = math.max(0, (a.mass - G.startMass) * A.crashMassLoss)
+	setMass(a, a.mass - lost, true)
+	local v, u = Growth.massText(lost)
+	notice(a, { kind = "crash", text = "CRASH · −" .. v .. " " .. string.upper(u) })
+end
+CrashEvent.OnServerEvent:Connect(function(player: Player)
+	local a = byPlayer[player]
+	if a and a.alive and phase == "Round" then
+		crash(a)
+	end
+end)
+
+local function absorb(a: Actor, o: World.Obj)
 	local def = o.def
-	local base = def.rewardMass
-	if def.bonus then
-		base = math.max(base, st.mass * A.goldCrateShare)
-	end
 	local t = now()
-	if t - st.comboAt <= A.comboWindow then
-		st.combo += 1
-	else
-		st.combo = 1
-	end
-	st.comboAt = t
-	local mult = math.min(A.comboMax, 1 + A.comboStep * (st.combo - 1))
-	local gain = base * mult
-	st.eaten += 1
+	a.combo = if t - a.comboAt <= A.comboWindow then a.combo + 1 else 1
+	a.comboAt = t
+	local mult = math.min(A.comboMax, 1 + A.comboStep * (a.combo - 1))
 	if def.power == "speed" then
-		st.speedUntil = t + A.speedSeconds
+		a.speedUntil = t + A.speedSeconds
 	elseif def.power == "magnet" then
-		st.magnetUntil = t + A.magnetSeconds
+		a.magnetUntil = t + A.magnetSeconds
 	elseif def.power == "shield" then
-		st.shieldUntil = t + A.shieldSeconds
+		a.shieldUntil = t + A.shieldSeconds
 	end
-	if st.root then
-		st.root:SetAttribute("SpeedUntil", st.speedUntil)
-		st.root:SetAttribute("MagnetUntil", st.magnetUntil)
-		st.root:SetAttribute("ShieldUntil", st.shieldUntil)
-	end
+	local gain = if def.bonus then math.max(def.rewardMass, a.mass * A.goldCrateShare) else def.rewardMass
+	gain *= mult * catchUp(a)
+	a.objects += 1
 	local ox, oy, oz = o.x, o.y, o.z
 	World.remove(o)
-	setMass(st, st.mass + gain)
-	AbsorbedEvent:FireClient(st.player, {
-		label = def.label,
-		gain = gain,
-		combo = if st.combo >= 2 then mult else nil,
-		cls = def.objectClass,
-		power = def.power,
-		position = Vector3.new(ox, oy + def.size[2] / 2, oz) * K,
-		size = math.max(def.size[1], def.size[2], def.size[3]),
-	})
+	local lastClimax = false
 	if def.climax then
 		climaxEaten += 1
 		workspace:SetAttribute("ClimaxEaten", climaxEaten)
 		if climaxEaten >= climaxTotal then
-			local bonus = st.mass * A.landmarkBonus
-			setMass(st, st.mass + bonus)
-			NoticeEvent:FireAllClients({ kind = "landmarkDown", name = st.player.DisplayName, city = World.city.id, bonus = bonus })
+			lastClimax = true
+			gain += a.mass * A.landmarkBonus
 		end
+	end
+	setMass(a, a.mass + gain)
+	if a.player then
+		AbsorbedEvent:FireClient(a.player, {
+			label = def.label,
+			gain = gain,
+			combo = if a.combo >= 2 then mult else nil,
+			catchUp = catchUp(a),
+			cls = def.objectClass,
+			power = def.power,
+			bonus = def.bonus,
+			position = Vector3.new(ox, oy + def.size[2] / 2, oz) * K,
+			size = math.max(def.size[1], def.size[2], def.size[3]),
+		})
+	end
+	if def.bonus then
+		local v, u = Growth.massText(gain)
+		notice(a, { kind = "feed", text = "Golden crate +" .. v .. " " .. u, tone = "bonus" })
+	end
+	if lastClimax then
+		NoticeEvent:FireAllClients({ kind = "landmarkDown", name = a.name, city = World.city.id })
+		feed(a.name .. " ate the last piece of the landmark", "bonus")
 	end
 end
 
--- Machines eating machines (ArenaGame PvP rule: 1.25× diameter, centres overlapping).
-local function pvp()
-	local t = now()
-	local list: { State } = {}
-	for _, st in states do
-		if st.alive and st.root then
-			table.insert(list, st)
+-- Machines eating machines (ArenaGame.proposeEats / applyEaten).
+local function eatActor(a: Actor, b: Actor)
+	local first = not firstBlood
+	firstBlood = true
+	local leader = true
+	for _, c in actors do
+		if c ~= b and c.alive and c.mass > b.mass then
+			leader = false
 		end
 	end
-	for _, a in list do
-		for _, b in list do
-			if a ~= b and a.alive and b.alive and t > a.invulnerableUntil and t > b.invulnerableUntil and t > b.shieldUntil then
-				if a.diameter >= b.diameter * A.eatRatio * a.vehicle.eatRatio then
-					local ax, _, az = machinePosition(a)
-					local bx, _, bz = machinePosition(b)
-					if math.sqrt((ax - bx) ^ 2 + (az - bz) ^ 2) <= (a.diameter / 2) * A.eatReach + 0.2 * b.diameter then
-						local gain = b.mass * A.eatGain * (if firstBlood then 1 else 1 + A.firstBloodBonus)
-						local first = not firstBlood
-						firstBlood = true
-						a.kills += 1
-						b.alive = false
-						if b.model then
-							b.model:Destroy()
-							b.model = nil
-							b.root = nil
-						end
-						setMass(a, a.mass + gain)
-						NoticeEvent:FireClient(a.player, { kind = "ate", name = b.player.DisplayName, gain = gain, first = first })
-						NoticeEvent:FireClient(b.player, { kind = "eaten", name = a.player.DisplayName })
-						local keep = math.max(G.startMass, b.mass * A.respawnMassKeep)
-						task.delay(A.respawnDelay, function()
-							if states[b.player] == b and phase == "Round" then
-								setMass(b, keep, true)
-								local x, z, h = spawnPoint(b)
-								spawnMachine(b, x, z, h)
-							end
-						end)
-					end
+	local gain = b.mass * A.eatGain * (if first then 1 + A.firstBloodBonus else 1) * (if leader then 1 + A.leaderBounty else 1)
+	a.kills += 1
+	b.deaths += 1
+	b.lives = math.max(0, b.lives - 1)
+	b.alive = false
+	if b.model then
+		b.model:Destroy()
+		b.model = nil
+		b.root = nil
+	end
+	setMass(a, a.mass + gain)
+	local v, u = Growth.massText(gain)
+	notice(a, { kind = "ate", name = b.name, gain = gain, first = first })
+	notice(b, { kind = "eaten", name = a.name, lives = b.lives })
+	feed(string.format("%s ate %s · +%s %s", a.name, b.name, v, u), "kill")
+	local keep = math.max(G.startMass, b.mass * A.respawnMassKeep)
+	if b.lives <= 0 then
+		b.eliminatedAt = os.clock()
+		feed(b.name .. " is out", "bad")
+		return
+	end
+	task.delay(A.respawnDelay, function()
+		if table.find(actors, b) and phase == "Round" and not b.alive then
+			setMass(b, keep, true)
+			local x, z, h = farSpawn(b)
+			spawnMachine(b, x, z, h)
+			notice(b, { kind = "respawn" })
+		end
+	end)
+end
+
+local function pvp()
+	local t = os.clock()
+	for _, a in actors do
+		for _, b in actors do
+			if canEat(a, b) and not spares(a, b) and (a.eatCooldown[b.id] or 0) <= t then
+				local ax, _, az = position(a)
+				local bx, _, bz = position(b)
+				if math.sqrt((ax - bx) ^ 2 + (az - bz) ^ 2) <= (a.diameter / 2) * A.eatReach + b.diameter * 0.2 then
+					a.eatCooldown[b.id] = t + 0.6
+					eatActor(a, b)
 				end
 			end
 		end
 	end
 end
 
+-- AI rivals -------------------------------------------------------------------------------------
+local function solidsNear(x: number, z: number, r: number, power: number, ignore: any): { Movement.Solid }
+	local out: { Movement.Solid } = {}
+	for _, o in World.near(x, z, r) do
+		if o ~= ignore and World.solid(o, power, landmarkOpen) then
+			table.insert(out, { x = o.x, z = o.z, radius = o.radius, box = World.box(o) })
+		end
+	end
+	return out
+end
+
+local botGame = {
+	time = 0,
+	matchTime = 0,
+	skill = 0.3,
+	actors = actors,
+	objects = World.objects,
+	canEat = canEat,
+	spares = spares,
+	eligible = eligible,
+	reward = function(o: any): number
+		return o.def.rewardMass
+	end,
+	isBlocked = function(x: number, z: number, r: number, power: number, ignore: any): boolean
+		return Movement.blocked(x, z, r, World.colliders, World.city.bounds, solidsNear(x, z, r, power, ignore))
+	end,
+}
+
+local function stepBots(dt: number)
+	botGame.time = os.clock()
+	botGame.matchTime = matchTime()
+	botGame.skill = botSkill()
+	botGame.objects = World.objects
+	local frozen = phase ~= "Round"
+	for _, a in actors do
+		if a.kind == "bot" and a.alive and a.root then
+			local dx, dz, dash = 0, 0, false
+			if not frozen then
+				dx, dz, dash = a.bot:intents(botGame, a)
+			end
+			local solids = solidsNear(a.body.x, a.body.z, a.diameter + 1, a.diameter, nil)
+			local _, crashed = Movement.step(a.body, dt, now(), dx, dz, dash, frozen, a.mass, a.diameter, a.vehicle, now() < a.speedUntil, World.colliders, World.city.bounds, solids)
+			if crashed then
+				crash(a)
+			end
+			local root = a.root :: BasePart
+			local ap = root:FindFirstChildOfClass("AlignPosition")
+			local ao = root:FindFirstChildOfClass("AlignOrientation")
+			local y = World.ground(a.body.x, a.body.z) + a.diameter / 2
+			if ap and ao then
+				ap.Position = Vector3.new(a.body.x, y, a.body.z) * K
+				ao.CFrame = CFrame.Angles(0, a.body.heading, 0)
+			end
+			if not frozen then
+				tryClaim(a, nil, 1)
+			end
+		end
+	end
+end
+
+local function fillWithBots()
+	local names = table.clone(BOT_NAMES)
+	local used: { [number]: boolean } = {}
+	for _, a in actors do
+		used[a.slot] = true
+	end
+	for slot = 1, A.maxPlayers do
+		if not used[slot] and #actors < A.maxPlayers then
+			local name = table.remove(names, math.random(1, #names)) :: string
+			local look = Config.MACHINE_LOOKS[slot % #Config.MACHINE_LOOKS + 1]
+			local a = newActor("bot", nil, name, slot, look)
+			a.bot = Bot.new(slot * 7919 + roundsPlayed)
+			table.insert(actors, a)
+		end
+	end
+end
+
+-- Simulation tick ------------------------------------------------------------------------------
 RunService.Heartbeat:Connect(function(dt: number)
+	dt = math.min(dt, 0.1)
 	World.stepFalling(dt)
 	for _, o in World.objects do
 		if o.state == "pulled" then
-			local owner = o.owner
-			local st = owner and states[owner]
-			if not st or not st.alive or not st.root then
+			local a = o.owner :: Actor?
+			if not a or not a.alive or not table.find(actors, a) then
 				-- Owner gone: drop back to idle where it is.
 				o.state = "idle"
 				o.y = World.ground(o.x, o.z)
@@ -8188,13 +8766,14 @@ RunService.Heartbeat:Connect(function(dt: number)
 					o.model:SetAttribute("State", "idle")
 				end
 			else
-				local x, y, z, heading = machinePosition(st)
-				if World.stepPull(o, dt, x, z, y, heading, st.diameter, st.vehicle.pull) then
-					absorb(st, o)
+				local x, y, z, heading = position(a)
+				if World.stepPull(o, dt, x, z, y, heading, a.diameter, a.vehicle.pull) then
+					absorb(a, o)
 				end
 			end
 		end
 	end
+	stepBots(dt)
 	if phase == "Round" then
 		pvp()
 	end
@@ -8202,23 +8781,93 @@ end)
 
 -- Rounds -----------------------------------------------------------------------------------
 
+local function leaderboard(): { any }
+	local rows = {}
+	for _, a in actors do
+		table.insert(rows, { id = a.id, name = a.name, mass = a.mass, lives = a.lives, slot = a.slot, alive = a.alive or a.lives > 0, objects = a.objects, kills = a.kills, deaths = a.deaths, bot = a.kind == "bot", userId = if a.player then a.player.UserId else 0, eliminatedAt = a.eliminatedAt, look = a.look })
+	end
+	-- Survivors first by mass; then eliminated (later elimination ranks higher).
+	table.sort(rows, function(x, y)
+		if x.alive ~= y.alive then
+			return x.alive
+		end
+		if x.alive then
+			return x.mass > y.mass
+		end
+		return x.eliminatedAt > y.eliminatedAt
+	end)
+	return rows
+end
+
 local function broadcast(msg: { [string]: any })
 	msg.city = World.city and World.city.id
 	msg.climaxEaten = climaxEaten
 	msg.climaxTotal = climaxTotal
+	msg.board = leaderboard()
 	RoundEvent:FireAllClients(msg)
 	workspace:SetAttribute("Phase", msg.phase)
 end
 
--- Cosmetic game pass trail (never affects size or speed).
-local function hasTrailPass(player: Player): boolean
-	if Config.GAMEPASS_VIP_TRAIL == 0 then
-		return false
+-- Joke awards on the results card (arena/comedy.ts).
+local function awards(rows: { any }): { string }
+	local out = {}
+	local function top(key: string): any
+		local best = nil
+		for _, r in rows do
+			if not best or r[key] > best[key] then
+				best = r
+			end
+		end
+		return best
 	end
-	local ok, owns = pcall(MarketplaceService.UserOwnsGamePassAsync, MarketplaceService, player.UserId, Config.GAMEPASS_VIP_TRAIL)
-	return ok and owns == true
+	local glutton = top("objects")
+	if glutton and glutton.objects > 0 then
+		table.insert(out, string.format("🍔 Bottomless Pit — %s (%d things eaten)", glutton.name, glutton.objects))
+	end
+	local shark = top("kills")
+	if shark and shark.kills > 0 then
+		table.insert(out, string.format("🦈 City Shark — %s (%d rivals eaten)", shark.name, shark.kills))
+	end
+	local food = top("deaths")
+	if food and food.deaths > 0 then
+		table.insert(out, string.format("🥡 Takeaway Delivery — %s (eaten %d×)", food.name, food.deaths))
+	end
+	if #rows > 2 then
+		local chill = nil
+		for i, r in rows do
+			if i > 1 and (not chill or r.mass < chill.mass) then
+				chill = r
+			end
+		end
+		if chill then
+			table.insert(out, string.format("🐢 Zen Mode — %s (it's the taking part that counts)", chill.name))
+		end
+	end
+	return out
 end
-local _ = hasTrailPass
+
+local function roundOver(): boolean
+	local alive, humans, humansAlive = 0, 0, 0
+	for _, a in actors do
+		local inGame = a.alive or a.lives > 0
+		if inGame then
+			alive += 1
+		end
+		if a.kind == "player" then
+			humans += 1
+			if inGame then
+				humansAlive += 1
+			end
+		end
+	end
+	if #actors >= 2 and alive <= 1 then
+		return true
+	end
+	if humans > 0 and humansAlive == 0 then
+		return true
+	end
+	return climaxTotal > 0 and climaxEaten >= climaxTotal
+end
 
 -- Machine models for every look and tier (clients clone them from ReplicatedStorage).
 task.spawn(function()
@@ -8241,6 +8890,7 @@ task.spawn(function()
 		landmarkOpen = false
 		workspace:SetAttribute("LandmarkOpen", false)
 		World.build(cityId)
+		botGame.objects = World.objects
 		climaxTotal, climaxEaten, firstBlood = 0, 0, false
 		for _, o in World.objects do
 			if o.def.climax then
@@ -8249,8 +8899,13 @@ task.spawn(function()
 		end
 		workspace:SetAttribute("ClimaxEaten", 0)
 		workspace:SetAttribute("ClimaxTotal", climaxTotal)
-		for _, st in states do
-			resetForRound(st, G.startMass)
+		for i = #actors, 1, -1 do
+			if actors[i].kind == "bot" then
+				removeActor(actors[i])
+			end
+		end
+		for _, a in actors do
+			resetForRound(a, G.startMass)
 		end
 		-- Lobby: drive around the new city; nothing can be eaten yet.
 		phase = "Intermission"
@@ -8262,8 +8917,9 @@ task.spawn(function()
 			broadcast({ phase = "Waiting", timeLeft = 0 })
 			task.wait(1)
 		end
-		for _, st in states do
-			resetForRound(st, G.startMass)
+		fillWithBots()
+		for _, a in actors do
+			resetForRound(a, G.startMass)
 		end
 		phase = "Countdown"
 		for t = Config.COUNTDOWN_SECONDS, 1, -1 do
@@ -8281,40 +8937,33 @@ task.spawn(function()
 				landmarkOpen = true
 				workspace:SetAttribute("LandmarkOpen", true)
 				NoticeEvent:FireAllClients({ kind = "landmarkOpen", city = cityId })
+				feed("The landmark is open · topple it for the landmark bonus!", "bonus")
 			end
 			broadcast({ phase = phase, timeLeft = left, landmarkIn = math.max(0, math.ceil(A.landmarkOpenSeconds - elapsed)) })
-			if left <= 0 or (climaxTotal > 0 and climaxEaten >= climaxTotal) then
+			if left <= 0 or roundOver() then
 				break
 			end
 		end
 		phase = "Results"
-		local ranking: { State } = {}
-		for _, st in states do
-			table.insert(ranking, st)
-		end
-		table.sort(ranking, function(a, b)
-			return a.mass > b.mass
-		end)
-		local rows = {}
-		for i, st in ranking do
-			rows[i] = { name = st.player.DisplayName, mass = st.mass, eaten = st.eaten, kills = st.kills }
-		end
-		local best = ranking[1]
-		if best then
-			local ls = best.player:FindFirstChild("leaderstats")
+		roundsPlayed += 1
+		local rows = leaderboard()
+		local best = rows[1]
+		if best and best.userId ~= 0 then
+			local player = Players:GetPlayerByUserId(best.userId)
+			local ls = player and player:FindFirstChild("leaderstats")
 			local wins = ls and ls:FindFirstChild("Wins") :: IntValue?
 			if wins then
 				wins.Value += 1
 			end
 		end
-		broadcast({ phase = phase, timeLeft = Config.RESULTS_SECONDS, rows = rows })
+		broadcast({ phase = phase, timeLeft = Config.RESULTS_SECONDS, rows = rows, awards = awards(rows) })
 		task.wait(Config.RESULTS_SECONDS)
 	end
 end)
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="21">
+      <Item class="ModuleScript" referent="23">
         <Properties>
           <string name="Name">Models</string>
           <string name="Source"><![CDATA[--!strict
@@ -8421,6 +9070,12 @@ function Models.load(name: string): Model?
 	return model
 end
 
+-- Real size in studs a model should have (for the self-check).
+function Models.expectedSize(name: string): Vector3?
+	local info = ModelInfo[name]
+	return if info then info.size * K else nil
+end
+
 -- Load many models in parallel and wait for all of them.
 function Models.preload(names: { string })
 	local pending = 0
@@ -8469,7 +9124,7 @@ return Models
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="22">
+      <Item class="ModuleScript" referent="24">
         <Properties>
           <string name="Name">World</string>
           <string name="Source"><![CDATA[--!strict
@@ -8509,7 +9164,7 @@ export type Obj = {
 	requiredPower: number,
 	radius: number,
 	-- pull
-	owner: Player?,
+	owner: any,
 	pullTime: number,
 	phase: number,
 	vx: number,
@@ -8530,6 +9185,43 @@ end
 World.colliders = {} :: { Collision.Box }
 
 local arena: Folder? = nil
+
+-- Broad phase: 8 m cells (World.ts GRID_CELL). Objects that move (fall) are re-added; stale
+-- entries are skipped by checking the object's current cell.
+local CELL = 8
+local grid: { [number]: { Obj } } = {}
+local function cellKey(cx: number, cz: number): number
+	return (cx + 4096) * 8192 + (cz + 4096)
+end
+local function addToGrid(o: Obj)
+	local k = cellKey(math.floor(o.x / CELL), math.floor(o.z / CELL))
+	local list = grid[k]
+	if not list then
+		list = {}
+		grid[k] = list
+	end
+	table.insert(list, o)
+end
+
+-- Objects whose footprint may touch a circle at (x, z, r).
+function World.near(x: number, z: number, r: number): { Obj }
+	local out: { Obj } = {}
+	local seen: { [Obj]: boolean } = {}
+	for cx = math.floor((x - r - 6) / CELL), math.floor((x + r + 6) / CELL) do
+		for cz = math.floor((z - r - 6) / CELL), math.floor((z + r + 6) / CELL) do
+			local list = grid[cellKey(cx, cz)]
+			if list then
+				for _, o in list do
+					if not seen[o] and o.state ~= "gone" then
+						seen[o] = true
+						table.insert(out, o)
+					end
+				end
+			end
+		end
+	end
+	return out
+end
 
 local function place(o: Obj)
 	local m = o.model
@@ -8562,6 +9254,7 @@ function World.build(cityId: string)
 	World.ground = Collision.groundLookup(city.ground)
 	World.colliders = city.colliders
 	World.objects = {}
+	table.clear(grid)
 
 	local names: { string } = { city.scenery }
 	local seen: { [string]: boolean } = {}
@@ -8644,9 +9337,29 @@ function World.build(cityId: string)
 			m.Parent = folder
 		end
 		World.objects[i] = o
+		addToGrid(o)
 	end
 	root.Parent = workspace
 	arena = root
+	-- Self-check in the Output window: what loaded, where the scenery sits, what is missing.
+	local withModel, missing = 0, {}
+	for _, o in World.objects do
+		if o.model then
+			withModel += 1
+		else
+			missing[o.type] = true
+		end
+	end
+	local missingList = {}
+	for t in missing do
+		table.insert(missingList, t)
+	end
+	local sceneryInfo = "missing"
+	if scenery then
+		local box, size = scenery:GetBoundingBox()
+		sceneryInfo = string.format("centre %s size %s studs (expected size %s)", tostring(box.Position), tostring(size), tostring(Models.expectedSize(city.scenery)))
+	end
+	print(string.format("[GrowEverything] %s: scenery %s; %d/%d objects with models; missing types: %s", cityId, sceneryInfo, withModel, #World.objects, if #missingList > 0 then table.concat(missingList, ", ") else "none"))
 	return city
 end
 
@@ -8662,7 +9375,7 @@ function World.eligible(o: Obj, power: number, landmarkOpen: boolean): boolean
 end
 
 -- Start pulling an object into a machine (the server granted the claim).
-function World.startPull(o: Obj, owner: Player)
+function World.startPull(o: Obj, owner: any)
 	o.state = "pulled"
 	o.owner = owner
 	o.pullTime = 0
@@ -8673,7 +9386,7 @@ function World.startPull(o: Obj, owner: Player)
 	o.phase = if cls >= 4 then 0.25 * (1 + math.max(0, cls - 5) * WebConfig.collection.heavyPhasePerClass) else 0
 	if o.model then
 		o.model:SetAttribute("State", "pulled")
-		o.model:SetAttribute("Owner", owner.UserId)
+		o.model:SetAttribute("Owner", owner.id)
 	end
 end
 
@@ -8802,6 +9515,7 @@ function World.stepFalling(dt: number): { Obj }
 				o.fallVy, o.vx, o.vz = 0, 0, 0
 				o.tilt = math.clamp(o.tilt, -0.12, 0.12)
 				syncAttributes(o)
+				addToGrid(o)
 				table.insert(landed, o)
 			end
 			place(o)
@@ -8831,20 +9545,20 @@ return World
       </Item>
     </Item>
   </Item>
-  <Item class="StarterPlayer" referent="23">
+  <Item class="StarterPlayer" referent="25">
     <Properties>
       <string name="Name">StarterPlayer</string>
       <bool name="LoadCharacterAppearance">false</bool>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="24">
+    <Item class="StarterPlayerScripts" referent="26">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-      <Item class="Folder" referent="25">
+      <Item class="Folder" referent="27">
         <Properties>
           <string name="Name">Client</string>
         </Properties>
-        <Item class="LocalScript" referent="26">
+        <Item class="LocalScript" referent="28">
           <Properties>
             <string name="Name">Hud</string>
             <string name="Source"><![CDATA[--!strict
@@ -9107,7 +9821,7 @@ local results = Instance.new("Frame")
 results.Name = "Results"
 results.AnchorPoint = Vector2.new(0.5, 0.5)
 results.Position = UDim2.fromScale(0.5, 0.5)
-results.Size = UDim2.fromOffset(460, 300)
+results.Size = UDim2.fromOffset(560, 340)
 results.BackgroundColor3 = PANEL
 results.BackgroundTransparency = 0.1
 results.Visible = false
@@ -9115,11 +9829,135 @@ results.Parent = gui
 corner(results, 14)
 local resultsTitle = text(results, "Title", 30, Enum.Font.GothamBlack, ORANGE)
 resultsTitle.Size = UDim2.new(1, 0, 0, 60)
+resultsTitle.TextSize = 22
 local resultsBody = text(results, "Body", 16, Enum.Font.GothamBold)
 resultsBody.Position = UDim2.fromOffset(24, 64)
 resultsBody.Size = UDim2.new(1, -48, 1, -80)
 resultsBody.TextXAlignment = Enum.TextXAlignment.Left
 resultsBody.TextYAlignment = Enum.TextYAlignment.Top
+
+-- Leaderboard (top-right, 230 px): survivors by mass; ♥ lives; 👑 leader; your row adds detail.
+local board = Instance.new("Frame")
+board.Name = "Leaderboard"
+board.AnchorPoint = Vector2.new(1, 0)
+board.Position = UDim2.new(1, -16, 0, 16)
+board.Size = UDim2.fromOffset(250, 40)
+board.AutomaticSize = Enum.AutomaticSize.Y
+board.BackgroundColor3 = PANEL
+board.BackgroundTransparency = 0.25
+board.Parent = gui
+corner(board, 10)
+local boardPad = Instance.new("UIPadding")
+boardPad.PaddingTop = UDim.new(0, 8)
+boardPad.PaddingBottom = UDim.new(0, 8)
+boardPad.PaddingLeft = UDim.new(0, 10)
+boardPad.PaddingRight = UDim.new(0, 10)
+boardPad.Parent = board
+local boardList = Instance.new("UIListLayout")
+boardList.Padding = UDim.new(0, 4)
+boardList.SortOrder = Enum.SortOrder.LayoutOrder
+boardList.Parent = board
+local SLOT = {
+	Color3.fromHex("ffb347"), Color3.fromHex("5ec8ff"), Color3.fromHex("ff6b8a"),
+	Color3.fromHex("8be07a"), Color3.fromHex("c89bff"), Color3.fromHex("f5f07a"),
+}
+local function renderBoard(rows: { any })
+	for _, c in board:GetChildren() do
+		if c:IsA("Frame") then
+			c:Destroy()
+		end
+	end
+	for i, r in rows do
+		local row = Instance.new("Frame")
+		row.BackgroundTransparency = 1
+		row.Size = UDim2.new(1, 0, 0, if r.userId == player.UserId then 34 else 18)
+		row.LayoutOrder = i
+		row.Parent = board
+		local chip = Instance.new("Frame")
+		chip.BackgroundColor3 = SLOT[(r.slot - 1) % #SLOT + 1]
+		chip.BorderSizePixel = 0
+		chip.Position = UDim2.fromOffset(14, 5)
+		chip.Size = UDim2.fromOffset(8, 8)
+		chip.Parent = row
+		local rank = text(row, "Rank", 12, Enum.Font.GothamBold, DIM)
+		rank.Text = tostring(i)
+		rank.Size = UDim2.fromOffset(12, 18)
+		local name = text(row, "Name", 13, Enum.Font.GothamBold)
+		name.TextXAlignment = Enum.TextXAlignment.Left
+		name.Position = UDim2.fromOffset(28, 0)
+		name.Size = UDim2.new(1, -110, 0, 18)
+		name.TextTruncate = Enum.TextTruncate.AtEnd
+		name.Text = (if i == 1 then "👑 " else "") .. r.name .. (if r.userId == player.UserId then " (you)" else "")
+		local v, u = Growth.massText(r.mass)
+		local mass = text(row, "Mass", 13, Enum.Font.GothamBlack)
+		mass.TextXAlignment = Enum.TextXAlignment.Right
+		mass.AnchorPoint = Vector2.new(1, 0)
+		mass.Position = UDim2.new(1, 0, 0, 0)
+		mass.Size = UDim2.fromOffset(80, 18)
+		mass.Text = string.rep("♥", r.lives) .. "  " .. v .. " " .. u
+		mass.TextColor3 = if r.userId == player.UserId then ORANGE else Color3.new(1, 1, 1)
+		if r.userId == player.UserId then
+			local extra = text(row, "Extra", 11, Enum.Font.Gotham, DIM)
+			extra.TextXAlignment = Enum.TextXAlignment.Left
+			extra.Position = UDim2.fromOffset(28, 17)
+			extra.Size = UDim2.new(1, -28, 0, 14)
+			extra.Text = string.format("ate %d · %s%s", r.objects, string.upper(string.sub(r.look, 1, 1)) .. string.sub(r.look, 2), if not r.alive then " · out" else "")
+		end
+		if not r.alive then
+			for _, l in row:GetDescendants() do
+				if l:IsA("TextLabel") then
+					l.TextTransparency = 0.55
+				end
+			end
+		end
+	end
+end
+
+-- Kill feed (right side, under the leaderboard): at most 5 lines, 5 s each.
+local feedFrame = Instance.new("Frame")
+feedFrame.Name = "Feed"
+feedFrame.BackgroundTransparency = 1
+feedFrame.AnchorPoint = Vector2.new(1, 0)
+feedFrame.Position = UDim2.new(1, -16, 0, 200)
+feedFrame.Size = UDim2.fromOffset(320, 140)
+feedFrame.Parent = gui
+local feedList = Instance.new("UIListLayout")
+feedList.Padding = UDim.new(0, 4)
+feedList.HorizontalAlignment = Enum.HorizontalAlignment.Right
+feedList.SortOrder = Enum.SortOrder.LayoutOrder
+feedList.Parent = feedFrame
+local feedOrder = 0
+local TONES = { kill = Color3.fromRGB(255, 90, 90), bonus = ORANGE, bad = Color3.fromRGB(255, 120, 180), info = Color3.fromRGB(200, 200, 210) }
+local function addFeed(s: string, tone: string?)
+	feedOrder += 1
+	local l = text(feedFrame, "Line", 13, Enum.Font.GothamBold)
+	l.AutomaticSize = Enum.AutomaticSize.X
+	l.Size = UDim2.fromOffset(0, 22)
+	l.BackgroundTransparency = 0.3
+	l.BackgroundColor3 = PANEL
+	l.Text = "  " .. s .. "  "
+	l.LayoutOrder = feedOrder
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = TONES[tone or "info"] or TONES.info
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Parent = l
+	corner(l, 6)
+	local lines = {}
+	for _, c in feedFrame:GetChildren() do
+		if c:IsA("TextLabel") then
+			table.insert(lines, c)
+		end
+	end
+	table.sort(lines, function(a, b)
+		return a.LayoutOrder < b.LayoutOrder
+	end)
+	while #lines > 5 do
+		(table.remove(lines, 1) :: TextLabel):Destroy()
+	end
+	task.delay(5, function()
+		l:Destroy()
+	end)
+end
 
 -- Mass panel refresh ----------------------------------------------------------------------------
 local shownMass = 0
@@ -9208,7 +10046,30 @@ NoticeEvent.OnClientEvent:Connect(function(n: { [string]: any })
 		showBanner("ATE " .. string.upper(n.name) .. "!", "+" .. v .. " " .. string.upper(u) .. (if n.first then " · FIRST BLOOD" else ""), 2)
 	elseif n.kind == "eaten" then
 		sndEaten:Play()
-		showBanner("YOU GOT EATEN", "Eaten by " .. n.name .. " · respawning", 2.4)
+		if n.lives and n.lives <= 0 then
+			showBanner("ELIMINATED", "Eaten by " .. n.name .. " · spectating", 3)
+		else
+			showBanner("YOU GOT EATEN", "Eaten by " .. n.name .. " · " .. tostring(n.lives) .. " lives left", 2.4)
+			center.Text = tostring(WebConfig.arena.respawnDelay)
+			centerSub.Text = "RESPAWNING"
+			for t = WebConfig.arena.respawnDelay - 1, 1, -1 do
+				task.delay(WebConfig.arena.respawnDelay - t, function()
+					if centerSub.Text == "RESPAWNING" then
+						center.Text = tostring(t)
+					end
+				end)
+			end
+		end
+	elseif n.kind == "respawn" then
+		center.Text = ""
+		centerSub.Text = ""
+		showToast("RESPAWN · " .. WebConfig.arena.invulnerableSeconds .. " s INVULNERABLE")
+	elseif n.kind == "crash" then
+		sndEaten:Play()
+		showToast(n.text, Color3.fromRGB(255, 120, 120))
+		addFeed("Dashed into something too big: stunned, mass lost", "bad")
+	elseif n.kind == "feed" then
+		addFeed(n.text, n.tone)
 	end
 end)
 
@@ -9222,6 +10083,9 @@ RoundEvent.OnClientEvent:Connect(function(msg: { [string]: any })
 	local t = CITY_TEXT[msg.city or ""]
 	local cityLine = if t then string.format("%s · %s %d/%d", t.city, t.landmark, msg.climaxEaten or 0, msg.climaxTotal or 0) else ""
 	results.Visible = p == "Results"
+	if msg.board then
+		renderBoard(msg.board)
+	end
 	if p == "Intermission" then
 		timer.Text = fmt(msg.timeLeft)
 		subline.Text = "Next round in " .. tostring(msg.timeLeft) .. " · " .. (if t then t.city else "")
@@ -9266,16 +10130,29 @@ RoundEvent.OnClientEvent:Connect(function(msg: { [string]: any })
 		lockLine.Text = ""
 		local rows = msg.rows or {}
 		local champion = rows[1]
-		resultsTitle.Text = if champion then "👑 " .. champion.name else "Round over"
+		resultsTitle.Text = "Round over"
 		local lines = {}
+		if champion then
+			local v, u = Growth.massText(champion.mass)
+			resultsTitle.Text = "👑 Champion · " .. champion.name .. " · " .. v .. " " .. u
+		end
+		table.insert(lines, "#   Player            Mass        Eats  Eaten  Items")
 		for i, r in rows do
 			local v, u = Growth.massText(r.mass)
-			table.insert(lines, string.format("%d.  %s   %s %s · ate %d", i, r.name, v, u, r.eaten))
+			table.insert(lines, string.format("%d   %-16s  %8s %-2s  %4d  %5d  %5d%s", i, string.sub(r.name, 1, 16), v, u, r.kills, r.deaths, r.objects, if r.alive then "" else " · out"))
 			if i >= 8 then
 				break
 			end
 		end
+		if msg.awards and #msg.awards > 0 then
+			table.insert(lines, "")
+			for _, a in msg.awards do
+				table.insert(lines, a)
+			end
+		end
 		resultsBody.Text = table.concat(lines, "\n")
+		resultsBody.Font = Enum.Font.RobotoMono
+		resultsBody.TextSize = 14
 	end
 	lastPhase = p
 end)
@@ -9304,7 +10181,7 @@ end)
 ]]></string>
           </Properties>
         </Item>
-        <Item class="LocalScript" referent="27">
+        <Item class="LocalScript" referent="29">
           <Properties>
             <string name="Name">Play</string>
             <string name="Source"><![CDATA[--!strict
@@ -9329,12 +10206,13 @@ local Config = require(Shared:WaitForChild("Config"))
 local WebConfig = require(Shared:WaitForChild("WebConfig"))
 local Growth = require(Shared:WaitForChild("Growth"))
 local Collision = require(Shared:WaitForChild("Collision"))
+local Movement = require(Shared:WaitForChild("Movement"))
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local ClaimEvent = remotes:WaitForChild("Claim") :: RemoteEvent
+local CrashEvent = remotes:WaitForChild("Crash") :: RemoteEvent
 local templates = ReplicatedStorage:WaitForChild("ModelTemplates")
 
 local K = Config.STUDS_PER_METER
-local MC = WebConfig.movement
 local CC = WebConfig.collection
 local CAM = WebConfig.camera
 local A = WebConfig.arena
@@ -9547,7 +10425,7 @@ local function cleanupVisuals()
 end
 
 -- Local machine --------------------------------------------------------------------------------
-local me = { root = nil :: BasePart?, x = 0, z = 0, heading = 0, speed = 0, dashTime = 0, dashCooldown = 0, stunUntil = 0 }
+local me = { root = nil :: BasePart?, body = Movement.new(0, 0, 0) }
 local cam = { yaw = 0, pitch = 1, idle = 0, pos = nil :: Vector3?, fov = CAM.fovBase }
 
 local function myRoot(): BasePart?
@@ -9612,81 +10490,36 @@ local function vehicle(root: BasePart): any
 	return WebConfig.vehicles[root:GetAttribute("Look") :: string? or "collector"]
 end
 
-local function topSpeed(root: BasePart, d: number): number
-	local boost = if now() < (root:GetAttribute("SpeedUntil") :: number? or 0) then A.speedMul else 1
-	return MC.baseTopSpeed * vehicle(root).speed * boost * (d / G.startDiameter) ^ MC.topSpeedExponent
-end
-
 local function move(root: BasePart, dt: number): number
 	local d = root:GetAttribute("Diameter") :: number? or G.startDiameter
 	local mass = root:GetAttribute("Mass") :: number? or G.startMass
-	local veh = vehicle(root)
 	local p = phase()
 	local frozen = p == "Countdown" or p == "Results" or p == "Loading"
-	local massLog = math.log(mass / G.startMass)
-	local top = topSpeed(root, d)
-	local accel = (top / (MC.accelSeconds * (1 + MC.accelMassDrag * massLog))) * veh.accel
-	local turnRate = (MC.baseTurnRate / (1 + MC.turnMassDrag * massLog)) * veh.turn
-	local stunned = frozen or now() < me.stunUntil
 	-- Camera-relative input.
 	local ix = axis({ Enum.KeyCode.D, Enum.KeyCode.Right }, { Enum.KeyCode.A, Enum.KeyCode.Left })
 	local iy = axis({ Enum.KeyCode.W, Enum.KeyCode.Up }, { Enum.KeyCode.S, Enum.KeyCode.Down })
 	local fx, fz = -math.sin(cam.yaw), -math.cos(cam.yaw)
 	local rx, rz = math.cos(cam.yaw), -math.sin(cam.yaw)
 	local wx, wz = fx * iy + rx * ix, fz * iy + rz * ix
-	local mag = if stunned then 0 else math.min(1, math.sqrt(wx * wx + wz * wz))
-	me.dashCooldown = math.max(0, me.dashCooldown - dt)
-	me.dashTime = math.max(0, me.dashTime - dt)
-	if dashPressed and not stunned and me.dashCooldown <= 0 then
-		me.dashTime = MC.dash.duration
-		me.dashCooldown = MC.dash.cooldown * veh.dashCooldown
-	end
-	dashPressed = false
-	local targetSpeed = 0
-	if mag > 0.05 then
-		wx /= mag
-		wz /= mag
-		local want = math.atan2(-wx, -wz)
-		local diff = math.atan2(math.sin(want - me.heading), math.cos(want - me.heading))
-		me.heading += math.clamp(diff, -turnRate * dt, turnRate * dt)
-		targetSpeed = mag * top * math.clamp(math.cos(diff), 0.25, 1)
-	else
-		mag = 0
-	end
-	if me.dashTime > 0 and not stunned then
-		targetSpeed = math.max(targetSpeed, top) * MC.dash.speedMultiplier
-	end
-	local dv = targetSpeed - me.speed
-	local rate = accel * (if dv < 0 and mag < 0.05 then 1.6 else 1) * dt
-	me.speed += math.sign(dv) * math.min(math.abs(dv), rate)
 	local r = d * 0.47
-	local nx, nz = me.x - math.sin(me.heading) * me.speed * dt, me.z - math.cos(me.heading) * me.speed * dt
-	if city then
-		nx, nz = Collision.resolveStatic(nx, nz, r, city.colliders, city.bounds)
-	end
-	me.x, me.z = nx, nz
-	-- Objects too big to eat block the machine; dashing into one stuns (ArenaGame.collideObjects).
-	for _, o in near(me.x, me.z, r * 2 + 0.5) do
-		if solid(o, d) and math.abs(o.x - me.x) <= o.radius + r and math.abs(o.z - me.z) <= o.radius + r then
-			local cx, cz, depth = Collision.circleVsObb(me.x, me.z, r, box(o))
-			if cx then
-				me.x += cx * (depth :: number)
-				me.z += (cz :: number) * (depth :: number)
-				if me.dashTime > 0 and me.speed > top * 1.2 and now() > me.stunUntil then
-					me.stunUntil = now() + A.crashStunSeconds
-					me.speed *= -0.3
-				elseif me.speed > top * 0.45 then
-					me.speed *= 0.4
-				end
-			end
+	local solids: { Movement.Solid } = {}
+	for _, o in near(me.body.x, me.body.z, r * 2 + 0.5) do
+		if solid(o, d) then
+			table.insert(solids, { x = o.x, z = o.z, radius = o.radius, box = box(o) })
 		end
 	end
-	local y = ground(me.x, me.z)
+	local boosted = now() < (root:GetAttribute("SpeedUntil") :: number? or 0)
+	local top, crashed = Movement.step(me.body, dt, now(), wx, wz, dashPressed, frozen, mass, d, vehicle(root), boosted, city and city.colliders, city and city.bounds, solids)
+	dashPressed = false
+	if crashed then
+		CrashEvent:FireServer()
+	end
+	local y = ground(me.body.x, me.body.z)
 	local ap = root:FindFirstChildOfClass("AlignPosition")
 	local ao = root:FindFirstChildOfClass("AlignOrientation")
 	if ap and ao then
-		ap.Position = Vector3.new(me.x * K, (y + d / 2) * K, me.z * K)
-		ao.CFrame = CFrame.Angles(0, me.heading, 0)
+		ap.Position = Vector3.new(me.body.x * K, (y + d / 2) * K, me.body.z * K)
+		ao.CFrame = CFrame.Angles(0, me.body.heading, 0)
 	end
 	return top
 end
@@ -9705,10 +10538,10 @@ local function claim(root: BasePart, dt: number)
 	local reach = (d / 2 + d * CC.reachFactor + CC.reachFlat) * vehicle(root).reach * magnet
 	local ids = {}
 	local t = os.clock()
-	for _, o in near(me.x, me.z, reach * math.max(1, CC.vacuumReachMultiplier)) do
+	for _, o in near(me.body.x, me.body.z, reach * math.max(1, CC.vacuumReachMultiplier)) do
 		if eligible(o, d) and (not claimedAt[o.id] or t - claimedAt[o.id] > 1.5) then
 			local rr = if o.radius * 2 < d * CC.vacuumSizeRatio then reach * CC.vacuumReachMultiplier else reach
-			if math.abs(o.x - me.x) <= o.radius + rr and math.abs(o.z - me.z) <= o.radius + rr and Collision.circleVsObb(me.x, me.z, rr, box(o)) then
+			if math.abs(o.x - me.body.x) <= o.radius + rr and math.abs(o.z - me.body.z) <= o.radius + rr and Collision.circleVsObb(me.body.x, me.body.z, rr, box(o)) then
 				claimedAt[o.id] = t
 				table.insert(ids, o.id)
 			end
@@ -9719,21 +10552,19 @@ local function claim(root: BasePart, dt: number)
 	end
 end
 
-local function updateCamera(dt: number, root: BasePart, top: number)
-	local v = visuals[root]
-	local d = if v then v.shown else (root:GetAttribute("Diameter") :: number? or G.startDiameter)
+-- Follow camera (web CameraRig) on a machine at (x, z) facing heading.
+local function updateCamera(dt: number, x: number, z: number, heading: number, speedRatio: number, d: number)
 	cam.idle += dt
-	local speedRatio = math.abs(me.speed) / math.max(top, 1e-3)
 	if cam.idle > CAM.autoAlignDelay and speedRatio > 0.25 then
-		local diff = math.atan2(math.sin(me.heading - cam.yaw), math.cos(me.heading - cam.yaw))
+		local diff = math.atan2(math.sin(heading - cam.yaw), math.cos(heading - cam.yaw))
 		cam.yaw += diff * math.min(1, CAM.autoAlignRate * speedRatio * dt)
 	end
-	local g = ground(me.x, me.z)
+	local g = ground(x, z)
 	local dist = CAM.distanceBase + CAM.distancePerMetre * d
 	local height = (CAM.heightBase + CAM.heightPerMetre * d) * cam.pitch
 	local s, c = math.sin(cam.yaw), math.cos(cam.yaw)
-	local look = Vector3.new(me.x - s * CAM.lookAheadPerMetre * d, g + CAM.lookHeightPerMetre * d + 0.1, me.z - c * CAM.lookAheadPerMetre * d) * K
-	local desired = Vector3.new(me.x + s * dist, g + height, me.z + c * dist) * K
+	local look = Vector3.new(x - s * CAM.lookAheadPerMetre * d, g + CAM.lookHeightPerMetre * d + 0.1, z - c * CAM.lookAheadPerMetre * d) * K
+	local desired = Vector3.new(x + s * dist, g + height, z + c * dist) * K
 	local k = 1 - math.exp(-CAM.followSharpness * dt)
 	cam.pos = if cam.pos then cam.pos:Lerp(desired, k) else desired
 	local fov = math.min(CAM.fovMax, CAM.fovBase + CAM.fovPerMetre * d)
@@ -9742,36 +10573,122 @@ local function updateCamera(dt: number, root: BasePart, top: number)
 	camera.CFrame = CFrame.lookAt(cam.pos :: Vector3, look)
 end
 
-RunService.RenderStepped:Connect(function(dt: number)
-	dt = math.min(dt, 0.05)
+-- Name tags over other machines: "Name · 1,234 kg" with ⚠ (it can eat you) or ✓ (you can eat it).
+local tags: { [BasePart]: BillboardGui } = {}
+local function updateTag(root: BasePart, myD: number?)
+	local tag = tags[root]
+	if not tag then
+		local t = Instance.new("BillboardGui")
+		tag = t
+		t.Name = "NameTag"
+		t.Size = UDim2.fromOffset(220, 26)
+		t.AlwaysOnTop = true
+		t.LightInfluence = 0
+		local label = Instance.new("TextLabel")
+		label.Name = "Label"
+		label.BackgroundTransparency = 1
+		label.Size = UDim2.fromScale(1, 1)
+		label.Font = Enum.Font.GothamBold
+		label.TextSize = 14
+		label.TextColor3 = Color3.new(1, 1, 1)
+		label.TextStrokeTransparency = 0.5
+		label.Parent = t
+		local line = Instance.new("Frame")
+		line.Name = "Line"
+		line.AnchorPoint = Vector2.new(0.5, 1)
+		line.Position = UDim2.fromScale(0.5, 1)
+		line.Size = UDim2.new(0.5, 0, 0, 2)
+		line.BorderSizePixel = 0
+		line.Parent = t
+		t.Adornee = root
+		t.Parent = visualFolder
+		tags[root] = t
+	end
+	assert(tag)
+	local d = root:GetAttribute("Diameter") :: number? or G.startDiameter
+	tag.StudsOffset = Vector3.new(0, d * K * 0.9 + 1, 0)
+	local mass = root:GetAttribute("Mass") :: number? or G.startMass
+	local v, u = Growth.massText(mass)
+	local mark = ""
+	if myD then
+		local look = root:GetAttribute("Look") :: string? or "collector"
+		local myLook = me.root and me.root:GetAttribute("Look") :: string? or "collector"
+		if d >= myD * A.eatRatio * WebConfig.vehicles[look].eatRatio then
+			mark = "  ⚠"
+		elseif myD >= d * A.eatRatio * WebConfig.vehicles[myLook].eatRatio then
+			mark = "  ✓"
+		end
+	end
+	local label = tag:FindFirstChild("Label") :: TextLabel
+	label.Text = string.format("%s · %s %s%s", root:GetAttribute("Name") :: string? or "?", v, u, mark)
+	local slot = root:GetAttribute("Slot") :: number? or 1
+	local line = tag:FindFirstChild("Line") :: Frame
+	line.BackgroundColor3 = Config.SLOT_COLORS[(slot - 1) % #Config.SLOT_COLORS + 1]
+end
+
+-- Spectating (eliminated or between lives): follow the biggest machine.
+local function leaderRoot(): BasePart?
+	local best, bestMass = nil, -1
 	local machines = workspace:FindFirstChild("Machines")
 	if machines then
 		for _, m in machines:GetChildren() do
 			local root = m:FindFirstChild("Root") :: BasePart?
-			if root then
-				updateVisual(root, dt)
+			local mass = root and root:GetAttribute("Mass") :: number? or 0
+			if root and mass > bestMass then
+				best, bestMass = root, mass
+			end
+		end
+	end
+	return best
+end
+
+RunService.RenderStepped:Connect(function(dt: number)
+	dt = math.min(dt, 0.05)
+	local root = myRoot()
+	local myD = if root then root:GetAttribute("Diameter") :: number? else nil
+	local machines = workspace:FindFirstChild("Machines")
+	if machines then
+		for _, m in machines:GetChildren() do
+			local r = m:FindFirstChild("Root") :: BasePart?
+			if r then
+				updateVisual(r, dt)
+				if r ~= root then
+					updateTag(r, myD)
+				end
 			end
 		end
 	end
 	cleanupVisuals()
-	local root = myRoot()
+	for r, tag in tags do
+		if not r.Parent then
+			tag:Destroy()
+			tags[r] = nil
+		end
+	end
 	if root ~= me.root then
 		me.root = root
 		if root then
 			-- New machine (spawn / respawn / new round): take its position and face its way.
 			local p = root.Position / K
 			local lv = root.CFrame.LookVector
-			me.x, me.z = p.X, p.Z
-			me.heading = math.atan2(-lv.X, -lv.Z)
-			me.speed, me.dashTime, me.dashCooldown, me.stunUntil = 0, 0, 0, 0
-			cam.yaw = me.heading
+			me.body = Movement.new(p.X, p.Z, math.atan2(-lv.X, -lv.Z))
+			cam.yaw = me.body.heading
 			cam.pos = nil
 		end
 	end
 	if root and root.Parent then
 		local top = move(root, dt)
 		claim(root, dt)
-		updateCamera(dt, root, top)
+		local v = visuals[root]
+		updateCamera(dt, me.body.x, me.body.z, me.body.heading, math.abs(me.body.speed) / math.max(top, 1e-3), if v then v.shown else (myD or G.startDiameter))
+	else
+		local target = leaderRoot()
+		if target then
+			local p = target.Position / K
+			local lv = target.CFrame.LookVector
+			local v = visuals[target]
+			updateCamera(dt, p.X, p.Z, math.atan2(-lv.X, -lv.Z), 1, if v then v.shown else (target:GetAttribute("Diameter") :: number? or G.startDiameter))
+		end
 	end
 end)
 ]]></string>
@@ -9780,7 +10697,7 @@ end)
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="28">
+  <Item class="Workspace" referent="30">
     <Properties>
       <string name="Name">Workspace</string>
       <bool name="NeedsPivotMigration">false</bool>

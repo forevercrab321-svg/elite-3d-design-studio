@@ -258,7 +258,7 @@ local results = Instance.new("Frame")
 results.Name = "Results"
 results.AnchorPoint = Vector2.new(0.5, 0.5)
 results.Position = UDim2.fromScale(0.5, 0.5)
-results.Size = UDim2.fromOffset(460, 300)
+results.Size = UDim2.fromOffset(560, 340)
 results.BackgroundColor3 = PANEL
 results.BackgroundTransparency = 0.1
 results.Visible = false
@@ -266,11 +266,135 @@ results.Parent = gui
 corner(results, 14)
 local resultsTitle = text(results, "Title", 30, Enum.Font.GothamBlack, ORANGE)
 resultsTitle.Size = UDim2.new(1, 0, 0, 60)
+resultsTitle.TextSize = 22
 local resultsBody = text(results, "Body", 16, Enum.Font.GothamBold)
 resultsBody.Position = UDim2.fromOffset(24, 64)
 resultsBody.Size = UDim2.new(1, -48, 1, -80)
 resultsBody.TextXAlignment = Enum.TextXAlignment.Left
 resultsBody.TextYAlignment = Enum.TextYAlignment.Top
+
+-- Leaderboard (top-right, 230 px): survivors by mass; ♥ lives; 👑 leader; your row adds detail.
+local board = Instance.new("Frame")
+board.Name = "Leaderboard"
+board.AnchorPoint = Vector2.new(1, 0)
+board.Position = UDim2.new(1, -16, 0, 16)
+board.Size = UDim2.fromOffset(250, 40)
+board.AutomaticSize = Enum.AutomaticSize.Y
+board.BackgroundColor3 = PANEL
+board.BackgroundTransparency = 0.25
+board.Parent = gui
+corner(board, 10)
+local boardPad = Instance.new("UIPadding")
+boardPad.PaddingTop = UDim.new(0, 8)
+boardPad.PaddingBottom = UDim.new(0, 8)
+boardPad.PaddingLeft = UDim.new(0, 10)
+boardPad.PaddingRight = UDim.new(0, 10)
+boardPad.Parent = board
+local boardList = Instance.new("UIListLayout")
+boardList.Padding = UDim.new(0, 4)
+boardList.SortOrder = Enum.SortOrder.LayoutOrder
+boardList.Parent = board
+local SLOT = {
+	Color3.fromHex("ffb347"), Color3.fromHex("5ec8ff"), Color3.fromHex("ff6b8a"),
+	Color3.fromHex("8be07a"), Color3.fromHex("c89bff"), Color3.fromHex("f5f07a"),
+}
+local function renderBoard(rows: { any })
+	for _, c in board:GetChildren() do
+		if c:IsA("Frame") then
+			c:Destroy()
+		end
+	end
+	for i, r in rows do
+		local row = Instance.new("Frame")
+		row.BackgroundTransparency = 1
+		row.Size = UDim2.new(1, 0, 0, if r.userId == player.UserId then 34 else 18)
+		row.LayoutOrder = i
+		row.Parent = board
+		local chip = Instance.new("Frame")
+		chip.BackgroundColor3 = SLOT[(r.slot - 1) % #SLOT + 1]
+		chip.BorderSizePixel = 0
+		chip.Position = UDim2.fromOffset(14, 5)
+		chip.Size = UDim2.fromOffset(8, 8)
+		chip.Parent = row
+		local rank = text(row, "Rank", 12, Enum.Font.GothamBold, DIM)
+		rank.Text = tostring(i)
+		rank.Size = UDim2.fromOffset(12, 18)
+		local name = text(row, "Name", 13, Enum.Font.GothamBold)
+		name.TextXAlignment = Enum.TextXAlignment.Left
+		name.Position = UDim2.fromOffset(28, 0)
+		name.Size = UDim2.new(1, -110, 0, 18)
+		name.TextTruncate = Enum.TextTruncate.AtEnd
+		name.Text = (if i == 1 then "👑 " else "") .. r.name .. (if r.userId == player.UserId then " (you)" else "")
+		local v, u = Growth.massText(r.mass)
+		local mass = text(row, "Mass", 13, Enum.Font.GothamBlack)
+		mass.TextXAlignment = Enum.TextXAlignment.Right
+		mass.AnchorPoint = Vector2.new(1, 0)
+		mass.Position = UDim2.new(1, 0, 0, 0)
+		mass.Size = UDim2.fromOffset(80, 18)
+		mass.Text = string.rep("♥", r.lives) .. "  " .. v .. " " .. u
+		mass.TextColor3 = if r.userId == player.UserId then ORANGE else Color3.new(1, 1, 1)
+		if r.userId == player.UserId then
+			local extra = text(row, "Extra", 11, Enum.Font.Gotham, DIM)
+			extra.TextXAlignment = Enum.TextXAlignment.Left
+			extra.Position = UDim2.fromOffset(28, 17)
+			extra.Size = UDim2.new(1, -28, 0, 14)
+			extra.Text = string.format("ate %d · %s%s", r.objects, string.upper(string.sub(r.look, 1, 1)) .. string.sub(r.look, 2), if not r.alive then " · out" else "")
+		end
+		if not r.alive then
+			for _, l in row:GetDescendants() do
+				if l:IsA("TextLabel") then
+					l.TextTransparency = 0.55
+				end
+			end
+		end
+	end
+end
+
+-- Kill feed (right side, under the leaderboard): at most 5 lines, 5 s each.
+local feedFrame = Instance.new("Frame")
+feedFrame.Name = "Feed"
+feedFrame.BackgroundTransparency = 1
+feedFrame.AnchorPoint = Vector2.new(1, 0)
+feedFrame.Position = UDim2.new(1, -16, 0, 200)
+feedFrame.Size = UDim2.fromOffset(320, 140)
+feedFrame.Parent = gui
+local feedList = Instance.new("UIListLayout")
+feedList.Padding = UDim.new(0, 4)
+feedList.HorizontalAlignment = Enum.HorizontalAlignment.Right
+feedList.SortOrder = Enum.SortOrder.LayoutOrder
+feedList.Parent = feedFrame
+local feedOrder = 0
+local TONES = { kill = Color3.fromRGB(255, 90, 90), bonus = ORANGE, bad = Color3.fromRGB(255, 120, 180), info = Color3.fromRGB(200, 200, 210) }
+local function addFeed(s: string, tone: string?)
+	feedOrder += 1
+	local l = text(feedFrame, "Line", 13, Enum.Font.GothamBold)
+	l.AutomaticSize = Enum.AutomaticSize.X
+	l.Size = UDim2.fromOffset(0, 22)
+	l.BackgroundTransparency = 0.3
+	l.BackgroundColor3 = PANEL
+	l.Text = "  " .. s .. "  "
+	l.LayoutOrder = feedOrder
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = TONES[tone or "info"] or TONES.info
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Parent = l
+	corner(l, 6)
+	local lines = {}
+	for _, c in feedFrame:GetChildren() do
+		if c:IsA("TextLabel") then
+			table.insert(lines, c)
+		end
+	end
+	table.sort(lines, function(a, b)
+		return a.LayoutOrder < b.LayoutOrder
+	end)
+	while #lines > 5 do
+		(table.remove(lines, 1) :: TextLabel):Destroy()
+	end
+	task.delay(5, function()
+		l:Destroy()
+	end)
+end
 
 -- Mass panel refresh ----------------------------------------------------------------------------
 local shownMass = 0
@@ -359,7 +483,30 @@ NoticeEvent.OnClientEvent:Connect(function(n: { [string]: any })
 		showBanner("ATE " .. string.upper(n.name) .. "!", "+" .. v .. " " .. string.upper(u) .. (if n.first then " · FIRST BLOOD" else ""), 2)
 	elseif n.kind == "eaten" then
 		sndEaten:Play()
-		showBanner("YOU GOT EATEN", "Eaten by " .. n.name .. " · respawning", 2.4)
+		if n.lives and n.lives <= 0 then
+			showBanner("ELIMINATED", "Eaten by " .. n.name .. " · spectating", 3)
+		else
+			showBanner("YOU GOT EATEN", "Eaten by " .. n.name .. " · " .. tostring(n.lives) .. " lives left", 2.4)
+			center.Text = tostring(WebConfig.arena.respawnDelay)
+			centerSub.Text = "RESPAWNING"
+			for t = WebConfig.arena.respawnDelay - 1, 1, -1 do
+				task.delay(WebConfig.arena.respawnDelay - t, function()
+					if centerSub.Text == "RESPAWNING" then
+						center.Text = tostring(t)
+					end
+				end)
+			end
+		end
+	elseif n.kind == "respawn" then
+		center.Text = ""
+		centerSub.Text = ""
+		showToast("RESPAWN · " .. WebConfig.arena.invulnerableSeconds .. " s INVULNERABLE")
+	elseif n.kind == "crash" then
+		sndEaten:Play()
+		showToast(n.text, Color3.fromRGB(255, 120, 120))
+		addFeed("Dashed into something too big: stunned, mass lost", "bad")
+	elseif n.kind == "feed" then
+		addFeed(n.text, n.tone)
 	end
 end)
 
@@ -373,6 +520,9 @@ RoundEvent.OnClientEvent:Connect(function(msg: { [string]: any })
 	local t = CITY_TEXT[msg.city or ""]
 	local cityLine = if t then string.format("%s · %s %d/%d", t.city, t.landmark, msg.climaxEaten or 0, msg.climaxTotal or 0) else ""
 	results.Visible = p == "Results"
+	if msg.board then
+		renderBoard(msg.board)
+	end
 	if p == "Intermission" then
 		timer.Text = fmt(msg.timeLeft)
 		subline.Text = "Next round in " .. tostring(msg.timeLeft) .. " · " .. (if t then t.city else "")
@@ -417,16 +567,29 @@ RoundEvent.OnClientEvent:Connect(function(msg: { [string]: any })
 		lockLine.Text = ""
 		local rows = msg.rows or {}
 		local champion = rows[1]
-		resultsTitle.Text = if champion then "👑 " .. champion.name else "Round over"
+		resultsTitle.Text = "Round over"
 		local lines = {}
+		if champion then
+			local v, u = Growth.massText(champion.mass)
+			resultsTitle.Text = "👑 Champion · " .. champion.name .. " · " .. v .. " " .. u
+		end
+		table.insert(lines, "#   Player            Mass        Eats  Eaten  Items")
 		for i, r in rows do
 			local v, u = Growth.massText(r.mass)
-			table.insert(lines, string.format("%d.  %s   %s %s · ate %d", i, r.name, v, u, r.eaten))
+			table.insert(lines, string.format("%d   %-16s  %8s %-2s  %4d  %5d  %5d%s", i, string.sub(r.name, 1, 16), v, u, r.kills, r.deaths, r.objects, if r.alive then "" else " · out"))
 			if i >= 8 then
 				break
 			end
 		end
+		if msg.awards and #msg.awards > 0 then
+			table.insert(lines, "")
+			for _, a in msg.awards do
+				table.insert(lines, a)
+			end
+		end
 		resultsBody.Text = table.concat(lines, "\n")
+		resultsBody.Font = Enum.Font.RobotoMono
+		resultsBody.TextSize = 14
 	end
 	lastPhase = p
 end)

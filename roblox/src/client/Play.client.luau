@@ -20,12 +20,13 @@ local Config = require(Shared:WaitForChild("Config"))
 local WebConfig = require(Shared:WaitForChild("WebConfig"))
 local Growth = require(Shared:WaitForChild("Growth"))
 local Collision = require(Shared:WaitForChild("Collision"))
+local Movement = require(Shared:WaitForChild("Movement"))
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local ClaimEvent = remotes:WaitForChild("Claim") :: RemoteEvent
+local CrashEvent = remotes:WaitForChild("Crash") :: RemoteEvent
 local templates = ReplicatedStorage:WaitForChild("ModelTemplates")
 
 local K = Config.STUDS_PER_METER
-local MC = WebConfig.movement
 local CC = WebConfig.collection
 local CAM = WebConfig.camera
 local A = WebConfig.arena
@@ -238,7 +239,7 @@ local function cleanupVisuals()
 end
 
 -- Local machine --------------------------------------------------------------------------------
-local me = { root = nil :: BasePart?, x = 0, z = 0, heading = 0, speed = 0, dashTime = 0, dashCooldown = 0, stunUntil = 0 }
+local me = { root = nil :: BasePart?, body = Movement.new(0, 0, 0) }
 local cam = { yaw = 0, pitch = 1, idle = 0, pos = nil :: Vector3?, fov = CAM.fovBase }
 
 local function myRoot(): BasePart?
@@ -303,81 +304,36 @@ local function vehicle(root: BasePart): any
 	return WebConfig.vehicles[root:GetAttribute("Look") :: string? or "collector"]
 end
 
-local function topSpeed(root: BasePart, d: number): number
-	local boost = if now() < (root:GetAttribute("SpeedUntil") :: number? or 0) then A.speedMul else 1
-	return MC.baseTopSpeed * vehicle(root).speed * boost * (d / G.startDiameter) ^ MC.topSpeedExponent
-end
-
 local function move(root: BasePart, dt: number): number
 	local d = root:GetAttribute("Diameter") :: number? or G.startDiameter
 	local mass = root:GetAttribute("Mass") :: number? or G.startMass
-	local veh = vehicle(root)
 	local p = phase()
 	local frozen = p == "Countdown" or p == "Results" or p == "Loading"
-	local massLog = math.log(mass / G.startMass)
-	local top = topSpeed(root, d)
-	local accel = (top / (MC.accelSeconds * (1 + MC.accelMassDrag * massLog))) * veh.accel
-	local turnRate = (MC.baseTurnRate / (1 + MC.turnMassDrag * massLog)) * veh.turn
-	local stunned = frozen or now() < me.stunUntil
 	-- Camera-relative input.
 	local ix = axis({ Enum.KeyCode.D, Enum.KeyCode.Right }, { Enum.KeyCode.A, Enum.KeyCode.Left })
 	local iy = axis({ Enum.KeyCode.W, Enum.KeyCode.Up }, { Enum.KeyCode.S, Enum.KeyCode.Down })
 	local fx, fz = -math.sin(cam.yaw), -math.cos(cam.yaw)
 	local rx, rz = math.cos(cam.yaw), -math.sin(cam.yaw)
 	local wx, wz = fx * iy + rx * ix, fz * iy + rz * ix
-	local mag = if stunned then 0 else math.min(1, math.sqrt(wx * wx + wz * wz))
-	me.dashCooldown = math.max(0, me.dashCooldown - dt)
-	me.dashTime = math.max(0, me.dashTime - dt)
-	if dashPressed and not stunned and me.dashCooldown <= 0 then
-		me.dashTime = MC.dash.duration
-		me.dashCooldown = MC.dash.cooldown * veh.dashCooldown
-	end
-	dashPressed = false
-	local targetSpeed = 0
-	if mag > 0.05 then
-		wx /= mag
-		wz /= mag
-		local want = math.atan2(-wx, -wz)
-		local diff = math.atan2(math.sin(want - me.heading), math.cos(want - me.heading))
-		me.heading += math.clamp(diff, -turnRate * dt, turnRate * dt)
-		targetSpeed = mag * top * math.clamp(math.cos(diff), 0.25, 1)
-	else
-		mag = 0
-	end
-	if me.dashTime > 0 and not stunned then
-		targetSpeed = math.max(targetSpeed, top) * MC.dash.speedMultiplier
-	end
-	local dv = targetSpeed - me.speed
-	local rate = accel * (if dv < 0 and mag < 0.05 then 1.6 else 1) * dt
-	me.speed += math.sign(dv) * math.min(math.abs(dv), rate)
 	local r = d * 0.47
-	local nx, nz = me.x - math.sin(me.heading) * me.speed * dt, me.z - math.cos(me.heading) * me.speed * dt
-	if city then
-		nx, nz = Collision.resolveStatic(nx, nz, r, city.colliders, city.bounds)
-	end
-	me.x, me.z = nx, nz
-	-- Objects too big to eat block the machine; dashing into one stuns (ArenaGame.collideObjects).
-	for _, o in near(me.x, me.z, r * 2 + 0.5) do
-		if solid(o, d) and math.abs(o.x - me.x) <= o.radius + r and math.abs(o.z - me.z) <= o.radius + r then
-			local cx, cz, depth = Collision.circleVsObb(me.x, me.z, r, box(o))
-			if cx then
-				me.x += cx * (depth :: number)
-				me.z += (cz :: number) * (depth :: number)
-				if me.dashTime > 0 and me.speed > top * 1.2 and now() > me.stunUntil then
-					me.stunUntil = now() + A.crashStunSeconds
-					me.speed *= -0.3
-				elseif me.speed > top * 0.45 then
-					me.speed *= 0.4
-				end
-			end
+	local solids: { Movement.Solid } = {}
+	for _, o in near(me.body.x, me.body.z, r * 2 + 0.5) do
+		if solid(o, d) then
+			table.insert(solids, { x = o.x, z = o.z, radius = o.radius, box = box(o) })
 		end
 	end
-	local y = ground(me.x, me.z)
+	local boosted = now() < (root:GetAttribute("SpeedUntil") :: number? or 0)
+	local top, crashed = Movement.step(me.body, dt, now(), wx, wz, dashPressed, frozen, mass, d, vehicle(root), boosted, city and city.colliders, city and city.bounds, solids)
+	dashPressed = false
+	if crashed then
+		CrashEvent:FireServer()
+	end
+	local y = ground(me.body.x, me.body.z)
 	local ap = root:FindFirstChildOfClass("AlignPosition")
 	local ao = root:FindFirstChildOfClass("AlignOrientation")
 	if ap and ao then
-		ap.Position = Vector3.new(me.x * K, (y + d / 2) * K, me.z * K)
-		ao.CFrame = CFrame.Angles(0, me.heading, 0)
+		ap.Position = Vector3.new(me.body.x * K, (y + d / 2) * K, me.body.z * K)
+		ao.CFrame = CFrame.Angles(0, me.body.heading, 0)
 	end
 	return top
 end
@@ -396,10 +352,10 @@ local function claim(root: BasePart, dt: number)
 	local reach = (d / 2 + d * CC.reachFactor + CC.reachFlat) * vehicle(root).reach * magnet
 	local ids = {}
 	local t = os.clock()
-	for _, o in near(me.x, me.z, reach * math.max(1, CC.vacuumReachMultiplier)) do
+	for _, o in near(me.body.x, me.body.z, reach * math.max(1, CC.vacuumReachMultiplier)) do
 		if eligible(o, d) and (not claimedAt[o.id] or t - claimedAt[o.id] > 1.5) then
 			local rr = if o.radius * 2 < d * CC.vacuumSizeRatio then reach * CC.vacuumReachMultiplier else reach
-			if math.abs(o.x - me.x) <= o.radius + rr and math.abs(o.z - me.z) <= o.radius + rr and Collision.circleVsObb(me.x, me.z, rr, box(o)) then
+			if math.abs(o.x - me.body.x) <= o.radius + rr and math.abs(o.z - me.body.z) <= o.radius + rr and Collision.circleVsObb(me.body.x, me.body.z, rr, box(o)) then
 				claimedAt[o.id] = t
 				table.insert(ids, o.id)
 			end
@@ -410,21 +366,19 @@ local function claim(root: BasePart, dt: number)
 	end
 end
 
-local function updateCamera(dt: number, root: BasePart, top: number)
-	local v = visuals[root]
-	local d = if v then v.shown else (root:GetAttribute("Diameter") :: number? or G.startDiameter)
+-- Follow camera (web CameraRig) on a machine at (x, z) facing heading.
+local function updateCamera(dt: number, x: number, z: number, heading: number, speedRatio: number, d: number)
 	cam.idle += dt
-	local speedRatio = math.abs(me.speed) / math.max(top, 1e-3)
 	if cam.idle > CAM.autoAlignDelay and speedRatio > 0.25 then
-		local diff = math.atan2(math.sin(me.heading - cam.yaw), math.cos(me.heading - cam.yaw))
+		local diff = math.atan2(math.sin(heading - cam.yaw), math.cos(heading - cam.yaw))
 		cam.yaw += diff * math.min(1, CAM.autoAlignRate * speedRatio * dt)
 	end
-	local g = ground(me.x, me.z)
+	local g = ground(x, z)
 	local dist = CAM.distanceBase + CAM.distancePerMetre * d
 	local height = (CAM.heightBase + CAM.heightPerMetre * d) * cam.pitch
 	local s, c = math.sin(cam.yaw), math.cos(cam.yaw)
-	local look = Vector3.new(me.x - s * CAM.lookAheadPerMetre * d, g + CAM.lookHeightPerMetre * d + 0.1, me.z - c * CAM.lookAheadPerMetre * d) * K
-	local desired = Vector3.new(me.x + s * dist, g + height, me.z + c * dist) * K
+	local look = Vector3.new(x - s * CAM.lookAheadPerMetre * d, g + CAM.lookHeightPerMetre * d + 0.1, z - c * CAM.lookAheadPerMetre * d) * K
+	local desired = Vector3.new(x + s * dist, g + height, z + c * dist) * K
 	local k = 1 - math.exp(-CAM.followSharpness * dt)
 	cam.pos = if cam.pos then cam.pos:Lerp(desired, k) else desired
 	local fov = math.min(CAM.fovMax, CAM.fovBase + CAM.fovPerMetre * d)
@@ -433,35 +387,121 @@ local function updateCamera(dt: number, root: BasePart, top: number)
 	camera.CFrame = CFrame.lookAt(cam.pos :: Vector3, look)
 end
 
-RunService.RenderStepped:Connect(function(dt: number)
-	dt = math.min(dt, 0.05)
+-- Name tags over other machines: "Name · 1,234 kg" with ⚠ (it can eat you) or ✓ (you can eat it).
+local tags: { [BasePart]: BillboardGui } = {}
+local function updateTag(root: BasePart, myD: number?)
+	local tag = tags[root]
+	if not tag then
+		local t = Instance.new("BillboardGui")
+		tag = t
+		t.Name = "NameTag"
+		t.Size = UDim2.fromOffset(220, 26)
+		t.AlwaysOnTop = true
+		t.LightInfluence = 0
+		local label = Instance.new("TextLabel")
+		label.Name = "Label"
+		label.BackgroundTransparency = 1
+		label.Size = UDim2.fromScale(1, 1)
+		label.Font = Enum.Font.GothamBold
+		label.TextSize = 14
+		label.TextColor3 = Color3.new(1, 1, 1)
+		label.TextStrokeTransparency = 0.5
+		label.Parent = t
+		local line = Instance.new("Frame")
+		line.Name = "Line"
+		line.AnchorPoint = Vector2.new(0.5, 1)
+		line.Position = UDim2.fromScale(0.5, 1)
+		line.Size = UDim2.new(0.5, 0, 0, 2)
+		line.BorderSizePixel = 0
+		line.Parent = t
+		t.Adornee = root
+		t.Parent = visualFolder
+		tags[root] = t
+	end
+	assert(tag)
+	local d = root:GetAttribute("Diameter") :: number? or G.startDiameter
+	tag.StudsOffset = Vector3.new(0, d * K * 0.9 + 1, 0)
+	local mass = root:GetAttribute("Mass") :: number? or G.startMass
+	local v, u = Growth.massText(mass)
+	local mark = ""
+	if myD then
+		local look = root:GetAttribute("Look") :: string? or "collector"
+		local myLook = me.root and me.root:GetAttribute("Look") :: string? or "collector"
+		if d >= myD * A.eatRatio * WebConfig.vehicles[look].eatRatio then
+			mark = "  ⚠"
+		elseif myD >= d * A.eatRatio * WebConfig.vehicles[myLook].eatRatio then
+			mark = "  ✓"
+		end
+	end
+	local label = tag:FindFirstChild("Label") :: TextLabel
+	label.Text = string.format("%s · %s %s%s", root:GetAttribute("Name") :: string? or "?", v, u, mark)
+	local slot = root:GetAttribute("Slot") :: number? or 1
+	local line = tag:FindFirstChild("Line") :: Frame
+	line.BackgroundColor3 = Config.SLOT_COLORS[(slot - 1) % #Config.SLOT_COLORS + 1]
+end
+
+-- Spectating (eliminated or between lives): follow the biggest machine.
+local function leaderRoot(): BasePart?
+	local best, bestMass = nil, -1
 	local machines = workspace:FindFirstChild("Machines")
 	if machines then
 		for _, m in machines:GetChildren() do
 			local root = m:FindFirstChild("Root") :: BasePart?
-			if root then
-				updateVisual(root, dt)
+			local mass = root and root:GetAttribute("Mass") :: number? or 0
+			if root and mass > bestMass then
+				best, bestMass = root, mass
+			end
+		end
+	end
+	return best
+end
+
+RunService.RenderStepped:Connect(function(dt: number)
+	dt = math.min(dt, 0.05)
+	local root = myRoot()
+	local myD = if root then root:GetAttribute("Diameter") :: number? else nil
+	local machines = workspace:FindFirstChild("Machines")
+	if machines then
+		for _, m in machines:GetChildren() do
+			local r = m:FindFirstChild("Root") :: BasePart?
+			if r then
+				updateVisual(r, dt)
+				if r ~= root then
+					updateTag(r, myD)
+				end
 			end
 		end
 	end
 	cleanupVisuals()
-	local root = myRoot()
+	for r, tag in tags do
+		if not r.Parent then
+			tag:Destroy()
+			tags[r] = nil
+		end
+	end
 	if root ~= me.root then
 		me.root = root
 		if root then
 			-- New machine (spawn / respawn / new round): take its position and face its way.
 			local p = root.Position / K
 			local lv = root.CFrame.LookVector
-			me.x, me.z = p.X, p.Z
-			me.heading = math.atan2(-lv.X, -lv.Z)
-			me.speed, me.dashTime, me.dashCooldown, me.stunUntil = 0, 0, 0, 0
-			cam.yaw = me.heading
+			me.body = Movement.new(p.X, p.Z, math.atan2(-lv.X, -lv.Z))
+			cam.yaw = me.body.heading
 			cam.pos = nil
 		end
 	end
 	if root and root.Parent then
 		local top = move(root, dt)
 		claim(root, dt)
-		updateCamera(dt, root, top)
+		local v = visuals[root]
+		updateCamera(dt, me.body.x, me.body.z, me.body.heading, math.abs(me.body.speed) / math.max(top, 1e-3), if v then v.shown else (myD or G.startDiameter))
+	else
+		local target = leaderRoot()
+		if target then
+			local p = target.Position / K
+			local lv = target.CFrame.LookVector
+			local v = visuals[target]
+			updateCamera(dt, p.X, p.Z, math.atan2(-lv.X, -lv.Z), 1, if v then v.shown else (target:GetAttribute("Diameter") :: number? or G.startDiameter))
+		end
 	end
 end)
