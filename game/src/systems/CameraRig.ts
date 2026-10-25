@@ -89,6 +89,16 @@ export class CameraRig {
     const sharpness = hit ? C.occludedSharpness : C.followSharpness;
     const k = snap ? 1 : 1 - Math.exp(-sharpness * dt);
     this.camera.position.lerp(this.desired, k);
+    // The eased path between two clear spots can cut through a building corner when the machine
+    // turns round it: check the position we actually ended up at and stop in front of the wall.
+    if (!snap) {
+      const toCam = this.dir.copy(this.camera.position).sub(origin);
+      const camLen = toCam.length();
+      this.ray.set(origin, toCam.normalize());
+      this.ray.far = camLen;
+      const block = this.ray.intersectObjects(this.occluders, false)[0];
+      if (block) this.camera.position.copy(origin).addScaledVector(toCam, Math.max(0.3, block.distance - Math.max(0.3, 0.1 * diameter)));
+    }
     this.distance = this.camera.position.distanceTo(this.look);
     const fov = Math.min(C.fovMax, C.fovBase + C.fovPerMetre * diameter);
     if (Math.abs(this.camera.fov - fov) > 0.01) {
