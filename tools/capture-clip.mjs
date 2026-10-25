@@ -1,6 +1,7 @@
 // Marketing clip capture: steps the arena deterministically and screenshots every frame,
 // then encodes an MP4 (H.264, 30 fps) with ffmpeg. Frame-exact, so software rendering is fine.
 //   node tools/capture-clip.mjs <name> <city> <portrait|landscape> <simSecondsPerFrame> <frames> [startAt=0] [lang=en]
+// CAPTURE_PLAYING_ONLY=1 stops at the end of play (no results screen); CAPTURE_DSF sets the pixel ratio (default 2).
 // Needs a server: CAPTURE_BASE=<url of the game page> (default: the dev server on :5195; prefer a static build — the dev server hot-reloads mid-capture) and ffmpeg (FFMPEG env or `pip install imageio-ffmpeg`).
 import { chromium } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
@@ -29,6 +30,7 @@ await p.evaluate(async ({ city, startAt }) => {
   while (g.matchTime < +startAt || g.phase === 'countdown') { __ARENA__.step(0.25); await new Promise((r) => setTimeout(r, 0)); }
 }, { city, startAt });
 const t0 = Date.now();
+let shot = 0; // last frame written
 for (let i = 0; i < +frames; i++) {
   const ph = await p.evaluate(async (dt) => {
     // Step in small ticks (simulation stability), then render one frame.
@@ -36,13 +38,15 @@ for (let i = 0; i < +frames; i++) {
     __ARENA__.render();
     return __ARENA__.session.match.ph;
   }, +perFrame);
+  if (process.env.CAPTURE_PLAYING_ONLY && ph !== 'playing') break;
   await p.screenshot({ path: `${tmp}/f${String(i).padStart(5, '0')}.png` });
   if (i % 50 === 0) console.log(`frame ${i}/${frames} phase=${ph} ${((Date.now() - t0) / 1000).toFixed(0)}s`);
   if (ph === 'lobby') break;
+  shot = i;
 }
 await b.close();
 const out = resolve(root, 'renders/marketing', `${name}.mp4`);
 mkdirSync(resolve(root, 'renders/marketing'), { recursive: true });
 execFileSync(ffmpeg, ['-y', '-loglevel', 'error', '-framerate', '30', '-i', `${tmp}/f%05d.png`, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '24', '-preset', 'slow', '-movflags', '+faststart', out]);
-execFileSync(ffmpeg, ['-y', '-loglevel', 'error', '-i', `${tmp}/f${String(Math.floor(+frames * 0.8)).padStart(5, '0')}.png`, resolve(root, 'renders/marketing', `${name}-cover.png`)]);
+execFileSync(ffmpeg, ['-y', '-loglevel', 'error', '-i', `${tmp}/f${String(Math.floor(shot * 0.8)).padStart(5, '0')}.png`, resolve(root, 'renders/marketing', `${name}-cover.png`)]);
 console.log('wrote', out);
