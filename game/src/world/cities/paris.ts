@@ -20,7 +20,7 @@ const PARIS_SUNSET: Palette = {
 };
 
 /** Eiffel Tower (1:5): four lattice legs → first floor → second stage → upper tower → summit. */
-export function eiffel(): Placement[] {
+function eiffel(): Placement[] {
   const out: Placement[] = [];
   const legs = [[1, 1], [-1, -1], [1, -1], [-1, 1]] as const;
   legs.forEach(([sx, sz], i) => {
