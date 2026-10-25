@@ -2,14 +2,15 @@
 
 > 每次推进都更新本表和下方的「推进记录」。阶段定义见 `.claude/skills/grow-platform-bd/SKILL.md`。
 > **没有对方回复就写「未回复」，不推测。** 条款以门户或合同显示为准，档案里的数字都带出处。
-> 最后更新：2026-10-01 · 本周执行顺序见 `go-live-runbook.md`
+> 最后更新：2026-10-25 · 本周动作见 `../week-2026-10-26-market-push.md`
 
 ## 总表
 
 | 平台 | 阶段 | 合作方式 | 分成（出处见档案） | 我们的包 | 下一步 | 负责 | 截止 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| CrazyGames | 3 提交中（rev 3 已上传、Preview 通过、QA 清单已填、Details 已填；差横/竖版预览视频） | 广告分成（Basic Launch 期间无广告收入） | 现行比例官方未公开 | `release/crazygames/grow-everything-crazygames.zip`（rev 3） | 上传两段 ≤20 s 预览视频 → Basic Launch 提交 | BD + 用户 | 10/2 |
-| itch.io | 4 已上线（rev 8，Public） | 自助发布；免费 + 可选打赏 | 默认 10%，可自设 | `dist-portal.zip` | 用户注册 → 发布 | 用户 + BD | D1 |
+| CrazyGames | X 被拒（10/2 "stability and technical improvements"）；10/22 有登录记录，当前状态待确认 | 广告分成 | 现行比例官方未公开 | `release/crazygames/grow-everything-crazygames.zip` | side agent 截图门户状态（只看不改，不点 Remove game） | 用户 + BD | 10/27 |
+| itch.io | 4 已上线（rev 8，Public） | 自助发布；免费 + 可选打赏 | 默认 10%，可自设 | `release/web-portals/grow-everything-web.zip` | 上传 rev 10，补截图和封面 | 用户 + BD | 10/27 |
+| Playgama | 4 沙盒上线（https://playgama.ai/play/tp5qyqvjydddtn ，单人 vs AI 版） | 广告分成 | 门户为准 | `release/playgama/grow-everything-playgama.zip` | 拉 100 次真实游玩、平均 5:00 进审核；填付款方式（用户自己） | 用户 + BD | 11/2 |
 | Newgrounds | 2 材料就绪 | 自助发布；曝光为主 | 官方未查到 | `dist-portal.zip` | 用户注册 → 发布 | 用户 + BD | D1 |
 | Y8 | 1 资格确认 | 送审；广告分成 | 开发者 50% | `dist-portal.zip`（SDK 要求待看） | 注册后读门户里的 SDK 要求 | 用户 → 工程 | D2 |
 | GameDistribution | X 被拒（2026-09-29 邮件："does not fit with our catalog"） | 分发到发行网络；广告分成 | 开发者得净收入 33% | `release/gamedistribution/grow-everything-gd.zip`（rev 3，已打好） | 按对方邮件：拿到其他平台的真实数据后，通过 Customer Support 页面附数据再申请复审；先上 CrazyGames 拿数据 | BD | 拿到 CrazyGames 数据后 |
@@ -23,6 +24,8 @@
 ## 推进记录
 
 <!-- 格式：日期 · 平台 · 做了什么 · 对方原话或门户状态 · 下一步 -->
+
+- 2026-10-25 · 全部 · 用户放弃 Roblox 重制版（已删除，git 历史 4ae1094 可恢复），转为全力推已部署平台和 YouTube · Gmail 复查：10/15 以来无合作方回复；Armor 和 5 封定制版草稿仍未发送；CrazyGames 10/22 有登录记录，门户状态待确认 · 下一步见 `week-2026-10-26-market-push.md`：3 条 Shorts、经发行商（Mediacube、Playgama）申请 Playables、Playgama 沙盒拉真实游玩
 
 - 2026-10-21 · 变现方向（用户授权 Claude 决定）· 主线：C+ 定制版直销（$9,500，底价 $8,000，见 deal-menu.md 第 4 节）；被动收入：Playgama（包已就绪 `release/playgama/`）；GameDistribution 9/29 已拒，等有 CrazyGames 数据再申请复审 · 下一步：用户注册 Playgama 并上传；发出下面 6 封草稿
 - 2026-10-21 · Armor Games · 9/30 写好的回复一直没发出；已更新草稿：AI 使用说明、回合时长更正、已修的稳定性问题、新试玩链接，重新询问赞助或限时独占 · 未发送 · 用户确认后发送（Gmail 草稿，cityhunters2025）
