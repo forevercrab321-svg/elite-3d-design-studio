@@ -419,6 +419,47 @@ local function mapDot(): Frame
 	f.Visible = true
 	return f
 end
+-- Only the objects the minimap shows (class ≥ 6, landmark parts, crates), cached from attributes.
+type MapObj = { def: any, req: number, x: number, z: number, yaw: number, state: string, anchored: boolean }
+local mapObjects: { [Instance]: MapObj } = {}
+local function trackMapObject(m: Instance)
+	local typeId = m:GetAttribute("Type") :: string?
+	local def = typeId and WebConfig.objects[typeId]
+	if not def or not (def.objectClass >= 6 or def.climax or def.power or def.bonus) then
+		return
+	end
+	local o: MapObj = { def = def, req = Growth.requiredPower(typeId :: string), x = 0, z = 0, yaw = 0, state = "idle", anchored = false }
+	local function read()
+		o.x = m:GetAttribute("X") :: number? or 0
+		o.z = m:GetAttribute("Z") :: number? or 0
+		o.yaw = m:GetAttribute("Yaw") :: number? or 0
+		o.state = m:GetAttribute("State") :: string? or "idle"
+		o.anchored = m:GetAttribute("Anchored") == true
+	end
+	read()
+	m.AttributeChanged:Connect(read)
+	mapObjects[m] = o
+end
+local function bindMapArena(arena: Instance)
+	table.clear(mapObjects)
+	local objects = arena:WaitForChild("Objects")
+	for _, m in objects:GetChildren() do
+		trackMapObject(m)
+	end
+	objects.ChildAdded:Connect(trackMapObject)
+	objects.ChildRemoved:Connect(function(m)
+		mapObjects[m] = nil
+	end)
+end
+workspace.ChildAdded:Connect(function(c)
+	if c.Name == "Arena" then
+		task.spawn(bindMapArena, c)
+	end
+end)
+if workspace:FindFirstChild("Arena") then
+	task.spawn(bindMapArena, workspace:FindFirstChild("Arena") :: Instance)
+end
+
 local mapCity: any = nil
 local mapCityId = ""
 local function drawMinimap()
@@ -442,37 +483,32 @@ local function drawMinimap()
 	mapUsed = 0
 	local myD = player:GetAttribute("Diameter") :: number? or WebConfig.growth.startDiameter
 	local open = workspace:GetAttribute("LandmarkOpen") == true
-	local objects = arena and arena:FindFirstChild("Objects")
-	if objects then
-		for _, m in objects:GetChildren() do
-			local typeId = m:GetAttribute("Type") :: string?
-			local def = typeId and WebConfig.objects[typeId]
-			if def and m:GetAttribute("State") ~= "pulled" then
-				local x, z = m:GetAttribute("X") :: number? or 0, m:GetAttribute("Z") :: number? or 0
-				if def.power or def.bonus then
-					local f = mapDot()
-					f.Size = UDim2.fromOffset(4, 4)
-					f.Rotation = 0
-					f.BackgroundColor3 = if def.power == "speed" then Color3.fromHex("3fa9ff") elseif def.power == "magnet" then Color3.fromHex("b05cff") elseif def.power == "shield" then Color3.fromHex("3fe0c0") else Color3.fromHex("ffd35a")
-					f.BackgroundTransparency = 0
-					f.Position = at(x, z)
-					;(f:FindFirstChild("Ring") :: UIStroke).Enabled = false
-					;(f:FindFirstChild("Round") :: UICorner).CornerRadius = UDim.new(1, 0)
-				elseif def.objectClass >= 6 or def.climax then
-					local edible = myD >= Growth.requiredPower(typeId :: string) and (open or not def.climax) and m:GetAttribute("Anchored") ~= true
-					local f = mapDot()
-					f.Size = UDim2.fromOffset(math.max(2, def.size[1] * k), math.max(2, def.size[3] * k))
-					f.Rotation = -math.deg(m:GetAttribute("Yaw") :: number? or 0)
-					f.Position = at(x, z)
-					;(f:FindFirstChild("Ring") :: UIStroke).Enabled = false
-					;(f:FindFirstChild("Round") :: UICorner).CornerRadius = UDim.new(0, 0)
-					if def.climax then
-						f.BackgroundColor3 = if edible then ORANGE elseif not open then Color3.fromRGB(170, 176, 186) else ORANGE
-						f.BackgroundTransparency = if edible then 0 elseif not open then 0.5 else 0.45
-					else
-						f.BackgroundColor3 = if edible then Color3.fromRGB(140, 224, 122) else Color3.fromRGB(210, 214, 220)
-						f.BackgroundTransparency = if edible then 0.45 elseif def.objectClass >= 7 then 0.66 else 0.82
-					end
+	for m, o in mapObjects do
+		if o.state ~= "pulled" then
+			local def, x, z = o.def, o.x, o.z
+			if def.power or def.bonus then
+				local f = mapDot()
+				f.Size = UDim2.fromOffset(4, 4)
+				f.Rotation = 0
+				f.BackgroundColor3 = if def.power == "speed" then Color3.fromHex("3fa9ff") elseif def.power == "magnet" then Color3.fromHex("b05cff") elseif def.power == "shield" then Color3.fromHex("3fe0c0") else Color3.fromHex("ffd35a")
+				f.BackgroundTransparency = 0
+				f.Position = at(x, z)
+				;(f:FindFirstChild("Ring") :: UIStroke).Enabled = false
+				;(f:FindFirstChild("Round") :: UICorner).CornerRadius = UDim.new(1, 0)
+			else
+				local edible = myD >= o.req and (open or not def.climax) and not o.anchored
+				local f = mapDot()
+				f.Size = UDim2.fromOffset(math.max(2, def.size[1] * k), math.max(2, def.size[3] * k))
+				f.Rotation = -math.deg(o.yaw)
+				f.Position = at(x, z)
+				;(f:FindFirstChild("Ring") :: UIStroke).Enabled = false
+				;(f:FindFirstChild("Round") :: UICorner).CornerRadius = UDim.new(0, 0)
+				if def.climax then
+					f.BackgroundColor3 = if edible then ORANGE elseif not open then Color3.fromRGB(170, 176, 186) else ORANGE
+					f.BackgroundTransparency = if edible then 0 elseif not open then 0.5 else 0.45
+				else
+					f.BackgroundColor3 = if edible then Color3.fromRGB(140, 224, 122) else Color3.fromRGB(210, 214, 220)
+					f.BackgroundTransparency = if edible then 0.45 elseif def.objectClass >= 7 then 0.66 else 0.82
 				end
 			end
 		end

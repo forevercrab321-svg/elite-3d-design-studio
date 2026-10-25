@@ -6,6 +6,8 @@ local roblox = require("@lune/roblox")
 local Instance = roblox.Instance
 
 local ROOT = "roblox/src/"
+
+
 local game = Instance.new("DataModel")
 local workspace = game:GetService("Workspace")
 
@@ -71,8 +73,9 @@ local replicated = {
 		return Instance.new("Folder")
 	end,
 }
+local market = nil
 env = {
-	game = { GetService = function(_, n)
+	game = { BindToClose = function() end, GetService = function(_, n)
 		if n == "ReplicatedStorage" then
 			return replicated
 		end
@@ -82,7 +85,8 @@ env = {
 			end }
 		end
 		if n == "MarketplaceService" then
-			return {}
+			market = market or {}
+			return market
 		end
 		if n == "HttpService" then
 			return { JSONEncode = function(_, v)
@@ -108,4 +112,6 @@ env = {
 }
 
 
-return { load = load, stubs = stubs, workspace = workspace }
+return { load = load, stubs = stubs, workspace = workspace, market = function()
+	return market
+end }

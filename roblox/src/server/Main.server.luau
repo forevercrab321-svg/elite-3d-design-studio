@@ -160,13 +160,29 @@ local function setMass(a: Actor, mass: number, quiet: boolean?)
 	sync(a)
 end
 
--- Where a machine is: a player's from its (client-driven) root, an AI's from its body.
+-- Where a machine is: a player's from its (client-driven) root, an AI's from its body. A player's
+-- reported position may only move as fast as the machine can (dash and boost, generous slack):
+-- a teleporting client is held at its last plausible spot for claims and eats.
+local lastSeen: { [Actor]: { number } } = {}
 local function position(a: Actor): (number, number, number, number)
 	local root = a.root
 	if a.kind == "player" and root then
 		local p = root.Position / K
 		local look = root.CFrame.LookVector
-		a.body.x, a.body.z = p.X, p.Z
+		local t = os.clock()
+		local prev = lastSeen[a]
+		local x, z = p.X, p.Z
+		if prev then
+			local dt = math.max(t - prev[3], 1 / 60)
+			local maxStep = Movement.topSpeed(a.vehicle, a.diameter, true) * WebConfig.movement.dash.speedMultiplier * 1.6 * dt + a.diameter + 1
+			local dx, dz = x - prev[1], z - prev[2]
+			local dist = math.sqrt(dx * dx + dz * dz)
+			if dist > maxStep then
+				x, z = prev[1] + dx / dist * maxStep, prev[2] + dz / dist * maxStep
+			end
+		end
+		lastSeen[a] = { x, z, t }
+		a.body.x, a.body.z = x, z
 		a.body.heading = math.atan2(-look.X, -look.Z)
 	end
 	return a.body.x, World.ground(a.body.x, a.body.z), a.body.z, a.body.heading
@@ -216,12 +232,12 @@ local function spawnMachine(a: Actor, x: number, z: number, heading: number)
 	root.Parent = m
 	m.PrimaryPart = root
 	m.Parent = machinesFolder
-	if a.player then
-		root:SetNetworkOwner(a.player)
-	end
+	-- Players drive their own machine; the server keeps the AI's (never handed to a client).
+	root:SetNetworkOwner(a.player)
 	a.model = m
 	a.root = root
 	a.alive = true
+	lastSeen[a] = nil
 	a.invulnerableUntil = now() + A.invulnerableSeconds
 	root:SetAttribute("InvulnerableUntil", a.invulnerableUntil)
 	sync(a)
@@ -341,6 +357,11 @@ end
 
 local function onPlayerAdded(player: Player)
 	Progress.load(player)
+	-- Left while the save was loading: PlayerRemoving already ran, do not seat a ghost.
+	if player.Parent ~= Players then
+		Progress.unload(player)
+		return
+	end
 	local ls = Instance.new("Folder")
 	ls.Name = "leaderstats"
 	local mass = Instance.new("IntValue")
@@ -759,13 +780,8 @@ RunService.Heartbeat:Connect(function(dt: number)
 		if o.state == "pulled" then
 			local a = o.owner :: Actor?
 			if not a or not a.alive or not table.find(actors, a) then
-				-- Owner gone: drop back to idle where it is.
-				o.state = "idle"
-				o.y = World.ground(o.x, o.z)
-				o.tilt = 0
-				if o.model then
-					o.model:SetAttribute("State", "idle")
-				end
+				-- Owner gone: the object goes back where it was.
+				World.resetPull(o)
 			else
 				local x, y, z, heading = position(a)
 				if World.stepPull(o, dt, x, z, y, heading, a.diameter, a.vehicle.pull) then
@@ -846,6 +862,36 @@ local function awards(rows: { any }): { string }
 		end
 	end
 	return out
+end
+
+local friendsInRound: (Player, { Player }) -> number
+-- Friends of p among the round's humans; the web calls run in parallel and are cached per pair.
+local friendCache: { [string]: boolean } = {}
+friendsInRound = function(p: Player, humans: { Player }): number
+	local pending, count = 0, 0
+	for _, other in humans do
+		if other ~= p then
+			local key = math.min(p.UserId, other.UserId) .. ":" .. math.max(p.UserId, other.UserId)
+			if friendCache[key] ~= nil then
+				count += if friendCache[key] then 1 else 0
+			else
+				pending += 1
+				task.spawn(function()
+					local ok, isFriend = pcall(p.IsFriendsWith, p, other.UserId)
+					friendCache[key] = ok and isFriend == true
+					if friendCache[key] then
+						count += 1
+					end
+					pending -= 1
+				end)
+			end
+		end
+	end
+	local deadline = os.clock() + 3
+	while pending > 0 and os.clock() < deadline do
+		task.wait()
+	end
+	return count
 end
 
 local function roundOver(): boolean
@@ -993,15 +1039,7 @@ task.spawn(function()
 			if a and a.player then
 				local p = a.player :: Player
 				local coins = Progress.roundEnd(p, rank, a.kills, rank == 1)
-				local friends = 0
-				for _, other in humans do
-					if other ~= p then
-						local ok, isFriend = pcall(p.IsFriendsWith, p, other.UserId)
-						if ok and isFriend then
-							friends += 1
-						end
-					end
-				end
+				local friends = friendsInRound(p, humans)
 				local granted = {}
 				if friends >= 1 then
 					for _, g in Progress.gift(p, "friend1") do

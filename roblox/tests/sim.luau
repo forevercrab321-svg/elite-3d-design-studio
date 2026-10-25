@@ -14,6 +14,8 @@ local Growth = load("shared/Growth")
 local Collision = load("shared/Collision")
 local Movement = load("shared/Movement")
 local World = load("server/World")
+-- No Roblox models in Lune: objects stay data-only (placeholder boxes need PivotTo).
+World.placeholder = function() return nil end
 local Bot = load("server/Bot")
 local A, G, CC = WebConfig.arena, WebConfig.growth, WebConfig.collection
 

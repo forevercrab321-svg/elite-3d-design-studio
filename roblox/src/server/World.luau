@@ -14,6 +14,7 @@ local Config = require(Shared:WaitForChild("Config"))
 local WebConfig = require(Shared:WaitForChild("WebConfig"))
 local Growth = require(Shared:WaitForChild("Growth"))
 local Collision = require(Shared:WaitForChild("Collision"))
+local Pull = require(Shared:WaitForChild("Pull"))
 local Models = require(script.Parent:WaitForChild("Models"))
 
 local K = Config.STUDS_PER_METER
@@ -49,6 +50,7 @@ export type Obj = {
 	home: { number },
 	base0: Color3,
 	refillAt: number?,
+	pullFrom: { number }?,
 }
 
 local World = {}
@@ -192,6 +194,24 @@ local function fallbackScenery(city: any, parent: Instance)
 	end
 end
 
+-- A box of the object's real size and colour when its model could not be loaded, so the object
+-- is still visible, claimable and solid for everyone.
+function World.placeholder(def: any, color: Color3): Model
+	local m = Instance.new("Model")
+	local p = Instance.new("Part")
+	p.Name = "Placeholder"
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.Color = color
+	p.Size = Vector3.new(def.size[1], def.size[2], def.size[3]) * K
+	p.CFrame = CFrame.new(0, def.size[2] / 2 * K, 0)
+	p.Parent = m
+	m.WorldPivot = CFrame.new()
+	return m
+end
+
 -- Build a city; returns its module. Yields while models load.
 function World.build(cityId: string)
 	if arena then
@@ -305,10 +325,11 @@ function World.build(cityId: string)
 			fallVy = 0,
 			tilt = 0,
 			home = { x, y, z, yaw },
+			pullFrom = nil,
 			base0 = base0,
 			refillAt = nil,
 		}
-		local m = Models.clone(typeId, 1, color, base0)
+		local m = Models.clone(typeId, 1, color, base0) or World.placeholder(def, color)
 		if m then
 			m.Name = tostring(i)
 			m:SetAttribute("Id", i)
@@ -363,9 +384,8 @@ function World.startPull(o: Obj, owner: any)
 	o.pullTime = 0
 	o.vx, o.vy, o.vz = 0, 0, 0
 	o.spin = 0
-	local cls = o.def.objectClass
-	-- Destruction beat for big objects: longer the bigger the class (collection.heavyPhasePerClass).
-	o.phase = if cls >= 4 then 0.25 * (1 + math.max(0, cls - 5) * WebConfig.collection.heavyPhasePerClass) else 0
+	o.pullFrom = { o.x, o.y, o.z, o.yaw }
+	o.phase = Pull.phase(o.def)
 	if o.model then
 		o.model:SetAttribute("State", "pulled")
 		o.model:SetAttribute("Owner", owner.id)
@@ -430,54 +450,25 @@ function World.remove(o: Obj)
 	release(o, o)
 end
 
--- Pull simulation for one object toward its owner's intake; returns true when absorbed.
-local CC = WebConfig.collection
+-- Pull simulation (shared Pull, the web formula) for the server's decision only: the server never
+-- moves or rescales the pulled model; clients animate their copies. Returns true when absorbed.
 function World.stepPull(o: Obj, dt: number, ownerX: number, ownerZ: number, ownerY: number, heading: number, diameter: number, pull: number): boolean
-	o.pullTime += dt
-	if o.pullTime < o.phase then
-		-- Destruction beat: crush/collapse objects squash, rip objects tilt up.
-		local k = o.pullTime / math.max(0.001, o.phase)
-		if o.def.destructionType == "rip" then
-			o.tilt = -0.5 * k
-		end
-		place(o)
-		return false
+	return Pull.step(o :: any, o.def, o.radius, dt, ownerX, ownerZ, ownerY, heading, diameter, pull)
+end
+
+-- The owner died or left mid-pull: the object goes back where it was, idle.
+function World.resetPull(o: Obj)
+	local from = o.pullFrom
+	if from then
+		o.x, o.y, o.z, o.yaw = from[1], from[2], from[3], from[4]
 	end
-	-- Fly to the intake: 0.3·d ahead of the machine at 0.32·d height.
-	local tx = ownerX - math.sin(heading) * diameter * 0.3
-	local tz = ownerZ - math.cos(heading) * diameter * 0.3
-	local ty = ownerY + diameter * 0.32
-	local cy = o.y + o.def.size[2] * 0.5
-	local dx, dy, dz = tx - o.x, ty - cy, tz - o.z
-	local dist = math.sqrt(dx * dx + dy * dy + dz * dz)
-	local arrived = dist < diameter * CC.absorbDistanceFactor + o.radius * 0.25 or o.pullTime > CC.maxPullSeconds / pull + o.phase
-	if arrived then
-		return true
-	end
-	local accel = CC.pullAcceleration * (0.4 + diameter) * pull
-	local damp = math.exp(-5 * dt)
-	local inv = 1 / math.max(dist, 1e-3)
-	o.vx = o.vx * damp + dx * inv * accel * dt
-	o.vy = o.vy * damp + dy * inv * accel * dt + 2.5 * diameter * dt
-	o.vz = o.vz * damp + dz * inv * accel * dt
-	o.x += o.vx * dt
-	o.y += o.vy * dt
-	o.z += o.vz * dt
-	local t = o.pullTime - o.phase
-	o.spin += (6 + 10 * t) * dt
-	o.yaw += (6 + 10 * t) * dt
-	local m = o.model
-	if m then
-		local s = math.max(0.3, 1 - 0.8 * t)
-		local base = m:GetAttribute("BaseScale") :: number?
-		if not base then
-			base = m:GetScale()
-			m:SetAttribute("BaseScale", base)
-		end
-		m:ScaleTo((base :: number) * s)
-	end
+	o.state = "idle"
+	o.owner = nil
+	o.tilt = 0
+	o.vx, o.vy, o.vz = 0, 0, 0
 	place(o)
-	return false
+	syncAttributes(o)
+	addToGrid(o)
 end
 
 -- Falling parts (web World.updateFalling): gravity, drift from a topple, slump; on landing they
@@ -536,7 +527,7 @@ function World.refill(machines: { { number } }): number
 				o.state = "idle"
 				o.refillAt = nil
 				o.vx, o.vy, o.vz = 0, 0, 0
-				local m = Models.clone(o.type, 1, o.color, o.base0)
+				local m = Models.clone(o.type, 1, o.color, o.base0) or World.placeholder(o.def, o.color)
 				if m and folder then
 					m.Name = tostring(o.id)
 					m:SetAttribute("Id", o.id)

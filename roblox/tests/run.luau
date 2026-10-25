@@ -97,6 +97,8 @@ end, load = function()
 	return nil
 end }
 local World = load("server/World")
+-- No Roblox models in Lune: objects stay data-only (placeholder boxes need PivotTo).
+World.placeholder = function() return nil end
 local city = World.build("shanghai")
 check(#World.objects == #city.objects, "every layout object is in the world")
 do
@@ -191,6 +193,19 @@ do
 	check(#granted == 1 and string.find(attrs.Owned, "buddy", 1, true) ~= nil, "playing with a friend unlocks Best Buddies")
 	check(Progress.shop(p, "equip", "skin", "buddy") and attrs.Skin == "buddy", "gifted skin can be worn")
 	check(not (Progress.shop(p, "equip", "hat", "chef")), "cannot wear a hat you do not own")
+	-- Robux coin pack: granted once per purchase id, even if Roblox delivers the receipt twice.
+	Config.COIN_PACKS[1].id = 4242
+	harness.stubs.Players = nil
+	local market = harness.market()
+	local before = attrs.Coins
+	local players = { GetPlayerByUserId = function() return p end }
+	local env = getfenv(market.ProcessReceipt)
+	env.game = { GetService = function() return players end }
+	local r1 = market.ProcessReceipt({ PlayerId = 7, ProductId = 4242, PurchaseId = "abc" })
+	local r2 = market.ProcessReceipt({ PlayerId = 7, ProductId = 4242, PurchaseId = "abc" })
+	check(r1 == roblox.Enum.ProductPurchaseDecision.PurchaseGranted and r2 == roblox.Enum.ProductPurchaseDecision.PurchaseGranted, "receipt granted")
+	check(attrs.Coins == before + Config.COIN_PACKS[1].coins, "the same receipt never pays twice")
+	Config.COIN_PACKS[1].id = 0
 end
 
 -- Script structure ------------------------------------------------------------------------------

@@ -17,6 +17,7 @@ local WebConfig = require(Shared:WaitForChild("WebConfig"))
 local Progress = {}
 
 export type Data = {
+	receipts: { string }?,
 	coins: number,
 	rounds: number,
 	wins: number,
@@ -73,6 +74,7 @@ function Progress.load(player: Player)
 		end)
 		if ok and typeof(saved) == "table" then
 			d.coins = tonumber(saved.coins) or 0
+			d.receipts = typeof(saved.receipts) == "table" and saved.receipts or {}
 			d.rounds = tonumber(saved.rounds) or 0
 			d.wins = tonumber(saved.wins) or 0
 			for kind, set in (saved.owned or {}) :: any do
@@ -95,13 +97,50 @@ function Progress.load(player: Player)
 	publish(player)
 end
 
-function Progress.save(player: Player)
+-- Save now (returns success). Writes go through UpdateAsync so concurrent servers do not
+-- clobber receipts; callers that only changed cosmetics use Progress.saveSoon instead.
+function Progress.save(player: Player): boolean
 	local d = data[player]
-	if d and store then
-		pcall(function()
-			(store :: DataStore):SetAsync("u" .. player.UserId, d)
-		end)
+	if not d or not store then
+		return d ~= nil
 	end
+	local ok = pcall(function()
+		(store :: DataStore):UpdateAsync("u" .. player.UserId, function(old: any)
+			local merged = table.clone(d) :: any
+			-- Keep every processed purchase id, from this server and any earlier one.
+			local seen: { [string]: boolean } = {}
+			local list: { string } = {}
+			for _, src in { (old and old.receipts) or {}, d.receipts or {} } do
+				for _, id in src do
+					if not seen[id] then
+						seen[id] = true
+						table.insert(list, id)
+					end
+				end
+			end
+			while #list > 200 do
+				table.remove(list, 1)
+			end
+			merged.receipts = list
+			return merged
+		end)
+	end)
+	return ok
+end
+
+-- Debounced save (the DataStore allows one write per key every 6 s).
+local saveAt: { [Player]: number } = {}
+function Progress.saveSoon(player: Player)
+	if saveAt[player] then
+		return
+	end
+	saveAt[player] = os.clock() + 7
+	task.delay(7, function()
+		saveAt[player] = nil
+		if data[player] then
+			Progress.save(player)
+		end
+	end)
 end
 
 function Progress.unload(player: Player)
@@ -134,7 +173,7 @@ function Progress.roundEnd(player: Player, rank: number, kills: number, won: boo
 		d.wins += 1
 	end
 	publish(player)
-	task.spawn(Progress.save, player)
+	Progress.saveSoon(player)
 	return coins
 end
 
@@ -156,7 +195,7 @@ function Progress.gift(player: Player, rule: string): { string }
 	end
 	if #granted > 0 then
 		publish(player)
-		task.spawn(Progress.save, player)
+		Progress.saveSoon(player)
 	end
 	return granted
 end
@@ -190,7 +229,7 @@ function Progress.shop(player: Player, action: string, kind: string, id: string)
 		return false, "Unknown action"
 	end
 	publish(player)
-	task.spawn(Progress.save, player)
+	Progress.saveSoon(player)
 	return true, "OK"
 end
 
@@ -199,15 +238,35 @@ MarketplaceService.ProcessReceipt = function(receipt)
 	local player = game:GetService("Players"):GetPlayerByUserId(receipt.PlayerId)
 	for _, pack in Config.COIN_PACKS do
 		if pack.id ~= 0 and pack.id == receipt.ProductId then
-			if not player or not data[player] then
+			local d = player and data[player]
+			if not player or not d then
 				return Enum.ProductPurchaseDecision.NotProcessedYet
 			end
+			d.receipts = d.receipts or {}
+			local receipts = d.receipts :: { string }
+			if table.find(receipts, receipt.PurchaseId) then
+				return Enum.ProductPurchaseDecision.PurchaseGranted -- already granted earlier
+			end
 			Progress.addCoins(player, pack.coins)
-			Progress.save(player)
-			return Enum.ProductPurchaseDecision.PurchaseGranted
+			table.insert(receipts, receipt.PurchaseId)
+			-- Only report success once it is saved; otherwise Roblox retries later.
+			if Progress.save(player) then
+				return Enum.ProductPurchaseDecision.PurchaseGranted
+			end
+			table.remove(receipts, table.find(receipts, receipt.PurchaseId) :: number)
+			Progress.addCoins(player, -pack.coins)
+			return Enum.ProductPurchaseDecision.NotProcessedYet
 		end
 	end
 	return Enum.ProductPurchaseDecision.NotProcessedYet
 end
+
+-- Server shutting down: save everyone before it goes.
+game:BindToClose(function()
+	for player in data do
+		task.spawn(Progress.save, player)
+	end
+	task.wait(3)
+end)
 
 return Progress

@@ -21,6 +21,7 @@ local WebConfig = require(Shared:WaitForChild("WebConfig"))
 local Growth = require(Shared:WaitForChild("Growth"))
 local Collision = require(Shared:WaitForChild("Collision"))
 local Movement = require(Shared:WaitForChild("Movement"))
+local Pull = require(Shared:WaitForChild("Pull"))
 local Feel = require(script.Parent:WaitForChild("Feel"))
 local ModelInfo = require(Shared:WaitForChild("ModelInfo"))
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
@@ -88,6 +89,15 @@ local function near(x: number, z: number, r: number): { Rec }
 	return nearBuf
 end
 
+-- Objects being pulled in, animated locally with the shared web formula (the server only decides
+-- when they are absorbed and then removes them).
+type Anim = { rec: any, s: Pull.State, base: number }
+local pulls: { [Model]: Anim } = {}
+local function placeModel(r: any)
+	local m = r.model :: Model
+	m:PivotTo(CFrame.new(r.x * K, r.y * K, r.z * K) * CFrame.Angles(0, r.yaw, 0))
+end
+
 local function track(m: Instance)
 	if not m:IsA("Model") then
 		return
@@ -121,6 +131,17 @@ local function track(m: Instance)
 			local size = math.max(r.def.size[1], r.def.size[2], r.def.size[3])
 			local pos = Vector3.new(r.x, r.y + r.def.size[2] / 2, r.z) * K
 			local cls = r.def.objectClass
+			if r.state == "pulled" then
+				pulls[m] = { rec = r, s = { x = r.x, y = r.y, z = r.z, yaw = r.yaw, tilt = 0, vx = 0, vy = 0, vz = 0, pullTime = 0, phase = Pull.phase(r.def) }, base = m:GetScale() }
+			elseif before == "pulled" then
+				-- Dropped mid-pull (owner gone): back to full size where the server put it.
+				local an = pulls[m]
+				pulls[m] = nil
+				if an then
+					m:ScaleTo(an.base)
+				end
+				placeModel(r)
+			end
 			if r.state == "pulled" and cls >= 4 then
 				-- Destruction beat (ArenaGame.startPull): shards, dust, sparks for crush/collapse.
 				local pp = m.PrimaryPart or m:FindFirstChildWhichIsA("BasePart")
@@ -152,6 +173,9 @@ local function track(m: Instance)
 			r.z = m:GetAttribute("Z") :: number? or r.z
 			r.yaw = m:GetAttribute("Yaw") :: number? or r.yaw
 			addToGrid(r)
+			if not pulls[m] then
+				placeModel(r)
+			end
 		end
 	end)
 end
@@ -214,7 +238,7 @@ local function box(r: Rec): Collision.Box
 end
 
 -- Machine visuals (every machine, drawn locally) -------------------------------------------------
-type Visual = { model: Model?, name: string, tier: number, base: number, shown: number, lastScale: number, skin: string, hat: Model?, hatId: string, hatBase: number, hatScale: number }
+type Visual = { hidden: boolean?, model: Model?, name: string, tier: number, base: number, shown: number, lastScale: number, skin: string, hat: Model?, hatId: string, hatBase: number, hatScale: number }
 
 -- Skins recolour the shell and the intake glow (web config/cosmetics.ts SKINS).
 local function skinDef(id: string): any
@@ -309,7 +333,14 @@ local function updateVisual(root: BasePart, dt: number)
 		-- Invulnerable after a respawn: blink at 8 Hz.
 		local inv = root:GetAttribute("InvulnerableUntil") :: number?
 		local hidden = inv ~= nil and now() < inv and math.floor(os.clock() * 16) % 2 == 0
-		m.Parent = if hidden then nil else visualFolder
+		if hidden ~= (v.hidden == true) then
+			v.hidden = hidden
+			for _, part in m:GetDescendants() do
+				if part:IsA("BasePart") then
+					part.LocalTransparencyModifier = if hidden then 1 else 0
+				end
+			end
+		end
 		local h = v.hat
 		local info = ModelInfo[v.name]
 		if h and info then
@@ -320,14 +351,13 @@ local function updateVisual(root: BasePart, dt: number)
 			local top = info.min.Y + info.size.Y
 			local back = info.min.Z + info.size.Z
 			h:PivotTo(pivot * CFrame.new(0, (top - 0.01) * v.shown * K, back * 0.35 * v.shown * K))
-			h.Parent = if hidden then nil else visualFolder
 		end
 	end
 end
 
 local function cleanupVisuals()
 	for root, v in visuals do
-		if not root.Parent then
+		if not root:IsDescendantOf(workspace) then
 			if v.model then
 				v.model:Destroy()
 			end
@@ -685,8 +715,38 @@ local function leaderRoot(): BasePart?
 	return best
 end
 
-RunService.RenderStepped:Connect(function(dt: number)
+local function animatePulls(dt: number)
+	local machines = workspace:FindFirstChild("Machines")
+	for m, an in pulls do
+		if not m:IsDescendantOf(workspace) then
+			pulls[m] = nil
+			continue
+		end
+		local owner = m:GetAttribute("Owner")
+		local om = owner ~= nil and machines and machines:FindFirstChild(tostring(owner))
+		local root = om and om:FindFirstChild("Root") :: BasePart?
+		if root then
+			local d = root:GetAttribute("Diameter") :: number? or G.startDiameter
+			local p = root.Position / K
+			local lv = root.CFrame.LookVector
+			local look = root:GetAttribute("Look") :: string? or "collector"
+			Pull.step(an.s, an.rec.def, an.rec.radius, dt, p.X, p.Z, p.Y - d / 2, math.atan2(-lv.X, -lv.Z), d, WebConfig.vehicles[look].pull)
+		end
+		local st = an.s
+		m:PivotTo(CFrame.new(st.x * K, st.y * K, st.z * K) * CFrame.Angles(0, st.yaw, 0) * CFrame.Angles(st.tilt, 0, 0))
+		local scale = an.base * Pull.scale(st)
+		if math.abs(m:GetScale() - scale) > 1e-3 then
+			m:ScaleTo(scale)
+		end
+	end
+end
+
+local function frame(dt: number)
 	dt = math.min(dt, 0.05)
+	-- The default camera scripts may reset the camera; this game drives it every frame.
+	camera = workspace.CurrentCamera
+	camera.CameraType = Enum.CameraType.Scriptable
+	animatePulls(dt)
 	local root = myRoot()
 	local myD = if root then root:GetAttribute("Diameter") :: number? else nil
 	local machines = workspace:FindFirstChild("Machines")
@@ -703,7 +763,7 @@ RunService.RenderStepped:Connect(function(dt: number)
 	end
 	cleanupVisuals()
 	for r, tag in tags do
-		if not r.Parent then
+		if not r:IsDescendantOf(workspace) then
 			tag:Destroy()
 			tags[r] = nil
 		end
@@ -719,7 +779,7 @@ RunService.RenderStepped:Connect(function(dt: number)
 			cam.pos = nil
 		end
 	end
-	if root and root.Parent then
+	if root and root:IsDescendantOf(workspace) then
 		local top = move(root, dt)
 		claim(root, dt)
 		local v = visuals[root]
@@ -733,4 +793,6 @@ RunService.RenderStepped:Connect(function(dt: number)
 			updateCamera(dt, p.X, p.Z, math.atan2(-lv.X, -lv.Z), 1, if v then v.shown else (target:GetAttribute("Diameter") :: number? or G.startDiameter))
 		end
 	end
-end)
+end
+-- After the default camera scripts (Camera priority) so nothing overrides this camera.
+RunService:BindToRenderStep("GrowFrame", Enum.RenderPriority.Camera.Value + 1, frame)
