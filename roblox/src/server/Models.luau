@@ -23,10 +23,14 @@ for _, name in { "Neon", "Glass", "Metal", "CorrodedMetal", "Plastic", "SmoothPl
 	MATERIALS[name] = (Enum.Material :: any)[name]
 end
 
--- Templates live in ReplicatedStorage: clients clone the machine models locally (Play.client).
+-- Machine and hat templates live in ReplicatedStorage (clients draw machines locally, Play.client);
+-- everything else stays on the server (the city scenery alone is hundreds of meshes).
 local store = Instance.new("Folder")
 store.Name = "ModelTemplates"
 store.Parent = ReplicatedStorage
+local serverStore = Instance.new("Folder")
+serverStore.Name = "ModelTemplates"
+serverStore.Parent = game:GetService("ServerStorage")
 
 local templates: { [string]: Model } = {}
 local loading: { [string]: boolean } = {}
@@ -72,7 +76,7 @@ local function prepare(name: string, asset: Instance): Model?
 	local box, scaled = model:GetBoundingBox()
 	local low = box.Position - scaled / 2
 	model.WorldPivot = CFrame.new(low - info.min * K)
-	model.Parent = store
+	model.Parent = if string.sub(name, 1, 8) == "Machine_" or string.sub(name, 1, 4) == "Hat_" then store else serverStore
 	return model
 end
 
@@ -91,12 +95,23 @@ function Models.load(name: string): Model?
 	end
 	loading[name] = true
 	local ok, result = pcall(InsertService.LoadAsset, InsertService, id)
-	local model = if ok then prepare(name, result :: Instance) else nil
+	-- Preparing can fail on an asset the importer shaped unexpectedly: never take the round down.
+	local model: Model? = nil
+	local reason = tostring(result)
+	if ok then
+		local prepared, out = pcall(prepare, name, result :: Instance)
+		if prepared then
+			model = out
+			reason = "no parts"
+		else
+			reason = "prepare failed: " .. tostring(out)
+		end
+	end
 	if model then
 		templates[name] = model
 	else
 		failed[name] = true
-		warn(string.format("Models: %s (%d) did not load: %s", name, id, if ok then "no parts" else tostring(result)))
+		warn(string.format("Models: %s (%d) did not load: %s", name, id, reason))
 	end
 	loading[name] = nil
 	return model
