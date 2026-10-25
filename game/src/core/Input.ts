@@ -6,10 +6,14 @@ import { L } from '../i18n';
  * playtest bot can drive the same code path by writing `override`.
  */
 export interface Intents {
-  forward: number; // −1..1, camera-relative
-  right: number;
+  forward: number; // −1..1, camera-relative (or throttle when `tank`)
+  right: number; // −1..1, camera-relative (or steering when `tank`)
   dash: boolean;
   restart: boolean;
+  /** Keyboard driving: forward = throttle/reverse, right = steering. Unset = a direction to drive towards. */
+  tank?: boolean;
+  /** The touch joystick is held (its direction is latched to the camera it was pushed in). */
+  stick?: boolean;
 }
 
 /** Input types that take typed text (a checkbox/range/button does not). */
@@ -167,6 +171,8 @@ export class Input {
       right: clamp((k('KeyD', 'ArrowRight') ? 1 : 0) - (k('KeyA', 'ArrowLeft') ? 1 : 0) + this.stick.x),
       dash: this.dashLatch,
       restart: this.restartLatch,
+      tank: this.stick.id < 0,
+      stick: this.stick.id >= 0,
     };
     this.dashLatch = false;
     this.restartLatch = false;

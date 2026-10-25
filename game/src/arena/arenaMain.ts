@@ -408,7 +408,7 @@ export async function runArena(ctx: AppContext): Promise<void> {
     if (!tipShown && game?.local?.alive && game.phase === 'playing' && game.matchTime > 1.4) {
       tipShown = true;
       const touch = matchMedia('(pointer: coarse)').matches;
-      game.hud.toast(touch ? L('左手拖动移动 · 吃比你小的东西和对手 · 右下角冲刺', 'Drag left to move · eat anything smaller, rivals too · DASH bottom-right') : L('WASD 移动 · 吃比你小的东西和对手 · 空格冲刺', 'WASD to move · eat anything smaller, rivals too · SPACE to dash'));
+      game.hud.toast(touch ? L('左手拖动移动 · 吃比你小的东西和对手 · 右下角冲刺', 'Drag left to move · eat anything smaller, rivals too · DASH bottom-right') : L('W 前进 · A/D 转向 · 吃比你小的东西和对手 · 空格冲刺', 'W to drive · A/D to steer · eat anything smaller, rivals too · SPACE to dash'));
       try {
         localStorage.setItem('grow-arena-tip', '1');
       } catch {

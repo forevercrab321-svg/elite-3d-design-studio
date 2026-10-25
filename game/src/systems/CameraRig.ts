@@ -16,6 +16,8 @@ export class CameraRig {
   yaw = 0;
   pitch = 1; // multiplier on camera height
   mode: CameraMode = 'third';
+  /** Keyboard driving: swing back behind the machine quickly, even when slow or turning on the spot. */
+  chase = false;
   /** First person: look-around offsets from a drag (radians), eased back to straight ahead. */
   private lookYaw = 0;
   private lookPitch = 0;
@@ -32,6 +34,11 @@ export class CameraRig {
   /** The yaw that keyboard / joystick intents are relative to. */
   get controlYaw(): number {
     return this.yaw;
+  }
+
+  /** Seconds since the last mouse / touch drag on the camera. */
+  get sinceDrag(): number {
+    return this.idle;
   }
 
   drag(dx: number, dy: number): void {
@@ -53,9 +60,9 @@ export class CameraRig {
 
   update(dt: number, x: number, z: number, heading: number, speedRatio: number, diameter: number, snap = false): void {
     this.idle += dt;
-    if (this.idle > C.autoAlignDelay && speedRatio > 0.25) {
+    if (this.chase ? this.idle > C.chaseAlignDelay : this.idle > C.autoAlignDelay && speedRatio > 0.25) {
       const diff = Math.atan2(Math.sin(heading - this.yaw), Math.cos(heading - this.yaw));
-      this.yaw += diff * Math.min(1, C.autoAlignRate * speedRatio * dt);
+      this.yaw += diff * Math.min(1, (this.chase ? C.chaseAlignRate : C.autoAlignRate * speedRatio) * dt);
     }
     const dist = C.distanceBase + C.distancePerMetre * diameter;
     const height = (C.heightBase + C.heightPerMetre * diameter) * this.pitch;

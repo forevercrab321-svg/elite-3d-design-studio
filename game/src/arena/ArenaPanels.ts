@@ -233,7 +233,7 @@ export class ArenaPanels {
       <label class="set">${L('音乐', 'Music')}<input type="range" min="0" max="100" step="5" data-k="music" value="${Math.round(s.music * 100)}"><span>${pct(s.music)}</span></label>
       <label class="set">${L('音效', 'Sound FX')}<input type="range" min="0" max="100" step="5" data-k="sfx" value="${Math.round(s.sfx * 100)}"><span>${pct(s.sfx)}</span></label>
       <div class="set">${L('语言', 'Language')}<div class="langs"><button class="btn${lang === 'zh' ? ' primary' : ''}" data-lang="zh">中文</button><button class="btn${lang === 'en' ? ' primary' : ''}" data-lang="en">English</button></div><span></span></div>
-      <div class="note">${L('键盘：WASD 移动 · 鼠标转视角 · 空格冲刺 · 1–6 表情 · H 喇叭 · M 静音', 'Keys: WASD move · mouse camera · SPACE dash · 1–6 emotes · H horn · M mute')}</div>
+      <div class="note">${L('键盘：W/S 前进倒车 · A/D 转向 · 鼠标转视角 · 空格冲刺 · 1–6 表情 · H 喇叭 · M 静音', 'Keys: W/S drive · A/D steer · mouse camera · SPACE dash · 1–6 emotes · H horn · M mute')}</div>
       <div class="links"><a href="${LEGAL}privacy.html" target="_blank" rel="noopener">${L('隐私政策', 'Privacy')}</a><a href="${LEGAL}terms.html" target="_blank" rel="noopener">${L('用户协议', 'Terms')}</a><a href="${LEGAL}credits.html" target="_blank" rel="noopener">${L('致谢', 'Credits')}</a></div>
     </div>`;
     this.el.hidden = false;
