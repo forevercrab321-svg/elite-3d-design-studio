@@ -76,6 +76,22 @@ env = {
 		if n == "ReplicatedStorage" then
 			return replicated
 		end
+		if n == "DataStoreService" then
+			return { GetDataStore = function()
+				error("no DataStore in tests")
+			end }
+		end
+		if n == "MarketplaceService" then
+			return {}
+		end
+		if n == "HttpService" then
+			return { JSONEncode = function(_, v)
+				return require("@lune/serde").encode("json", v)
+			end }
+		end
+		if n == "Players" then
+			return { GetPlayerByUserId = function() return nil end }
+		end
 		if n == "InsertService" then
 			return { LoadAsset = function()
 				error("no network in tests")

@@ -102,3 +102,8 @@ GrowMusic_shanghai
 GrowMusic_newyork
 GrowMusic_paris
 GrowMusic_victory
+Hat_party
+Hat_crown
+Hat_cone
+Hat_chef
+Hat_propeller

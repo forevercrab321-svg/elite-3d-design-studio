@@ -21,6 +21,7 @@ local Movement = require(Shared:WaitForChild("Movement"))
 local World = require(script.Parent:WaitForChild("World"))
 local Models = require(script.Parent:WaitForChild("Models"))
 local Bot = require(script.Parent:WaitForChild("Bot"))
+local Progress = require(script.Parent:WaitForChild("Progress"))
 
 local K = Config.STUDS_PER_METER
 local A = WebConfig.arena
@@ -36,6 +37,11 @@ for _, name in Config.REMOTES do
 	ev.Name = name
 	ev.Parent = remotes
 end
+for _, name in Config.FUNCTIONS do
+	local fn = Instance.new("RemoteFunction")
+	fn.Name = name
+	fn.Parent = remotes
+end
 remotes.Parent = ReplicatedStorage
 local ClaimEvent = remotes:WaitForChild("Claim") :: RemoteEvent
 local CrashEvent = remotes:WaitForChild("Crash") :: RemoteEvent
@@ -43,6 +49,9 @@ local AbsorbedEvent = remotes:WaitForChild("Absorbed") :: RemoteEvent
 local RoundEvent = remotes:WaitForChild("RoundState") :: RemoteEvent
 local NoticeEvent = remotes:WaitForChild("Notice") :: RemoteEvent
 local PickVehicleEvent = remotes:WaitForChild("PickVehicle") :: RemoteEvent
+local HornEvent = remotes:WaitForChild("Horn") :: RemoteEvent
+local InvitedEvent = remotes:WaitForChild("Invited") :: RemoteEvent
+local ShopFunction = remotes:WaitForChild("Shop") :: RemoteFunction
 
 local machinesFolder = Instance.new("Folder")
 machinesFolder.Name = "Machines"
@@ -78,6 +87,10 @@ type Actor = {
 	shieldUntil: number,
 	bot: any,
 	eatCooldown: { [string]: number },
+	skin: string,
+	hat: string,
+	horn: string,
+	hornAt: number,
 }
 local actors: { Actor } = {}
 local byPlayer: { [Player]: Actor } = {}
@@ -197,6 +210,9 @@ local function spawnMachine(a: Actor, x: number, z: number, heading: number)
 	root:SetAttribute("Slot", a.slot)
 	root:SetAttribute("Name", a.name)
 	root:SetAttribute("IsBot", a.kind == "bot")
+	root:SetAttribute("Skin", a.skin)
+	root:SetAttribute("Hat", a.hat)
+	root:SetAttribute("Horn", a.horn)
 	root.Parent = m
 	m.PrimaryPart = root
 	m.Parent = machinesFolder
@@ -268,6 +284,10 @@ local function newActor(kind: string, player: Player?, name: string, slot: numbe
 		shieldUntil = 0,
 		bot = nil,
 		eatCooldown = {},
+		skin = "stock",
+		hat = "none",
+		horn = "clown",
+		hornAt = 0,
 	}
 	return a
 end
@@ -304,7 +324,23 @@ local function medianMass(): number
 	return if #list > 0 then list[math.ceil(#list / 2)] else G.startMass
 end
 
+-- Cosmetics follow the player's equipped items (Progress publishes them as attributes).
+local function applyCosmetics(a: Actor)
+	local p = a.player
+	if p then
+		a.skin = p:GetAttribute("Skin") :: string? or "stock"
+		a.hat = p:GetAttribute("Hat") :: string? or "none"
+		a.horn = p:GetAttribute("Horn") :: string? or "clown"
+	end
+	if a.root then
+		a.root:SetAttribute("Skin", a.skin)
+		a.root:SetAttribute("Hat", a.hat)
+		a.root:SetAttribute("Horn", a.horn)
+	end
+end
+
 local function onPlayerAdded(player: Player)
+	Progress.load(player)
 	local ls = Instance.new("Folder")
 	ls.Name = "leaderstats"
 	local mass = Instance.new("IntValue")
@@ -328,6 +364,12 @@ local function onPlayerAdded(player: Player)
 	local a = newActor("player", player, player.DisplayName, slot, look)
 	player:SetAttribute("ActorId", a.id)
 	player:SetAttribute("Look", look)
+	applyCosmetics(a)
+	for _, attr in { "Skin", "Hat", "Horn" } do
+		player:GetAttributeChangedSignal(attr):Connect(function()
+			applyCosmetics(a)
+		end)
+	end
 	table.insert(actors, a)
 	byPlayer[player] = a
 	if World.city then
@@ -349,6 +391,7 @@ for _, player in Players:GetPlayers() do
 end
 
 Players.PlayerRemoving:Connect(function(player: Player)
+	Progress.unload(player)
 	local a = byPlayer[player]
 	if a then
 		removeActor(a)
@@ -455,6 +498,30 @@ PickVehicleEvent.OnServerEvent:Connect(function(player: Player, look: any)
 	player:SetAttribute("Look", look)
 	if a.root then
 		a.root:SetAttribute("Look", look)
+	end
+end)
+
+ShopFunction.OnServerInvoke = function(player: Player, action: any, kind: any, id: any)
+	if typeof(action) ~= "string" or typeof(kind) ~= "string" or typeof(id) ~= "string" then
+		return false, "Bad request"
+	end
+	return Progress.shop(player, action, kind, id)
+end
+
+-- Horn (H / 📯): everyone hears the machine's equipped horn; at most one per second.
+HornEvent.OnServerEvent:Connect(function(player: Player)
+	local a = byPlayer[player]
+	if a and a.alive and os.clock() - a.hornAt > 1 then
+		a.hornAt = os.clock()
+		NoticeEvent:FireAllClients({ kind = "horn", actor = a.id, horn = a.horn })
+	end
+end)
+
+-- An invite sent (SocialService prompt closed with recipients) unlocks the Party Hat.
+InvitedEvent.OnServerEvent:Connect(function(player: Player)
+	local granted = Progress.gift(player, "share")
+	if #granted > 0 then
+		NoticeEvent:FireClient(player, { kind = "gift", items = granted })
 	end
 end)
 
@@ -666,6 +733,19 @@ local function fillWithBots()
 			local look = Config.MACHINE_LOOKS[slot % #Config.MACHINE_LOOKS + 1]
 			local a = newActor("bot", nil, name, slot, look)
 			a.bot = Bot.new(slot * 7919 + roundsPlayed)
+			-- Web AI rivals: half wear a random shop skin, 40% a buyable hat, a random horn.
+			local function pick(list: { any }, chance: number, default: string): string
+				local buyable = {}
+				for _, it in list do
+					if it.price > 0 then
+						table.insert(buyable, it.id)
+					end
+				end
+				return if math.random() < chance and #buyable > 0 then buyable[math.random(1, #buyable)] else default
+			end
+			a.skin = pick(WebConfig.skins, 0.5, "stock")
+			a.hat = pick(WebConfig.hats, 0.4, "none")
+			a.horn = pick(WebConfig.horns, 1, "clown")
 			table.insert(actors, a)
 		end
 	end
@@ -799,6 +879,11 @@ task.spawn(function()
 			table.insert(names, string.format("Machine_%s_T%d", look, tier))
 		end
 	end
+	for _, h in WebConfig.hats do
+		if h.id ~= "none" then
+			table.insert(names, "Hat_" .. h.id)
+		end
+	end
 	Models.preload(names)
 end)
 
@@ -889,6 +974,46 @@ task.spawn(function()
 			local wins = ls and ls:FindFirstChild("Wins") :: IntValue?
 			if wins then
 				wins.Value += 1
+			end
+		end
+		-- Coins by rank and kills; friend gifts for playing together (web progress / gifts).
+		local humans: { Player } = {}
+		for _, a in actors do
+			if a.player then
+				table.insert(humans, a.player)
+			end
+		end
+		for rank, r in rows do
+			local a: Actor? = nil
+			for _, c in actors do
+				if c.id == r.id then
+					a = c
+				end
+			end
+			if a and a.player then
+				local p = a.player :: Player
+				local coins = Progress.roundEnd(p, rank, a.kills, rank == 1)
+				local friends = 0
+				for _, other in humans do
+					if other ~= p then
+						local ok, isFriend = pcall(p.IsFriendsWith, p, other.UserId)
+						if ok and isFriend then
+							friends += 1
+						end
+					end
+				end
+				local granted = {}
+				if friends >= 1 then
+					for _, g in Progress.gift(p, "friend1") do
+						table.insert(granted, g)
+					end
+				end
+				if friends >= 3 then
+					for _, g in Progress.gift(p, "friend3") do
+						table.insert(granted, g)
+					end
+				end
+				NoticeEvent:FireClient(p, { kind = "coins", coins = coins, gifts = granted })
 			end
 		end
 		broadcast({ phase = phase, timeLeft = Config.RESULTS_SECONDS, rows = rows, awards = awards(rows) })

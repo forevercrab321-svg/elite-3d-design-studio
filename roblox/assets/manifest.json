@@ -14874,5 +14874,365 @@
     "emissive": true
    }
   ]
+ },
+ "Hat_party": {
+  "group": "hat",
+  "size": [
+   0.327,
+   0.543,
+   0.33
+  ],
+  "min": [
+   -0.167,
+   -0.041,
+   -0.165
+  ],
+  "tris": 508,
+  "meshes": [
+   {
+    "name": "Hat_Party_Cone_0",
+    "tris": 20,
+    "role": "",
+    "color": "#ff3bb0",
+    "roughness": 0.5,
+    "metalness": 0,
+    "opacity": 1,
+    "emissive": false
+   },
+   {
+    "name": "Hat_Party_Band_1",
+    "tris": 320,
+    "role": "",
+    "color": "#ffd23b",
+    "roughness": 0.5,
+    "metalness": 0,
+    "opacity": 1,
+    "emissive": false
+   },
+   {
+    "name": "Hat_Party_Pom_2",
+    "tris": 168,
+    "role": "",
+    "color": "#ffd23b",
+    "roughness": 0.5,
+    "metalness": 0,
+    "opacity": 1,
+    "emissive": false
+   }
+  ]
+ },
+ "Hat_crown": {
+  "group": "hat",
+  "size": [
+   0.405,
+   0.218,
+   0.37
+  ],
+  "min": [
+   -0.201,
+   0,
+   -0.185
+  ],
+  "tris": 540,
+  "meshes": [
+   {
+    "name": "Hat_Crown_Ring_0",
+    "tris": 48,
+    "role": "",
+    "color": "#e0b040",
+    "roughness": 0.22,
+    "metalness": 1,
+    "opacity": 1,
+    "emissive": false
+   },
+   {
+    "name": "Hat_Crown_Spike_0_1",
+    "tris": 12,
+    "role": "",
+    "color": "#e0b040",
+    "roughness": 0.22,
+    "metalness": 1,
+    "opacity": 1,
+    "emissive": false
+   },
+   {
+    "name": "Hat_Crown_Gem_0_2",
+    "tris": 140,
+    "role": "",
+    "color": "#60001a",
+    "roughness": 0.1,
+    "metalness": 0.2,
+    "opacity": 1,
+    "emissive": true
+   },
+   {
+    "name": "Hat_Crown_Spike_1_3",
+    "tris": 12,
+    "role": "",
+    "color": "#e0b040",
+    "roughness": 0.22,
+    "metalness": 1,
+    "opacity": 1,
+    "emissive": false
+   },
+   {
+    "name": "Hat_Crown_Spike_2_4",
+    "tris": 12,
+    "role": "",
+    "color": "#e0b040",
+    "roughness": 0.22,
+    "metalness": 1,
+    "opacity": 1,
+    "emissive": false
+   },
+   {
+    "name": "Hat_Crown_Gem_2_5",
+    "tris": 140,
+    "role": "",
+    "color": "#60001a",
+    "roughness": 0.1,
+    "metalness": 0.2,
+    "opacity": 1,
+    "emissive": true
+   },
+   {
+    "name": "Hat_Crown_Spike_3_6",
+    "tris": 12,
+    "role": "",
+    "color": "#e0b040",
+    "roughness": 0.22,
+    "metalness": 1,
+    "opacity": 1,
+    "emissive": false
+   },
+   {
+    "name": "Hat_Crown_Spike_4_7",
+    "tris": 12,
+    "role": "",
+    "color": "#e0b040",
+    "roughness": 0.22,
+    "metalness": 1,
+    "opacity": 1,
+    "emissive": false
+   },
+   {
+    "name": "Hat_Crown_Gem_4_8",
+    "tris": 140,
+    "role": "",
+    "color": "#60001a",
+    "roughness": 0.1,
+    "metalness": 0.2,
+    "opacity": 1,
+    "emissive": true
+   },
+   {
+    "name": "Hat_Crown_Spike_5_9",
+    "tris": 12,
+    "role": "",
+    "color": "#e0b040",
+    "roughness": 0.22,
+    "metalness": 1,
+    "opacity": 1,
+    "emissive": false
+   }
+  ]
+ },
+ "Hat_cone": {
+  "group": "hat",
+  "size": [
+   0.39,
+   0.542,
+   0.39
+  ],
+  "min": [
+   -0.192,
+   -0.036,
+   -0.195
+  ],
+  "tris": 156,
+  "meshes": [
+   {
+    "name": "Hat_Cone_Base_0",
+    "tris": 12,
+    "role": "",
+    "color": "#ff6a13",
+    "roughness": 0.55,
+    "metalness": 0,
+    "opacity": 1,
+    "emissive": false
+   },
+   {
+    "name": "Hat_Cone_Body_1",
+    "tris": 72,
+    "role": "",
+    "color": "#ff6a13",
+    "roughness": 0.55,
+    "metalness": 0,
+    "opacity": 1,
+    "emissive": false
+   },
+   {
+    "name": "Hat_Cone_Stripe_2",
+    "tris": 72,
+    "role": "",
+    "color": "#f4f2ec",
+    "roughness": 0.6,
+    "metalness": 0,
+    "opacity": 1,
+    "emissive": false
+   }
+  ]
+ },
+ "Hat_chef": {
+  "group": "hat",
+  "size": [
+   0.373,
+   0.42,
+   0.381
+  ],
+  "min": [
+   -0.178,
+   0,
+   -0.191
+  ],
+  "tris": 1088,
+  "meshes": [
+   {
+    "name": "Hat_Chef_Band_0",
+    "tris": 80,
+    "role": "",
+    "color": "#f4f2ec",
+    "roughness": 0.6,
+    "metalness": 0,
+    "opacity": 1,
+    "emissive": false
+   },
+   {
+    "name": "Hat_Chef_Puff_0_1",
+    "tris": 168,
+    "role": "",
+    "color": "#f4f2ec",
+    "roughness": 0.6,
+    "metalness": 0,
+    "opacity": 1,
+    "emissive": false
+   },
+   {
+    "name": "Hat_Chef_Puff_1_2",
+    "tris": 168,
+    "role": "",
+    "color": "#f4f2ec",
+    "roughness": 0.6,
+    "metalness": 0,
+    "opacity": 1,
+    "emissive": false
+   },
+   {
+    "name": "Hat_Chef_Puff_2_3",
+    "tris": 168,
+    "role": "",
+    "color": "#f4f2ec",
+    "roughness": 0.6,
+    "metalness": 0,
+    "opacity": 1,
+    "emissive": false
+   },
+   {
+    "name": "Hat_Chef_Puff_3_4",
+    "tris": 168,
+    "role": "",
+    "color": "#f4f2ec",
+    "roughness": 0.6,
+    "metalness": 0,
+    "opacity": 1,
+    "emissive": false
+   },
+   {
+    "name": "Hat_Chef_Puff_4_5",
+    "tris": 168,
+    "role": "",
+    "color": "#f4f2ec",
+    "roughness": 0.6,
+    "metalness": 0,
+    "opacity": 1,
+    "emissive": false
+   },
+   {
+    "name": "Hat_Chef_Top_6",
+    "tris": 168,
+    "role": "",
+    "color": "#f4f2ec",
+    "roughness": 0.6,
+    "metalness": 0,
+    "opacity": 1,
+    "emissive": false
+   }
+  ]
+ },
+ "Hat_propeller": {
+  "group": "hat",
+  "size": [
+   0.39,
+   0.283,
+   0.333
+  ],
+  "min": [
+   -0.195,
+   0,
+   -0.167
+  ],
+  "tris": 604,
+  "meshes": [
+   {
+    "name": "Hat_Prop_CapA_0",
+    "tris": 240,
+    "role": "",
+    "color": "#d8282f",
+    "roughness": 0.45,
+    "metalness": 0,
+    "opacity": 1,
+    "emissive": false
+   },
+   {
+    "name": "Hat_Prop_CapB_1",
+    "tris": 240,
+    "role": "",
+    "color": "#2f6fd8",
+    "roughness": 0.45,
+    "metalness": 0,
+    "opacity": 1,
+    "emissive": false
+   },
+   {
+    "name": "Hat_Prop_Stem_2",
+    "tris": 32,
+    "role": "",
+    "color": "#1a1b1d",
+    "roughness": 0.7,
+    "metalness": 0,
+    "opacity": 1,
+    "emissive": false
+   },
+   {
+    "name": "Hat_Prop_BladeA_3",
+    "tris": 12,
+    "role": "",
+    "color": "#ffd23b",
+    "roughness": 0.5,
+    "metalness": 0,
+    "opacity": 1,
+    "emissive": false
+   },
+   {
+    "name": "Hat_Prop_Hub_4",
+    "tris": 80,
+    "role": "",
+    "color": "#3fbf5a",
+    "roughness": 0.45,
+    "metalness": 0,
+    "opacity": 1,
+    "emissive": false
+   }
+  ]
  }
 }

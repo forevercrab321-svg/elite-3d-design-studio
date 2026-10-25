@@ -40,6 +40,10 @@ const SOUNDS: [string, Record<string, unknown>][] = [
   ['burp', { kind: 'burp' }],
   ['pop', { kind: 'pop' }],
   ['horn', { kind: 'horn', horn: 'clown' }],
+  ['horn_duck', { kind: 'horn', horn: 'duck' }],
+  ['horn_bike', { kind: 'horn', horn: 'bike' }],
+  ['horn_trombone', { kind: 'horn', horn: 'trombone' }],
+  ['horn_air', { kind: 'horn', horn: 'air' }],
 ];
 
 async function render(ev: Record<string, unknown>): Promise<Float32Array> {

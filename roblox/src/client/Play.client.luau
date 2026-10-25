@@ -22,6 +22,7 @@ local Growth = require(Shared:WaitForChild("Growth"))
 local Collision = require(Shared:WaitForChild("Collision"))
 local Movement = require(Shared:WaitForChild("Movement"))
 local Feel = require(script.Parent:WaitForChild("Feel"))
+local ModelInfo = require(Shared:WaitForChild("ModelInfo"))
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local ClaimEvent = remotes:WaitForChild("Claim") :: RemoteEvent
 local CrashEvent = remotes:WaitForChild("Crash") :: RemoteEvent
@@ -213,7 +214,39 @@ local function box(r: Rec): Collision.Box
 end
 
 -- Machine visuals (every machine, drawn locally) -------------------------------------------------
-type Visual = { model: Model?, tier: number, base: number, shown: number, lastScale: number }
+type Visual = { model: Model?, name: string, tier: number, base: number, shown: number, lastScale: number, skin: string, hat: Model?, hatId: string, hatBase: number, hatScale: number }
+
+-- Skins recolour the shell and the intake glow (web config/cosmetics.ts SKINS).
+local function skinDef(id: string): any
+	for _, sk in WebConfig.skins do
+		if sk.id == id then
+			return sk
+		end
+	end
+	return WebConfig.skins[1]
+end
+local function hex(n: number): Color3
+	return Color3.fromHex(string.format("%06x", n))
+end
+local function applySkin(m: Model, name: string, skinId: string)
+	local info = ModelInfo[name]
+	local sk = skinDef(skinId)
+	if not info or not sk.shell then
+		return
+	end
+	for _, p in m:GetDescendants() do
+		if p:IsA("BasePart") then
+			local mi = info.meshes[p.Name]
+			local role = mi and mi.r
+			if role == "Player_Shell" then
+				p.Color = hex(sk.shell)
+				p.Material = if (sk.metalness or 0) >= 0.6 then Enum.Material.Metal else Enum.Material.SmoothPlastic
+			elseif role == "Player_IntakeGlow" and sk.glow then
+				p.Color = hex(sk.glow)
+			end
+		end
+	end
+end
 local visuals: { [BasePart]: Visual } = {}
 local visualFolder = Instance.new("Folder")
 visualFolder.Name = "MachineVisuals"
@@ -223,25 +256,47 @@ local function updateVisual(root: BasePart, dt: number)
 	local v = visuals[root]
 	local target = root:GetAttribute("Diameter") :: number? or G.startDiameter
 	if not v then
-		v = { model = nil, tier = 0, base = 1, shown = target, lastScale = 0 }
+		v = { model = nil, name = "", tier = 0, base = 1, shown = target, lastScale = 0, skin = "", hat = nil, hatId = "none", hatBase = 1, hatScale = 0 }
 		visuals[root] = v
 	end
 	v.shown += (target - v.shown) * (1 - math.exp(-G.visualGrowthRate * dt))
 	local tier = Growth.tierForClass(Growth.classForPower(target))
-	if tier ~= v.tier or not v.model then
-		local look = root:GetAttribute("Look") :: string? or "collector"
-		local template = templates:FindFirstChild(string.format("Machine_%s_T%d", look, tier)) :: Model?
+	local look = root:GetAttribute("Look") :: string? or "collector"
+	local skin = root:GetAttribute("Skin") :: string? or "stock"
+	local name = string.format("Machine_%s_T%d", look, tier)
+	if name ~= v.name or skin ~= v.skin or not v.model then
+		local template = templates:FindFirstChild(name) :: Model?
 		if template then
 			if v.model then
 				v.model:Destroy()
 			end
 			local m = template:Clone()
+			applySkin(m, name, skin)
 			v.model = m
+			v.name = name
 			v.tier = tier
+			v.skin = skin
 			v.base = m:GetScale()
 			v.lastScale = 0
 			m.Parent = visualFolder
 		end
+	end
+	-- Hat on the roof, behind the eyes (web Hat.place): re-seated from this tier's bounds.
+	local hatId = root:GetAttribute("Hat") :: string? or "none"
+	if hatId ~= v.hatId then
+		if v.hat then
+			v.hat:Destroy()
+			v.hat = nil
+		end
+		local template = templates:FindFirstChild("Hat_" .. hatId) :: Model?
+		if template then
+			local h = template:Clone()
+			v.hat = h
+			v.hatBase = h:GetScale()
+			v.hatScale = 0
+			h.Parent = visualFolder
+		end
+		v.hatId = if template or hatId == "none" then hatId else v.hatId
 	end
 	local m = v.model
 	if m then
@@ -249,11 +304,24 @@ local function updateVisual(root: BasePart, dt: number)
 			v.lastScale = v.shown
 			m:ScaleTo(v.base * v.shown)
 		end
-		m:PivotTo(root.CFrame * CFrame.new(0, -target * K / 2, 0))
+		local pivot = root.CFrame * CFrame.new(0, -target * K / 2, 0)
+		m:PivotTo(pivot)
 		-- Invulnerable after a respawn: blink at 8 Hz.
 		local inv = root:GetAttribute("InvulnerableUntil") :: number?
 		local hidden = inv ~= nil and now() < inv and math.floor(os.clock() * 16) % 2 == 0
 		m.Parent = if hidden then nil else visualFolder
+		local h = v.hat
+		local info = ModelInfo[v.name]
+		if h and info then
+			if math.abs(v.shown - v.hatScale) / math.max(v.hatScale, 1e-3) > 0.004 then
+				v.hatScale = v.shown
+				h:ScaleTo(v.hatBase * v.shown)
+			end
+			local top = info.min.Y + info.size.Y
+			local back = info.min.Z + info.size.Z
+			h:PivotTo(pivot * CFrame.new(0, (top - 0.01) * v.shown * K, back * 0.35 * v.shown * K))
+			h.Parent = if hidden then nil else visualFolder
+		end
 	end
 end
 
@@ -262,6 +330,9 @@ local function cleanupVisuals()
 		if not root.Parent then
 			if v.model then
 				v.model:Destroy()
+			end
+			if v.hat then
+				v.hat:Destroy()
 			end
 			visuals[root] = nil
 		end
@@ -278,6 +349,21 @@ local function myRoot(): BasePart?
 	return root
 end
 
+local HornEvent = remotes:WaitForChild("Horn") :: RemoteEvent
+local NoticeEvent = remotes:WaitForChild("Notice") :: RemoteEvent
+local HORN_SOUND: { [string]: string } = { clown = "horn", duck = "horn_duck", bike = "horn_bike", trombone = "horn_trombone", air = "horn_air" }
+-- Horns: louder the closer the machine (everyone hears everyone's equipped horn).
+NoticeEvent.OnClientEvent:Connect(function(n: { [string]: any })
+	if n.kind ~= "horn" then
+		return
+	end
+	local machines = workspace:FindFirstChild("Machines")
+	local m = machines and machines:FindFirstChild(tostring(n.actor))
+	local r = m and m:FindFirstChild("Root") :: BasePart?
+	local dist = if r then (r.Position / K - Vector3.new(me.body.x, 0, me.body.z)).Magnitude else 0
+	Feel.play(HORN_SOUND[n.horn] or "horn", math.clamp(1 - dist / 120, 0.15, 1))
+end)
+
 local keys: { [Enum.KeyCode]: boolean } = {}
 local dashPressed = false
 UserInputService.InputBegan:Connect(function(input, processed)
@@ -286,6 +372,8 @@ UserInputService.InputBegan:Connect(function(input, processed)
 	end
 	if input.KeyCode == Enum.KeyCode.Space then
 		dashPressed = true
+	elseif input.KeyCode == Enum.KeyCode.H then
+		HornEvent:FireServer()
 	end
 	keys[input.KeyCode] = true
 end)
@@ -339,6 +427,16 @@ if UserInputService.TouchEnabled then
 	c.Parent = dash
 	dash.Activated:Connect(function()
 		dashPressed = true
+	end)
+	local horn = dash:Clone()
+	horn.Name = "Horn"
+	horn.Text = "📯"
+	horn.TextSize = 26
+	horn.Size = UDim2.fromOffset(56, 56)
+	horn.Position = UDim2.new(1, -124, 1, -200)
+	horn.Parent = touchGui
+	horn.Activated:Connect(function()
+		HornEvent:FireServer()
 	end)
 	UserInputService.TouchStarted:Connect(function(input: InputObject, processed: boolean)
 		if processed then

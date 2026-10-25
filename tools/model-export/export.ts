@@ -13,6 +13,8 @@ import type { Role } from '../../game/src/art/materials';
 import { pearlTower } from '../../game/src/world/cities/shanghai';
 import { empireState } from '../../game/src/world/cities/newyork';
 import { eiffel } from '../../game/src/world/cities/paris';
+import { Hat } from '../../game/src/entities/Hat';
+import { HATS } from '../../game/src/config/cosmetics';
 
 import { MAX_TRIS, type MeshInfo, type Exported, flatMaterial, chunks, toGlb } from './flat';
 
@@ -98,6 +100,23 @@ async function run() {
           addGeometry(g, meshes, role, geom, lib.roles[role], TINTED.has(role) ? t.colors[0] : undefined, m);
         }
       }
+    }));
+  }
+  // Hats (cosmetics): built on an empty root at the scale they sit at (1 unit = machine diameter).
+  for (const h of HATS) {
+    if (h.id === 'none') continue;
+    const holder = new THREE.Group();
+    const hat = new Hat(holder, h.id);
+    hat.group.visible = true;
+    hat.group.scale.setScalar(1.5);
+    holder.updateMatrixWorld(true);
+    out.push(await pack(`Hat_${h.id}`, 'hat', (g, meshes) => {
+      hat.group.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        addGeometry(g, meshes, o.name || 'Hat', mesh.geometry, mats[0], undefined, mesh.matrixWorld);
+      });
     }));
   }
   (window as unknown as { __EXPORT__: Exported[] }).__EXPORT__ = out;

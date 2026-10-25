@@ -3,7 +3,7 @@
 //   node tools/export-models.mjs --manifest-only   → manifest only (keeps the uploaded GLBs as they are)
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const root = resolve(import.meta.dirname, '..');
@@ -23,7 +23,9 @@ if (err) throw new Error(err);
 const items = await page.evaluate(() => window.__EXPORT__);
 const manifest = {};
 for (const it of items) {
-  if (!process.argv.includes('--manifest-only')) writeFileSync(resolve(out, 'glb', `${it.name}.glb`), Buffer.from(it.glb, 'base64'));
+  // --manifest-only keeps uploaded GLBs untouched; new models (no GLB yet) are still written.
+  const glbPath = resolve(out, 'glb', `${it.name}.glb`);
+  if (!process.argv.includes('--manifest-only') || !existsSync(glbPath)) writeFileSync(glbPath, Buffer.from(it.glb, 'base64'));
   manifest[it.name] = { group: it.group, size: it.size.map((v) => +v.toFixed(3)), min: it.min.map((v) => +v.toFixed(3)), tris: it.tris, meshes: it.meshes };
 }
 writeFileSync(resolve(out, 'manifest.json'), JSON.stringify(manifest, null, 1));

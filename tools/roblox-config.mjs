@@ -12,6 +12,7 @@ const { SIZE_CLASSES } = await load('classes.ts');
 const { OBJECT_TYPES } = await load('objects.ts');
 const { arenaConfig } = await load('arena.ts');
 const { VEHICLES } = await load('vehicles.ts');
+const { SKINS, HATS, HORNS } = await load('cosmetics.ts');
 await server.close();
 
 const vehicles = Object.fromEntries(Object.entries(VEHICLES).map(([k, v]) => [k, v.stats ?? v]));
@@ -25,6 +26,9 @@ const data = {
   objects: OBJECT_TYPES,
   arena: arenaConfig,
   vehicles,
+  skins: SKINS,
+  hats: HATS,
+  horns: HORNS,
 };
 
 const ident = /^[A-Za-z_][A-Za-z0-9_]*$/;

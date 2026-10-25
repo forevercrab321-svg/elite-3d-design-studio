@@ -38,6 +38,16 @@ Config.CLAIM_SLACK = 1.6
 Config.GAMEPASS_VIP_TRAIL = 0
 
 -- Remote names (created by the server in ReplicatedStorage.Remotes).
-Config.REMOTES = { "Claim", "Crash", "Absorbed", "RoundState", "Notice", "PickVehicle" }
+Config.REMOTES = { "Claim", "Crash", "Absorbed", "RoundState", "Notice", "PickVehicle", "Horn", "Invited" }
+-- Remote functions (request → answer).
+Config.FUNCTIONS = { "Shop" }
+
+-- Robux coin packs (developer products; create them in the Creator Hub and paste the ids).
+-- 0 = not set up yet: the shop then hides the pack. Coins only buy cosmetics.
+Config.COIN_PACKS = {
+	{ id = 0, coins = 500, robux = 49 },
+	{ id = 0, coins = 1500, robux = 129 },
+	{ id = 0, coins = 4000, robux = 299 },
+}
 
 return Config

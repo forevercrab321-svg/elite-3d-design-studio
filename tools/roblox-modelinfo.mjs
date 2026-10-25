@@ -44,14 +44,14 @@ const lines = [
   '-- size / min: bounding box in metres (web units) and its low corner relative to the model origin;',
   '-- meshes: per MeshPart name {hex colour, material, transparency, tint = takes the instance colour}.',
   '',
-  'export type MeshInfo = { c: string, m: string, t: number, tint: boolean? }',
+  'export type MeshInfo = { c: string, m: string, t: number, tint: boolean?, r: string? }',
   'export type Info = { group: string, size: Vector3, min: Vector3, meshes: { [string]: MeshInfo } }',
   '',
   'return {',
 ];
 for (const [name, v] of Object.entries(manifest)) {
   const meshes = v.meshes
-    .map((m) => `[${JSON.stringify(m.name)}] = { c = "${m.color}", m = "${material(m)}", t = ${num(1 - m.opacity)}${tinted.has(m.role) && v.group === 'object' ? ', tint = true' : ''} }`)
+    .map((m) => `[${JSON.stringify(m.name)}] = { c = "${m.color}", m = "${material(m)}", t = ${num(1 - m.opacity)}${tinted.has(m.role) && v.group === 'object' ? ', tint = true' : ''}${v.group === 'machine' ? `, r = "${m.role}"` : ''} }`)
     .join(', ');
   lines.push(`\t${name} = { group = "${v.group}", size = Vector3.new(${v.size.map(num).join(', ')}), min = Vector3.new(${(v.min ?? [0, 0, 0]).map(num).join(', ')}), meshes = { ${meshes} } },`);
 }

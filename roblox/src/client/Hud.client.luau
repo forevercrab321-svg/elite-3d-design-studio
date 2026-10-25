@@ -599,6 +599,218 @@ end
 player:GetAttributeChangedSignal("Look"):Connect(refreshPicker)
 refreshPicker()
 
+-- Shop (web ArenaPanels shop): coins, skins / hats / horns with prices, gifts, invite, coin packs.
+local MarketplaceService = game:GetService("MarketplaceService")
+local SocialService = game:GetService("SocialService")
+local HttpService = game:GetService("HttpService")
+local ShopFunction = remotes:WaitForChild("Shop") :: RemoteFunction
+local InvitedEvent = remotes:WaitForChild("Invited") :: RemoteEvent
+local Config = require(Shared:WaitForChild("Config"))
+
+local shopButton = Instance.new("TextButton")
+shopButton.Name = "ShopButton"
+shopButton.Position = UDim2.fromOffset(16, 64) -- below the Roblox top bar
+shopButton.Size = UDim2.fromOffset(150, 34)
+shopButton.BackgroundColor3 = PANEL
+shopButton.BackgroundTransparency = 0.2
+shopButton.Font = Enum.Font.GothamBlack
+shopButton.TextSize = 14
+shopButton.TextColor3 = ORANGE
+shopButton.Parent = gui
+corner(shopButton, 8)
+
+local shop = Instance.new("Frame")
+shop.Name = "Shop"
+shop.AnchorPoint = Vector2.new(0.5, 0.5)
+shop.Position = UDim2.fromScale(0.5, 0.5)
+shop.Size = UDim2.fromOffset(660, 470)
+shop.BackgroundColor3 = PANEL
+shop.BackgroundTransparency = 0.05
+shop.Visible = false
+shop.Parent = gui
+corner(shop, 14)
+local shopTitle = text(shop, "Title", 20, Enum.Font.GothamBlack, ORANGE)
+shopTitle.Position = UDim2.fromOffset(20, 10)
+shopTitle.Size = UDim2.new(1, -40, 0, 30)
+shopTitle.TextXAlignment = Enum.TextXAlignment.Left
+local shopNote = text(shop, "Note", 12, Enum.Font.Gotham, DIM)
+shopNote.Position = UDim2.fromOffset(20, 40)
+shopNote.Size = UDim2.new(1, -40, 0, 16)
+shopNote.TextXAlignment = Enum.TextXAlignment.Left
+shopNote.Text = "Cosmetics change looks and sounds only — never stats."
+local close = Instance.new("TextButton")
+close.Text = "✕"
+close.Font = Enum.Font.GothamBlack
+close.TextSize = 18
+close.TextColor3 = Color3.new(1, 1, 1)
+close.BackgroundTransparency = 1
+close.AnchorPoint = Vector2.new(1, 0)
+close.Position = UDim2.new(1, -10, 0, 8)
+close.Size = UDim2.fromOffset(30, 30)
+close.Parent = shop
+local scroll = Instance.new("ScrollingFrame")
+scroll.Position = UDim2.fromOffset(16, 64)
+scroll.Size = UDim2.new(1, -32, 1, -80)
+scroll.BackgroundTransparency = 1
+scroll.BorderSizePixel = 0
+scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+scroll.CanvasSize = UDim2.new()
+scroll.ScrollBarThickness = 6
+scroll.Parent = shop
+local scrollList = Instance.new("UIListLayout")
+scrollList.Padding = UDim.new(0, 8)
+scrollList.SortOrder = Enum.SortOrder.LayoutOrder
+scrollList.Parent = scroll
+
+local GIFT_TEXT: { [string]: string } = { share = "Gift: send an invite", friend1 = "Gift: play with a friend", friend2 = "Gift: play with 2 friends", friend3 = "Gift: play with 3 friends" }
+local function owned(): { [string]: { [string]: boolean } }
+	local ok, t = pcall(HttpService.JSONDecode, HttpService, player:GetAttribute("Owned") :: string? or "{}")
+	return if ok and typeof(t) == "table" then t else {}
+end
+
+local renderShop
+local function section(order: number, title: string, kind: string, list: { any })
+	local head = text(scroll, "Head", 14, Enum.Font.GothamBlack, Color3.new(1, 1, 1))
+	head.Text = title
+	head.TextXAlignment = Enum.TextXAlignment.Left
+	head.Size = UDim2.new(1, 0, 0, 20)
+	head.LayoutOrder = order
+	local grid = Instance.new("Frame")
+	grid.BackgroundTransparency = 1
+	grid.Size = UDim2.new(1, 0, 0, 0)
+	grid.AutomaticSize = Enum.AutomaticSize.Y
+	grid.LayoutOrder = order + 1
+	grid.Parent = scroll
+	local layout = Instance.new("UIGridLayout")
+	layout.CellSize = UDim2.fromOffset(146, 54)
+	layout.CellPadding = UDim2.fromOffset(8, 8)
+	layout.Parent = grid
+	local own = owned()[kind] or {}
+	local equipped = player:GetAttribute(if kind == "skin" then "Skin" elseif kind == "hat" then "Hat" else "Horn") :: string?
+	for _, it in list do
+		local b = Instance.new("TextButton")
+		b.AutoButtonColor = true
+		b.BackgroundColor3 = Color3.fromRGB(34, 35, 40)
+		b.Font = Enum.Font.GothamBold
+		b.TextSize = 13
+		b.TextColor3 = Color3.new(1, 1, 1)
+		b.RichText = true
+		local status = if equipped == it.id then '<font color="#ffb347">Equipped</font>'
+			elseif own[it.id] then "Owned · tap to wear"
+			elseif it.gift then '<font color="#8be07a">' .. (GIFT_TEXT[it.gift] or "Gift") .. "</font>"
+			else '<font color="#ffb347">◎ ' .. it.price .. "</font>"
+		b.Text = (it.icon and (it.icon .. " ") or "") .. it.name .. "\n" .. status
+		b.Parent = grid
+		corner(b, 8)
+		if it.shell then
+			local chip = Instance.new("Frame")
+			chip.BackgroundColor3 = Color3.fromHex(string.format("%06x", it.shell))
+			chip.Size = UDim2.fromOffset(10, 10)
+			chip.Position = UDim2.fromOffset(8, 8)
+			chip.Parent = b
+			corner(chip, 5)
+		end
+		b.Activated:Connect(function()
+			if kind == "horn" then
+				Feel.play(({ clown = "horn", duck = "horn_duck", bike = "horn_bike", trombone = "horn_trombone", air = "horn_air" } :: any)[it.id] or "horn")
+			end
+			local action = if own[it.id] then "equip" else "buy"
+			if it.gift and not own[it.id] then
+				showToast(GIFT_TEXT[it.gift] or "Gift item", Color3.fromRGB(140, 230, 140))
+				return
+			end
+			local ok, msg = ShopFunction:InvokeServer(action, kind, it.id)
+			if not ok then
+				showToast(msg, Color3.fromRGB(255, 120, 120))
+			elseif action == "buy" then
+				Feel.play("unlock")
+				showToast("Bought " .. it.name .. "!", ORANGE)
+			end
+			task.wait(0.15)
+			renderShop()
+		end)
+	end
+end
+
+renderShop = function()
+	for _, c in scroll:GetChildren() do
+		if not c:IsA("UIListLayout") then
+			c:Destroy()
+		end
+	end
+	shopTitle.Text = "🛒 SHOP   ◎ " .. tostring(player:GetAttribute("Coins") or 0) .. " coins"
+	section(1, "Skins", "skin", WebConfig.skins)
+	local hats = {}
+	for _, h in WebConfig.hats do
+		table.insert(hats, h)
+	end
+	section(3, "Hats", "hat", hats)
+	section(5, "Horns  (H / 📯 to honk)", "horn", WebConfig.horns)
+	-- Invite friends (unlocks the Party Hat) and Robux coin packs.
+	local row = Instance.new("Frame")
+	row.BackgroundTransparency = 1
+	row.Size = UDim2.new(1, 0, 0, 44)
+	row.LayoutOrder = 7
+	row.Parent = scroll
+	local rowList = Instance.new("UIListLayout")
+	rowList.FillDirection = Enum.FillDirection.Horizontal
+	rowList.Padding = UDim.new(0, 8)
+	rowList.Parent = row
+	local invite = Instance.new("TextButton")
+	invite.Size = UDim2.fromOffset(170, 40)
+	invite.BackgroundColor3 = Color3.fromRGB(60, 140, 80)
+	invite.Font = Enum.Font.GothamBlack
+	invite.TextSize = 13
+	invite.TextColor3 = Color3.new(1, 1, 1)
+	invite.Text = "🎉 Invite friends"
+	invite.Parent = row
+	corner(invite, 8)
+	invite.Activated:Connect(function()
+		pcall(SocialService.PromptGameInvite, SocialService, player)
+	end)
+	for _, pack in Config.COIN_PACKS do
+		if pack.id ~= 0 then
+			local b = Instance.new("TextButton")
+			b.Size = UDim2.fromOffset(140, 40)
+			b.BackgroundColor3 = Color3.fromRGB(40, 90, 160)
+			b.Font = Enum.Font.GothamBlack
+			b.TextSize = 13
+			b.TextColor3 = Color3.new(1, 1, 1)
+			b.Text = string.format("◎ %d  ·  R$ %d", pack.coins, pack.robux)
+			b.Parent = row
+			corner(b, 8)
+			b.Activated:Connect(function()
+				MarketplaceService:PromptProductPurchase(player, pack.id)
+			end)
+		end
+	end
+end
+
+SocialService.GameInvitePromptClosed:Connect(function(_, recipients)
+	if #recipients > 0 then
+		InvitedEvent:FireServer()
+	end
+end)
+local function refreshCoins()
+	shopButton.Text = "🛒 SHOP  ◎ " .. tostring(player:GetAttribute("Coins") or 0)
+	if shop.Visible then
+		renderShop()
+	end
+end
+for _, attr in { "Coins", "Owned", "Skin", "Hat", "Horn" } do
+	player:GetAttributeChangedSignal(attr):Connect(refreshCoins)
+end
+refreshCoins()
+shopButton.Activated:Connect(function()
+	shop.Visible = not shop.Visible
+	if shop.Visible then
+		renderShop()
+	end
+end)
+close.Activated:Connect(function()
+	shop.Visible = false
+end)
+
 -- Mass panel refresh ----------------------------------------------------------------------------
 local shownMass = 0
 local function refreshMass()
@@ -723,6 +935,13 @@ NoticeEvent.OnClientEvent:Connect(function(n: { [string]: any })
 		addFeed("Dashed into something too big: stunned, mass lost", "bad")
 	elseif n.kind == "feed" then
 		addFeed(n.text, n.tone)
+	elseif n.kind == "coins" then
+		showToast(string.format("Earned ◎ %d coins", n.coins), ORANGE)
+		if n.gifts and #n.gifts > 0 then
+			showBanner("🎁 GIFT UNLOCKED", table.concat(n.gifts, " · "), 3)
+		end
+	elseif n.kind == "gift" then
+		showBanner("🎁 GIFT UNLOCKED", table.concat(n.items, " · "), 3)
 	end
 end)
 

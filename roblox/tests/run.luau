@@ -168,6 +168,31 @@ end
 check(landedFar > 3 and landedFar <= 23, string.format("top topples sideways %.1f m (web: up to 22 m)", landedFar))
 check(World.eligible(sphere, 12, true) and not World.eligible(sphere, 12, false), "fallen sphere is edible once the landmark opens")
 
+-- Shop and progress (no DataStore here: in-memory) --------------------------------------------
+print("Progress / shop")
+do
+	local Progress = load("server/Progress")
+	local attrs = {}
+	local p = { UserId = 7, SetAttribute = function(_, k, v)
+		attrs[k] = v
+	end }
+	Progress.load(p)
+	check(attrs.Coins == 0 and attrs.Skin == "stock" and attrs.Hat == "none" and attrs.Horn == "clown", "new player starts with the free items equipped")
+	local ok = Progress.shop(p, "buy", "skin", "taxi")
+	check(not ok, "cannot buy the NYC Taxi skin (150) with 0 coins")
+	local coins = Progress.roundEnd(p, 1, 2, true)
+	check(coins == WebConfig.arena.coinsByRank[1] + 2 * WebConfig.arena.coinsPerKill, "round reward = rank coins + kills (" .. coins .. ")")
+	check(not (Progress.shop(p, "buy", "skin", "taxi")), "130 coins are still not enough for the 150-coin taxi skin")
+	Progress.addCoins(p, 100)
+	ok = Progress.shop(p, "buy", "skin", "taxi")
+	check(ok and attrs.Skin == "taxi" and attrs.Coins == coins + 100 - 150, "buying equips it and spends 150 coins")
+	check(not (Progress.shop(p, "buy", "skin", "buddy")), "gift items cannot be bought")
+	local granted = Progress.gift(p, "friend1")
+	check(#granted == 1 and string.find(attrs.Owned, "buddy", 1, true) ~= nil, "playing with a friend unlocks Best Buddies")
+	check(Progress.shop(p, "equip", "skin", "buddy") and attrs.Skin == "buddy", "gifted skin can be worn")
+	check(not (Progress.shop(p, "equip", "hat", "chef")), "cannot wear a hat you do not own")
+end
+
 -- Script structure ------------------------------------------------------------------------------
 print("Main startup order")
 do
