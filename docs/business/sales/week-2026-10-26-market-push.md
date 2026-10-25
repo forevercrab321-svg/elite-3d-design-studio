@@ -32,12 +32,12 @@
 描述模板（N = 1、2、3）：
 
 ```
-Play free in your browser, no download: https://grow-everything.vercel.app/?utm_source=youtube&utm_campaign=shortsN
+Play free in your browser, no download: https://grow-everything.vercel.app/game/?utm_source=youtube&utm_campaign=shortsN
 Start tiny, eat everything, grow until you can swallow the landmark. 4-player online or solo vs AI.
 #gaming #browsergame #io #shorts
 ```
 
-置顶评论：`Play here 👉 https://grow-everything.vercel.app/?utm_source=youtube&utm_campaign=shortsN`
+置顶评论：`Play here 👉 https://grow-everything.vercel.app/game/?utm_source=youtube&utm_campaign=shortsN`
 
 节奏：周一、周三、周五各发 1 条。看 72 小时的播放量和平均观看百分比，最好的那条的开头用在下一批视频上。
 
