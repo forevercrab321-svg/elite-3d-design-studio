@@ -21,7 +21,7 @@ const beats = [
   [924, 1360, 2.0, 'Golden crate! Bigger… BIGGER!'],
   [1360, 1400, 1.6, 'Did I just eat a whole BUILDING?!'],
   [1619, 1700, 2.2, 'The tower is open. Here we go!'],
-  [1700, 1742, 2.4, "IT'S FALLING! IT'S FALLING!"],
+  [1700, 1737, 2.4, "IT'S FALLING! IT'S FALLING!"],
   [1745, 1800, 2.2, 'I ATE THE EIFFEL TOWER! CHAMPION!'],
 ];
 const dur = (f) => +execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f]).toString();
@@ -39,8 +39,11 @@ beats.forEach(([a, b, min, text], i) => {
   inputs.push('-framerate', '30', '-start_number', String(a), '-i', `${dir}/f%05d.png`);
   vparts.push(`[${i}:v]trim=end_frame=${frames},setpts=(PTS-STARTPTS)/${speed.toFixed(4)},fps=30,trim=duration=${len.toFixed(3)},scale=1080:1920:flags=lanczos[v${i}]`);
   const capFile = `/tmp/claude-0/shorts/pcap-${i}.txt`;
-  writeFileSync(capFile, text);
-  caps.push(`drawtext=fontfile=${font}:textfile=${capFile}:fontsize=64:fontcolor=white:borderw=8:bordercolor=black@0.9:x=(w-text_w)/2:y=h*0.62:enable='between(t,${t.toFixed(2)},${(t + len).toFixed(2)})'`);
+  // Two lines when long: break after the first sentence mark so nothing runs off the 1080 px frame.
+  writeFileSync(capFile, text.length > 20 ? text.replace(/([.!?…]+)\s+/, '$1\n') : text);
+  // The last beat sits on the results card: caption goes above it.
+  const y = i === beats.length - 1 ? 'h*0.20' : 'h*0.60';
+  caps.push(`drawtext=fontfile=${font}:textfile=${capFile}:fontsize=60:line_spacing=12:text_align=C:fontcolor=white:borderw=8:bordercolor=black@0.9:x=(w-text_w)/2:y=${y}:enable='between(t,${t.toFixed(2)},${(t + len).toFixed(2)})'`);
   aparts.push({ file: voFile, at: t });
   t += len;
 });
@@ -62,7 +65,7 @@ const filter = [
   `[${music}:a]atrim=0:${t.toFixed(2)},volume=0.35,afade=t=out:st=${(t - 1).toFixed(2)}:d=1[bg]`,
   `[voice]asplit[v1][v2]`,
   `[bg][v1]sidechaincompress=threshold=0.03:ratio=8:attack=20:release=250[duck]`,
-  `[duck][v2]amix=inputs=2:normalize=0,alimiter=limit=0.95[a]`,
+  `[duck][v2]amix=inputs=2:normalize=0,loudnorm=I=-14:TP=-1.5:LRA=7[a]`,
 ].join(';');
 execFileSync(ffmpeg, ['-y', '-loglevel', 'error', ...inputs, '-filter_complex', filter, '-map', '[v]', '-map', '[a]',
   '-c:v', 'libx264', '-crf', '21', '-preset', 'slow', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart', '-t', t.toFixed(2), out]);
