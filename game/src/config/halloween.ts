@@ -81,7 +81,7 @@ export const PORTAL_REAL_NAMES = false;
 /**
  * Our own site: the Creative Director keeps the real names (2026-10-26; risk noted: one name is a real
  * living person and two are third-party film characters, a takedown / defamation risk once the
- * Halloween promotion brings traffic. Flip to true to bring the real names back on the site.
+ * Halloween promotion brings traffic). Flip to false to show the neutral nicknames on the site too.
  */
 export const SITE_REAL_NAMES = true;
 
