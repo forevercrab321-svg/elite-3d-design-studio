@@ -78,15 +78,21 @@ export type HunterKind = 'shock' | 'cannibal' | 'motel';
  * real people and third-party characters. Flip `PORTAL_REAL_NAMES` to show the names there too.
  */
 export const PORTAL_REAL_NAMES = false;
+/**
+ * Our own site shows the neutral nicknames too (2026-10-26, Creative Director): one name is a real
+ * living person and two are third-party film characters, a takedown / defamation risk once the
+ * Halloween promotion brings traffic. Flip to true to bring the real names back on the site.
+ */
+export const SITE_REAL_NAMES = false;
 
 /**
  * Vite replaces `import.meta.env.VITE_PORTAL_BUILD` at build time, so in a portal build `REAL` is
  * the constant `false` and the real names are dropped from the bundle (platform review greps it).
- * Node tools that import this file have no `import.meta.env`: they get the real names.
+ * Node tools that import this file have no `import.meta.env`: they follow SITE_REAL_NAMES.
  */
 // `?.` keeps Node (no import.meta.env) working; Vite still folds the whole expression.
 const PORTAL: boolean = import.meta.env?.VITE_PORTAL_BUILD === '1';
-const REAL = !PORTAL || PORTAL_REAL_NAMES;
+const REAL = PORTAL ? PORTAL_REAL_NAMES : SITE_REAL_NAMES;
 
 export interface HunterDef {
   kind: HunterKind;
