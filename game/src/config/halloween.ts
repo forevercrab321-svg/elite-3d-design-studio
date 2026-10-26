@@ -79,11 +79,11 @@ export type HunterKind = 'shock' | 'cannibal' | 'motel';
  */
 export const PORTAL_REAL_NAMES = false;
 /**
- * Our own site shows the neutral nicknames too (2026-10-26, Creative Director): one name is a real
+ * Our own site: the Creative Director keeps the real names (2026-10-26; risk noted: one name is a real
  * living person and two are third-party film characters, a takedown / defamation risk once the
  * Halloween promotion brings traffic. Flip to true to bring the real names back on the site.
  */
-export const SITE_REAL_NAMES = false;
+export const SITE_REAL_NAMES = true;
 
 /**
  * Vite replaces `import.meta.env.VITE_PORTAL_BUILD` at build time, so in a portal build `REAL` is
