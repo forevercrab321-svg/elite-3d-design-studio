@@ -17,8 +17,8 @@ const p = await b.newPage({ viewport: { width: 540, height: 960 }, deviceScaleFa
 p.on('pageerror', (e) => console.log('PAGEERROR', e.message));
 await p.goto(`${process.env.CAPTURE_BASE ?? 'http://127.0.0.1:5195/game/'}?mode=arena&net=solo&test=1&quality=medium&name=You&lang=en&clip=1&seed=${process.env.SEED ?? 1337}`);
 await p.waitForFunction(() => window.__ARENA__?.ready, null, { timeout: 180000 });
-await p.evaluate(async () => {
-  const S = __ARENA__.session; S.setCity('paris'); S.start();
+await p.evaluate(async (city) => {
+  const S = __ARENA__.session; S.setCity(city); S.start();
   const g = () => __ARENA__.game();
   for (let i = 0; i < 400 && (!g() || g().phase !== 'playing'); i++) { __ARENA__.step(0.25); await new Promise((r) => setTimeout(r, 0)); }
   // Event log for the edit and the voice-over script: every feed line and game event with match time.
@@ -39,7 +39,7 @@ await p.evaluate(async () => {
     const diff = Math.atan2(Math.sin(want - a.heading), Math.cos(want - a.heading));
     G.input.override = { forward: Math.abs(diff) > 1.6 ? 0.3 : 1, right: Math.max(-1, Math.min(1, -diff * 2.5)), dash: false, restart: false, tank: true };
   };
-});
+}, process.env.CITY ?? 'paris');
 let n = 0;
 const times = []; // match time of every frame
 const acts = {};
