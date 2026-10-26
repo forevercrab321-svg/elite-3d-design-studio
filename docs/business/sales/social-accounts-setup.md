@@ -166,7 +166,7 @@
 
 | 平台 | 频道 / 账号 | ID / 链接 | 状态 |
 | --- | --- | --- | --- |
-| YouTube | **GROW EVERYTHING** · `@groweverythinggame`（`@groweverything` 已被占用）；原「澄蓝日记 Chenglan Diary」空频道改造 | 频道 ID `UCdXBAkfVXCfrtOkAJyLSX3Q` · https://www.youtube.com/@groweverythinggame | 10/26：名称、账号名、说明、链接、邮箱、国家、关键字、受众（非儿童）、上传默认设置已保存；头像、横幅待上传 |
+| YouTube | **GROW EVERYTHING** · `@groweverythinggame`（`@groweverything` 已被占用）；原「澄蓝日记 Chenglan Diary」空频道改造 | 频道 ID `UCdXBAkfVXCfrtOkAJyLSX3Q` · https://www.youtube.com/@groweverythinggame | 10/26：名称、账号名、说明、链接、邮箱、国家、关键字、受众（非儿童）、上传默认设置已保存；头像（机器人图标）和横幅已上传发布，横幅文字在全设备可见区内 |
 | TikTok | GROW EVERYTHING 官方号 | 用户名待定（设置后补上） | 用户已登录，设置中 |
 
 定位：两个账号都是「GROW EVERYTHING 游戏官方号」，只发这个游戏的真实对局高光 + 高涨英文配音；万圣节这一周主打 Halloween Town「The Hunt」。
