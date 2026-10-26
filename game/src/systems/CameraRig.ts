@@ -74,7 +74,8 @@ export class CameraRig {
     this.look.set(x - sin * C.lookAheadPerMetre * diameter, C.lookHeightPerMetre * diameter + 0.1, z - cos * C.lookAheadPerMetre * diameter);
     this.desired.set(x + sin * dist, height, z + cos * dist);
 
-    // Keep the camera out of buildings. Cast from the machine itself (the look-ahead point sits
+    // Keep the camera out of buildings. Cast from the machine itself (but never closer than 0.75 ×
+    // the diameter: a big machine next to a wall would otherwise put the camera inside its own body) (the look-ahead point sits
     // inside the wall when the player drives up to one) and stop in front of the first hit.
     const origin = this.origin.set(x, Math.max(0.15, diameter * 0.5), z);
     const dir = this.dir.copy(this.desired).sub(origin);
@@ -82,7 +83,7 @@ export class CameraRig {
     this.ray.set(origin, dir.normalize());
     this.ray.far = len;
     const hit = this.ray.intersectObjects(this.occluders, false)[0];
-    if (hit) this.desired.copy(origin).addScaledVector(dir, Math.max(0.3, hit.distance - Math.max(0.3, 0.1 * diameter)));
+    if (hit) this.desired.copy(origin).addScaledVector(dir, Math.max(0.3, 0.75 * diameter, hit.distance - Math.max(0.3, 0.1 * diameter)));
 
     // Pull in fast when something blocks the view (a hidden player is worse than a quick move),
     // ease back out at the normal rate.
@@ -97,7 +98,7 @@ export class CameraRig {
       this.ray.set(origin, toCam.normalize());
       this.ray.far = camLen;
       const block = this.ray.intersectObjects(this.occluders, false)[0];
-      if (block) this.camera.position.copy(origin).addScaledVector(toCam, Math.max(0.3, block.distance - Math.max(0.3, 0.1 * diameter)));
+      if (block) this.camera.position.copy(origin).addScaledVector(toCam, Math.max(0.3, 0.75 * diameter, block.distance - Math.max(0.3, 0.1 * diameter)));
     }
     this.distance = this.camera.position.distanceTo(this.look);
     const fov = Math.min(C.fovMax, C.fovBase + C.fovPerMetre * diameter);

@@ -4,7 +4,7 @@ import { chromium } from '@playwright/test';
 const [city = 'paris', secs = '300'] = process.argv.slice(2);
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const p = await b.newPage({ viewport: { width: 320, height: 568 } });
-await p.goto('http://127.0.0.1:5195/game/?mode=arena&net=solo&test=1&quality=low&name=You&lang=en');
+await p.goto(`${process.env.CAPTURE_BASE ?? 'http://127.0.0.1:5195/game/'}?mode=arena&net=solo&test=1&quality=low&name=You&lang=en`);
 await p.waitForFunction(() => window.__ARENA__?.ready, null, { timeout: 180000 });
 const r = await p.evaluate(async ({ city, secs }) => {
   const S = __ARENA__.session; S.setCity(city); S.start();
@@ -14,7 +14,7 @@ const r = await p.evaluate(async ({ city, secs }) => {
   const rig = g().rig; const cam = rig.camera; const occ = rig.occluders;
   const R = new cam.position.constructor(); // THREE.Vector3
   const ray = new (Object.getPrototypeOf(rig.ray).constructor)();
-  let blocked = 0, ticks = 0, worst = 0, inside = 0;
+  let blocked = 0, ticks = 0, worst = 0, inside = 0, self = 0;
   const W = g().world;
   for (let t = 0; t < +secs && g()?.phase === 'playing'; t += 0.05) {
     __ARENA__.step(0.05); ticks++;
@@ -24,6 +24,7 @@ const r = await p.evaluate(async ({ city, secs }) => {
     ray.set(o, d.normalize()); ray.far = len;
     const hit = ray.intersectObjects(occ, false)[0];
     if (hit && len - hit.distance > 0.05) { blocked++; worst = Math.max(worst, len - hit.distance); }
+    if (Math.hypot(cam.position.x - a.x, cam.position.y - a.diameter * 0.5, cam.position.z - a.z) < a.diameter * 0.55) self++;
     // Camera inside an idle prop's box (vans, trucks, containers…)?
     const c = cam.position;
     for (const ob of W.objects) {
@@ -37,7 +38,7 @@ const r = await p.evaluate(async ({ city, secs }) => {
     }
     if (ticks % 200 === 0) await new Promise((r) => setTimeout(r, 0));
   }
-  return { ticks, blocked, inside, occluders: occ.length, worst: +worst.toFixed(2), mass: Math.round(g().local.mass) };
+  return { ticks, blocked, inside, self, occluders: occ.length, worst: +worst.toFixed(2), mass: Math.round(g().local.mass) };
 }, { city, secs });
 console.log(city, JSON.stringify(r));
 await b.close();
