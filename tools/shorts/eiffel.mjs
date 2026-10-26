@@ -21,6 +21,13 @@ await p.evaluate(async () => {
   const S = __ARENA__.session; S.setCity('paris'); S.start();
   const g = () => __ARENA__.game();
   for (let i = 0; i < 400 && (!g() || g().phase !== 'playing'); i++) { __ARENA__.step(0.25); await new Promise((r) => setTimeout(r, 0)); }
+  // Event log for the edit and the voice-over script: every feed line and game event with match time.
+  window.__log = [];
+  const G0 = g();
+  const feed = G0.onFeed;
+  G0.onFeed = (m, k) => { window.__log.push({ t: G0.matchTime, feed: m, k, mass: Math.round(G0.local.mass) }); feed?.(m, k); };
+  const ev = G0.onEvent;
+  G0.onEvent = (e) => { if (!['beep', 'dashReady', 'absorb', 'pop'].includes(e.kind)) window.__log.push({ t: G0.matchTime, ev: e.kind, size: e.size, mass: Math.round(G0.local.mass) }); ev?.(e); };
   // Steering helper: drive the local machine at the nearest remaining landmark part (or the tower centre).
   window.__aim = (on) => {
     const G = g();
@@ -34,6 +41,7 @@ await p.evaluate(async () => {
   };
 });
 let n = 0;
+const times = []; // match time of every frame
 const acts = {};
 const state = () => p.evaluate(() => { const G = __ARENA__.game(); const a = G.local; return { t: G.matchTime, ph: G.phase, mass: a.mass, d: a.diameter, left: G.climaxLeft(), x: a.x, z: a.z }; });
 async function frames(count, simPerFrame, each) {
@@ -47,6 +55,7 @@ async function frames(count, simPerFrame, each) {
     }, { dt: simPerFrame, aim: !!each?.aim, dry: DRY });
     if (s.ph !== 'playing' && !each?.allowEnd) return s;
     if (!DRY) await p.screenshot({ path: `${out}/f${String(n).padStart(5, '0')}.png` });
+    times.push(+s.t.toFixed(2));
     n++;
     if (each?.until?.(s)) return s;
   }
@@ -60,7 +69,7 @@ console.log('open done', s);
 // Act 2: growth time-lapse with the AI until just before the landmark opens.
 acts.growth = n;
 await p.evaluate(() => { __aim(false); __ARENA__.game().rig.pitch = 1; __ARENA__.autopilot(true); });
-s = await frames(400, 1.2, { until: (s) => s.t >= 236 });
+s = await frames(3000, +(process.env.GROWTH_DT ?? 1.2), { until: (s) => s.t >= 236 });
 console.log('growth done', s);
 // Act 3: go for the tower at 3× speed, then real time once only two parts are left.
 await p.evaluate(() => __ARENA__.autopilot(false));
@@ -75,5 +84,6 @@ await p.evaluate(() => __aim(false));
 s = await frames(75, 1 / 30, { allowEnd: true });
 acts.end = n;
 console.log('end', s, acts);
-writeFileSync(`${out}/acts.json`, JSON.stringify({ acts, final: s }));
+const log = await p.evaluate(() => window.__log);
+writeFileSync(`${out}/acts.json`, JSON.stringify({ acts, final: s, times, log }));
 await b.close();
