@@ -161,3 +161,12 @@
 | **一个人开发（build in public）** | 观众爱看真实的挣扎和成功 | 不提目标数字，只讲做游戏的日常 |
 
 **注意：** AI 话题流量最大，但开发圈反 AI 的声音也很大（Armor Games 就因为 AI 素材拒了我们）。讲法要诚实、具体，多讲「AI 哪里不行、我怎么修的」，不吹「AI 一键做游戏」。
+
+## 11. 账号档案（只记公开信息，不记密码）
+
+| 平台 | 频道 / 账号 | ID / 链接 | 状态 |
+| --- | --- | --- | --- |
+| YouTube | 原名「澄蓝日记 Chenglan Diary」（空频道），10/26 用户决定改造成 GROW EVERYTHING 官方频道 | 频道 ID `UCdXBAkfVXCfrtOkAJyLSX3Q` · https://studio.youtube.com/channel/UCdXBAkfVXCfrtOkAJyLSX3Q | 设置中（改名、头像、横幅、简介、上传默认值） |
+| TikTok | GROW EVERYTHING 官方号 | 用户名待定（设置后补上） | 用户已登录，设置中 |
+
+定位：两个账号都是「GROW EVERYTHING 游戏官方号」，只发这个游戏的真实对局高光 + 高涨英文配音；万圣节这一周主打 Halloween Town「The Hunt」。
