@@ -3,7 +3,7 @@
 // burned-in captions, music ducked under the voice, end card.
 //   node tools/shorts/edit-playtest.mjs [framesDir] [voDir] [out.mp4]
 import { execFileSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 const root = resolve(import.meta.dirname, '../..');
 const dir = process.argv[2] ?? '/tmp/claude-0/shorts/play5';
@@ -14,7 +14,7 @@ const font = '/usr/share/fonts/opentype/inter/Inter-Black.otf';
 
 // Beats: [first frame, last frame, minimum seconds, caption]. Frame numbers come from the event
 // log of this round (stun at 2.0 s, golden crates, building collapse at 199 s, tower from 236 s).
-const beats = [
+const defaultBeats = [
   [0, 58, 1.6, "I'm a toaster with eyes. Let's eat PARIS!"],
   [58, 80, 1.2, '…and I crashed. Great start.'],
   [80, 924, 2.2, 'Boxes, bags, bikes… EVERYTHING goes in!'],
@@ -24,6 +24,8 @@ const beats = [
   [1700, 1737, 2.4, "IT'S FALLING! IT'S FALLING!"],
   [1745, 1800, 2.2, 'I ATE THE EIFFEL TOWER! CHAMPION!'],
 ];
+// BEATS=<json file> overrides the beats (same shape) for another round; MUSIC=<file> the music bed.
+const beats = process.env.BEATS ? JSON.parse(readFileSync(process.env.BEATS, 'utf8')) : defaultBeats;
 const dur = (f) => +execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f]).toString();
 const inputs = [];
 const vparts = [];
@@ -42,7 +44,7 @@ beats.forEach(([a, b, min, text], i) => {
   // Two lines when long: break after the first sentence mark so nothing runs off the 1080 px frame.
   writeFileSync(capFile, text.length > 20 ? text.replace(/([.!?…]+)\s+/, '$1\n') : text);
   // The last beat sits on the results card: caption goes above it.
-  const y = i === beats.length - 1 ? 'h*0.20' : 'h*0.60';
+  const y = i === beats.length - 1 ? (process.env.LAST_Y ?? 'h*0.20') : 'h*0.60';
   caps.push(`drawtext=fontfile=${font}:textfile=${capFile}:fontsize=60:line_spacing=12:text_align=C:fontcolor=white:borderw=8:bordercolor=black@0.9:x=(w-text_w)/2:y=${y}:enable='between(t,${t.toFixed(2)},${(t + len).toFixed(2)})'`);
   aparts.push({ file: voFile, at: t });
   t += len;
@@ -53,7 +55,7 @@ writeFileSync(end, 'Play free · grow-everything.vercel.app');
 caps.push(`drawbox=x=0:y=ih*0.80:w=iw:h=ih*0.07:color=black@0.55:t=fill:enable='gte(t,${(t - 2.2).toFixed(2)})'`);
 caps.push(`drawtext=fontfile=${font}:textfile=${end}:fontsize=44:fontcolor=white:x=(w-text_w)/2:y=h*0.82:enable='gte(t,${(t - 2.2).toFixed(2)})'`);
 aparts.forEach((p) => inputs.push('-i', p.file));
-inputs.push('-i', resolve(root, 'public/music/paris.mp3'));
+inputs.push('-i', process.env.MUSIC ?? resolve(root, 'public/music/paris.mp3'));
 const music = n + aparts.length;
 const voMix = aparts.map((p, k) => `[${n + k}:a]adelay=${Math.round(p.at * 1000)}|${Math.round(p.at * 1000)},volume=1.6[vo${k}]`);
 const filter = [
