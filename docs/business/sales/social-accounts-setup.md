@@ -145,3 +145,19 @@
 | D5 | 自动测试里最离谱的 3 个瞬间 |
 | D6 | 新功能：地标倒塌大场面（产品改完后） |
 | D7 | 这一周改了什么（回顾） |
+
+## 10. 蹭游戏开发圈内的热门话题（2026-10-26）
+
+只蹭游戏开发垂直圈子里的热点，每个热点都用我们自己游戏的真实素材来讲。热度判断来自开发者博客和论坛（[threejs 论坛](https://discourse.threejs.org/t/vibe-check-for-vibe-coding/92348.md)、[cinevva](https://app.cinevva.com/de/guides/vibe-coding-games)、[utsubo](https://www.utsubo.com/blog/threejs-2026-what-changed)、[strayspark](https://www.strayspark.studio/blog/devlog-marketing-build-wishlists)），不是平台的统计数据，按方向参考。
+
+| 热点 | 为什么热 | 我们的角度（真实素材） |
+| --- | --- | --- |
+| **用 AI 做游戏（vibe coding）** | 圈内最热、争议最大；「vibe coding」月搜索量约 8.3 万（美国，二手数据） | 「我用 AI 编程助手做了一个 3D 多人网页游戏，这是它搞砸的 3 件事」：楼变黑、车开起来飘、镜头穿墙。讲 AI 的坑，支持和反对 AI 的人都会来评论 |
+| **Three.js / 网页 3D** | AI 做网页游戏默认用 Three.js；WebGPU 刚普及 | 「这整座城市跑在一个浏览器标签页里」：一镜到底展示，不用下载 |
+| **手感 / game feel** | 修复前后对比是开发圈最稳的格式 | 转向重写前后对比（按住 S 原地转 486° → 直线倒车） |
+| **程序化生成** | 「用代码搭出来」天然好看 | 埃菲尔铁塔 8 块零件，用代码搭起来，再被吃倒 |
+| **离谱 bug** | 圈内圈外都爱看 | 自动测试录到的卡车卡墙、被对手一口吞 |
+| **网页游戏 Jam** | Vibe Jam 这类比赛要求游戏在浏览器里、不用下载就能玩 | 下一届参赛，拍参赛过程 |
+| **一个人开发（build in public）** | 观众爱看真实的挣扎和成功 | 不提目标数字，只讲做游戏的日常 |
+
+**注意：** AI 话题流量最大，但开发圈反 AI 的声音也很大（Armor Games 就因为 AI 素材拒了我们）。讲法要诚实、具体，多讲「AI 哪里不行、我怎么修的」，不吹「AI 一键做游戏」。
