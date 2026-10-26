@@ -7,7 +7,7 @@
 | 日期 | 角度（真实对局里挑） | 标题方向 | 状态 |
 | --- | --- | --- | --- |
 | 10/26 周一 | 最小的活下来，最大的被电倒 | I was the smallest. The villains came for the biggest. 🎃 | 已做好：`v5-halloween-survive.mp4`，今天发 |
-| 10/27 周二 | 最后 0.5 秒被抓（坚持 5 分钟，倒在终点线） | 0.5 seconds. I was 0.5 seconds from surviving. 🎃 | 选局中 |
+| 10/27 周二 | 吃掉对手 → 被三个反派追 → 最后 1 秒反派就在身后，活下来（真实一局，原计划的「0.5 秒被抓」没录到） | ONE second left. He was RIGHT behind me. 🎃 | 已做好：`v6-halloween-one-second.mp4` |
 | 10/28 周三 | 第一名的陨落：吃成最大，变小后第一个被锤 | I was #1 with 300 tonnes. Then the lights went out. 🎃 | 选局中 |
 | 10/29 周四 | 极限躲闪合集：反派扑空的瞬间 | How did he miss?! 🎃 | 选局中 |
 | 10/30 周五 | 蛋之谷：按喇叭叫醒女孩，隐身躲过反派 | The secret that saved me in Halloween Town 🥚 | 选局中 |
