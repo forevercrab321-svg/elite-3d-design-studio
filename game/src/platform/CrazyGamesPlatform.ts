@@ -130,6 +130,8 @@ export class CrazyGamesPlatform implements Platform {
   private loadingStopped = false;
   /** Last room state sent to the SDK ('' = none): reportRoom forwards changes only. */
   private roomKey = '';
+  /** Last instant-multiplayer answer (logged on change only; the room browser polls it). */
+  private lastInstant: boolean | null = null;
   /** Room whose invite link has been built already. */
   private invitedFor = '';
 
@@ -257,7 +259,8 @@ export class CrazyGamesPlatform implements Platform {
       }
     }
     const on = sdkOn || url;
-    console.info(`[cg] instantMultiplayer sdk=${String(flag)} url=${url} -> ${on}`);
+    if (on !== this.lastInstant) console.info(`[cg] instantMultiplayer sdk=${String(flag)} url=${url} -> ${on}`);
+    this.lastInstant = on;
     return on;
   }
 

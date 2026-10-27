@@ -183,7 +183,20 @@ export async function runArena(ctx: AppContext): Promise<void> {
       render();
     });
     loaded();
-    const c = await hubUi.show();
+    // [platform-room] CrazyGames can raise isInstantMultiplayer only after loadingStop (its QA
+    // "Reload with Instant Multiplayer" does): watch it while the browser is up and, once set, skip
+    // the browser into a new private room as if the player had pressed Create.
+    let watch = 0;
+    const instant = new Promise<HubChoice>((res) => {
+      if (!portal.instantMultiplayer) return;
+      watch = window.setInterval(() => {
+        if (!portal.instantMultiplayer?.()) return;
+        window.clearInterval(watch);
+        res({ kind: 'room', code: newRoomCode(), from: 'create', create: true, pub: false, warmup: false });
+      }, 300);
+    });
+    const c = await Promise.race([hubUi.show(), instant]);
+    window.clearInterval(watch);
     return { choice: c, stopLoop: () => renderer.setAnimationLoop(null), dispose: () => hubUi.dispose() };
   }
 
