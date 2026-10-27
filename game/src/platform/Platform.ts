@@ -63,6 +63,8 @@ export interface Platform {
   reportRoom?(room: RoomReport | null): void;
   /** CrazyGames isInstantMultiplayer: the player came from a "play with friends" entry point. */
   instantMultiplayer?(): boolean;
+  /** Skip our room browser and open a new private room right away (the portal has its own invite/join UI). */
+  readonly directToRoom?: boolean;
   /**
    * The portal account changed (log in / log out on CrazyGames). The game decides whether to
    * adopt the name (never over one the player typed in this game).

@@ -126,7 +126,7 @@ export async function runArena(ctx: AppContext): Promise<void> {
     const linked = portal.invitedRoom() ?? params.get('room');
     // No room in the link: the room browser is the first screen (vs AI, create, code, public rooms).
     // [platform-room] A portal's instant-multiplayer launch (CrazyGames) goes straight into a new room.
-    if (!net && hub && want === null && !linked && !portal.instantMultiplayer?.() && (backendConfigured() || demoHub)) ({ choice, stopLoop: stopHubLoop, dispose: disposeHub } = await showHub(hub));
+    if (!net && hub && want === null && !linked && !portal.directToRoom && !portal.instantMultiplayer?.() && (backendConfigured() || demoHub)) ({ choice, stopLoop: stopHubLoop, dispose: disposeHub } = await showHub(hub));
     if (!net && backendConfigured()) {
       // Invite links keep working exactly as before (any code the old flow accepted).
       const code = choice ? choice.code : (linked ?? newRoomCode()).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) || newRoomCode();

@@ -235,12 +235,20 @@ export class CrazyGamesPlatform implements Platform {
   }
 
   /**
+   * On CrazyGames every launch goes straight into a new private room (AI fills the seats, the site's
+   * own Invite button brings friends): their instant-multiplayer QA expects a room, not a browser, and
+   * its flag could not be relied on in the room browser (rev 14–15 still stopped there).
+   */
+  readonly directToRoom = true;
+
+  /**
    * CrazyGames instant multiplayer (a "play with friends" launch): skip the room browser and go
    * straight into a new room. The SDK flag is the source of truth; the QA tool's "Reload with Instant
    * Multiplayer" also puts instantJoin=true on the URL, which counts too in case the flag lags.
    */
   instantMultiplayer(): boolean {
-    const flag = this.sdk?.game.isInstantMultiplayer;
+    const game = this.sdk?.game as (CgSdk['game'] & { isInstantJoin?: boolean }) | undefined;
+    const flag = game?.isInstantMultiplayer ?? game?.isInstantJoin;
     let url = false;
     try {
       for (const q of [location.search, location.hash.replace(/^#/, '?'), document.referrer.split('?')[1] ?? '']) {
