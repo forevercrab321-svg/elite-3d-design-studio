@@ -232,8 +232,33 @@ export class CrazyGamesPlatform implements Platform {
     }
   }
 
+  /**
+   * CrazyGames instant multiplayer (a "play with friends" launch): skip the room browser and go
+   * straight into a new room. The SDK flag is the source of truth; the QA tool's "Reload with Instant
+   * Multiplayer" also puts instantJoin=true on the URL, which counts too in case the flag lags.
+   */
   instantMultiplayer(): boolean {
-    return !!this.sdk?.game.isInstantMultiplayer;
+    const flag = this.sdk?.game.isInstantMultiplayer;
+    let url = false;
+    try {
+      for (const q of [location.search, location.hash.replace(/^#/, '?'), document.referrer.split('?')[1] ?? '']) {
+        const p = new URLSearchParams(q);
+        if (['instantJoin', 'instantMultiplayer', 'isInstantMultiplayer'].some((k) => p.get(k) === 'true')) url = true;
+      }
+    } catch {
+      /* no URL access in some frames */
+    }
+    let sdkOn = !!flag;
+    if (typeof flag === 'function') {
+      try {
+        sdkOn = !!(flag as () => boolean).call(this.sdk!.game);
+      } catch {
+        sdkOn = false;
+      }
+    }
+    const on = sdkOn || url;
+    console.info(`[cg] instantMultiplayer sdk=${String(flag)} url=${url} -> ${on}`);
+    return on;
   }
 
   async playerName(): Promise<string | null> {
