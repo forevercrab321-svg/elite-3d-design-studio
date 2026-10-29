@@ -54,6 +54,22 @@ await p.evaluate(async (city) => {
 }, process.env.CITY ?? 'halloween');
 // Seconds of match time per captured frame: quiet grow phase fast, chase a bit slower, danger real time.
 const FAST = +(process.env.FAST ?? 0.6);
+// Software-rendered screenshots fail now and then ("Unable to capture screenshot"): retry, and keep
+// the event log on disk as we go so a crash still leaves a usable partial round.
+const shoot = async (n) => {
+  if (DRY) return;
+  for (let k = 0; ; k++) {
+    try {
+      await p.screenshot({ path: `${out}/f${String(n).padStart(5, '0')}.png` });
+      return;
+    } catch (e) {
+      if (k >= 5) throw e;
+      console.log('screenshot retry', k + 1, String(e.message).split('\n')[0]);
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+  }
+};
+const save = async () => writeFileSync(`${out}/acts.json`, JSON.stringify({ times, rt, log: await p.evaluate(() => window.__log) }));
 const CHASE = 0.13;
 const times = [];
 const rt = [];
@@ -78,16 +94,19 @@ for (let guard = 0; guard < 9000; guard++) {
   // Danger keeps real time going, with a tail so the outcome (stun, eaten, caught) is on screen too.
   if (s.danger === 2) slowUntil = Math.max(slowUntil, s.t + 2.5);
   else if (s.danger === 1) halfUntil = Math.max(halfUntil, s.t + 1.2);
-  if (!DRY) await p.screenshot({ path: `${out}/f${String(n).padStart(5, '0')}.png` });
+  await shoot(n);
   times.push(+s.t.toFixed(3));
   rt.push(want < 0.05 ? 1 : want < 0.1 ? 2 : 0); // 1 real time, 2 half speed
   lastT = s.t;
   n++;
-  if (n % 200 === 0) console.log(n, JSON.stringify(s));
+  if (n % 200 === 0) {
+    console.log(n, JSON.stringify(s));
+    await save();
+  }
   if (s.ph !== 'playing') {
     for (let k = 0; k < 75; k++) {
       await p.evaluate(() => { __ARENA__.step(1 / 30); __ARENA__.render(); });
-      if (!DRY) await p.screenshot({ path: `${out}/f${String(n).padStart(5, '0')}.png` });
+      await shoot(n);
       times.push(+s.t.toFixed(3));
       rt.push(1);
       n++;
@@ -96,7 +115,6 @@ for (let guard = 0; guard < 9000; guard++) {
     break;
   }
 }
-const log = await p.evaluate(() => window.__log);
-writeFileSync(`${out}/acts.json`, JSON.stringify({ times, rt, log }));
-console.log('frames', n, 'realtime', rt.filter((r) => r === 1).length, 'half', rt.filter((r) => r === 2).length, 'events', log.length);
+await save();
+console.log('frames', n, 'realtime', rt.filter((r) => r === 1).length, 'half', rt.filter((r) => r === 2).length);
 await b.close();
