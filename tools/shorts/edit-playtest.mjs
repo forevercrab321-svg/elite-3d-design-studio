@@ -33,14 +33,17 @@ const vparts = [];
 const aparts = [];
 const caps = [];
 let t = 0;
-beats.forEach(([a, b, min, text], i) => {
+// An optional fifth element lists frame ranges to drop inside the beat ([[from, to], …], inclusive),
+// e.g. a stretch where the camera sat inside a rival.
+beats.forEach(([a, b, min, text, cuts = []], i) => {
   const voFile = `${vo}/line-${i}.wav`;
   const voLen = dur(voFile);
   const len = Math.max(min, voLen + 0.25);
-  const frames = b - a;
-  const speed = frames / 30 / len;
+  const kept = cuts.reduce((n, [x, y]) => n - (Math.min(y, b - 1) - Math.max(x, a) + 1), b - a);
+  const speed = kept / 30 / len;
+  const drop = cuts.map(([x, y]) => `between(n,${x - a},${y - a})`).join('+');
   inputs.push('-framerate', '30', '-start_number', String(a), '-i', `${dir}/f%05d.${process.env.FRAME_EXT ?? 'png'}`);
-  vparts.push(`[${i}:v]trim=end_frame=${frames},setpts=(PTS-STARTPTS)/${speed.toFixed(4)},fps=30,trim=duration=${len.toFixed(3)},scale=1080:1920:flags=lanczos[v${i}]`);
+  vparts.push(`[${i}:v]trim=end_frame=${b - a}${drop ? `,select='not(${drop})',setpts=N/30/TB` : ''},setpts=(PTS-STARTPTS)/${speed.toFixed(4)},fps=30,trim=duration=${len.toFixed(3)},scale=1080:1920:flags=lanczos[v${i}]`);
   const capFile = `/tmp/claude-0/shorts/pcap-${i}.txt`;
   // Two lines when long: break after the first sentence mark so nothing runs off the 1080 px frame.
   writeFileSync(capFile, text.length > 20 ? text.replace(/([.!?…]+)\s+/, '$1\n') : text);
