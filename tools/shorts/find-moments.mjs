@@ -14,7 +14,7 @@ const span = (t, before, after) => [frameAt(t - before), frameAt(t + after)];
 const kinds = [
   [(e) => e.ev === 'stun', 'BONK: dashed into something too big', 1.2, 1.5],
   [(e) => /ate You\b|^You was so small|— You is in there|rates You:/.test(e.feed ?? ''), 'EATEN by a rival', 3, 2],
-  [(e) => /^You (ate|rates) /.test(e.feed ?? ''), 'ATE a rival', 2.5, 2],
+  [(e) => /^You (ate|rates) |so small You didn't/.test(e.feed ?? ''), 'ATE a rival', 2.5, 2],
   [(e) => /👻 You got/.test(e.feed ?? ''), 'CAUGHT by a villain (score reset)', 4, 2.5],
   [(e) => /👻 (?!You)/.test(e.feed ?? ''), 'villain catches someone else', 3, 2],
   [(e) => e.ev === 'scoresLocked', 'THE SHRINK: scores lock, villains rise', 1, 8],
