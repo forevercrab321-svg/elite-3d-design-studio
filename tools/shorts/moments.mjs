@@ -3,6 +3,7 @@
 // (or prey) close by, a dash (the "dashed into something too big" stun, half speed), a villain closing in during
 // the hunt. Win or lose, every fun moment of the round ends up watchable; the edit picks them from
 // acts.json (per-frame match time + real-time flag, feed lines and game events).
+// Frames are JPEG (q92, ~1/6 of PNG: a full round is ~7000 frames); edit with FRAME_EXT=jpg.
 // acts.json: times[] (match time per frame), rt[] (1 real time, 2 half speed, 0 fast), log[].
 //   CAPTURE_BASE=http://127.0.0.1:4410/ SEED=5 [CITY=halloween] node tools/shorts/moments.mjs
 // Use a PORTAL build (neutral villain names) for anything published.
@@ -66,7 +67,7 @@ const shoot = async (n) => {
     try {
       const lost = await p.evaluate(() => document.querySelector('canvas')?.getContext('webgl2')?.isContextLost() ?? false);
       if (lost) throw new Error('WebGL context lost (GPU process restarting)');
-      await p.screenshot({ path: `${out}/f${String(n).padStart(5, '0')}.png` });
+      await p.screenshot({ path: `${out}/f${String(n).padStart(5, '0')}.jpg`, type: 'jpeg', quality: 92 });
       return;
     } catch (e) {
       if (k >= 15) throw e;

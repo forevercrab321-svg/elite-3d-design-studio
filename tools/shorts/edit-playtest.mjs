@@ -24,7 +24,8 @@ const defaultBeats = [
   [1700, 1737, 2.4, "IT'S FALLING! IT'S FALLING!"],
   [1745, 1800, 2.2, 'I ATE THE EIFFEL TOWER! CHAMPION!'],
 ];
-// BEATS=<json file> overrides the beats (same shape) for another round; MUSIC=<file> the music bed.
+// BEATS=<json file> overrides the beats (same shape) for another round; MUSIC=<file> the music bed;
+// FRAME_EXT=jpg for captures from tools/shorts/moments.mjs.
 const beats = process.env.BEATS ? JSON.parse(readFileSync(process.env.BEATS, 'utf8')) : defaultBeats;
 const dur = (f) => +execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f]).toString();
 const inputs = [];
@@ -38,7 +39,7 @@ beats.forEach(([a, b, min, text], i) => {
   const len = Math.max(min, voLen + 0.25);
   const frames = b - a;
   const speed = frames / 30 / len;
-  inputs.push('-framerate', '30', '-start_number', String(a), '-i', `${dir}/f%05d.png`);
+  inputs.push('-framerate', '30', '-start_number', String(a), '-i', `${dir}/f%05d.${process.env.FRAME_EXT ?? 'png'}`);
   vparts.push(`[${i}:v]trim=end_frame=${frames},setpts=(PTS-STARTPTS)/${speed.toFixed(4)},fps=30,trim=duration=${len.toFixed(3)},scale=1080:1920:flags=lanczos[v${i}]`);
   const capFile = `/tmp/claude-0/shorts/pcap-${i}.txt`;
   // Two lines when long: break after the first sentence mark so nothing runs off the 1080 px frame.
