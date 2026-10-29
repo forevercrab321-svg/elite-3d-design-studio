@@ -12,9 +12,13 @@ const DRY = !!process.env.DRY;
 const out = process.env.SHORT_OUT ?? '/tmp/claude-0/shorts/moments';
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-gpu-process-crash-limit', '--disable-domain-blocking-for-3d-apis'] });
+// SwiftShader's GPU process crashes now and then on long captures; Chrome restarts it (no crash limit,
+// no 3D blocking after repeated resets) and the game restores its WebGL context in place, so a frame
+// only has to wait for the context to come back (checked with 4 forced GPU kills in a row).
 const p = await b.newPage({ viewport: { width: 540, height: 960 }, deviceScaleFactor: 1 });
 p.on('pageerror', (e) => console.log('PAGEERROR', e.message));
+p.on('crash', () => console.log('PAGE CRASHED'));
 await p.goto(`${process.env.CAPTURE_BASE ?? 'http://127.0.0.1:4410/'}?mode=arena&net=solo&test=1&quality=medium&name=You&lang=en&clip=1&seed=${process.env.SEED ?? 1}`);
 await p.waitForFunction(() => window.__ARENA__?.ready, null, { timeout: 180000 });
 await p.evaluate(async (city) => {
@@ -60,12 +64,15 @@ const shoot = async (n) => {
   if (DRY) return;
   for (let k = 0; ; k++) {
     try {
+      const lost = await p.evaluate(() => document.querySelector('canvas')?.getContext('webgl2')?.isContextLost() ?? false);
+      if (lost) throw new Error('WebGL context lost (GPU process restarting)');
       await p.screenshot({ path: `${out}/f${String(n).padStart(5, '0')}.png` });
       return;
     } catch (e) {
-      if (k >= 5) throw e;
+      if (k >= 15) throw e;
       console.log('screenshot retry', k + 1, String(e.message).split('\n')[0]);
-      await new Promise((r) => setTimeout(r, 2000));
+      await new Promise((r) => setTimeout(r, 3000));
+      if (k >= 1) await p.evaluate(() => __ARENA__.render()).catch(() => {});
     }
   }
 };
