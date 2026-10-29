@@ -10,6 +10,7 @@
 | 10/27 周二 | 吃掉对手 → 被三个反派追 → 最后 1 秒反派就在身后，活下来（真实一局，原计划的「0.5 秒被抓」没录到） | ONE second left. He was RIGHT behind me. 🎃 | 已做好：`v6-halloween-one-second.mp4` |
 | 10/31 周六 万圣节 | 吃掉 5 个对手 → 419 吨全场第一 → 灯灭缩到 120 kg → 躲了快 3 分钟 → 反派两面夹击 → 0 kg 倒数第一（真实一局） | 419 tonnes → ZERO. Last place. 🎃 | 已做好：`v8-halloween-419-to-zero.mp4`（20 秒）——万圣节主推 |
 | 11/1 周日（原 10/28 档） | 第一个被吃 → 复仇吃到 21.9 吨 → 灯灭全员缩小 → 两个反派贴身 → 活下来拿第 3（真实一局，没赢） | I got eaten FIRST. Then the villains came. 🎃 | 已做好：`v7-halloween-eaten-first.mp4`（21.7 秒） |
+| 11/2 周一 | 完美一局：先手吃掉对手 → 一口吞下 Chomp → 363 吨 → 缩小后两个反派 10 米内追 → 从没被吃，冠军（真实一局） | Never eaten. CHAMPION. 🎃 | 已做好：`v9-halloween-flawless.mp4`（16 秒） |
 | 10/29 周四 | 「全是事故」合集：撞墙电晕、被吃、反派差一点扑到 | Everything went wrong. 🎃 | 录制中 |
 | 10/30 周五 | 蛋之谷：按喇叭叫醒女孩，隐身躲过反派 | The secret that saved me in Halloween Town 🥚 | 选局中 |
 | 10/31 周六 万圣节 | 本周数据最好的那条的「续集」或最强一局 | 按数据定 | 看前几条的完播率 |
