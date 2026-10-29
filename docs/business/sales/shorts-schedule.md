@@ -8,7 +8,7 @@
 | --- | --- | --- | --- |
 | 10/26 周一 | 最小的活下来，最大的被电倒 | I was the smallest. The villains came for the biggest. 🎃 | 已做好：`v5-halloween-survive.mp4`，今天发 |
 | 10/27 周二 | 吃掉对手 → 被三个反派追 → 最后 1 秒反派就在身后，活下来（真实一局，原计划的「0.5 秒被抓」没录到） | ONE second left. He was RIGHT behind me. 🎃 | 已做好：`v6-halloween-one-second.mp4` |
-| 10/28 周三 | 第一名的陨落：吃成最大，变小后第一个被锤（输的结局也行） | I was #1 with 300 tonnes. Then the lights went out. 🎃 | 录制中（moments.mjs，种子 3/5/7） |
+| 10/31 周六 万圣节（原 10/28 档） | 第一个被吃 → 复仇吃到 21.9 吨 → 灯灭全员缩小 → 两个反派贴身 → 活下来拿第 3（真实一局，没赢） | I got eaten FIRST. Then the villains came. 🎃 | 已做好：`v7-halloween-eaten-first.mp4`（21.7 秒） |
 | 10/29 周四 | 「全是事故」合集：撞墙电晕、被吃、反派差一点扑到 | Everything went wrong. 🎃 | 录制中 |
 | 10/30 周五 | 蛋之谷：按喇叭叫醒女孩，隐身躲过反派 | The secret that saved me in Halloween Town 🥚 | 选局中 |
 | 10/31 周六 万圣节 | 本周数据最好的那条的「续集」或最强一局 | 按数据定 | 看前几条的完播率 |
